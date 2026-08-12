@@ -1,0 +1,250 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+@import "tailwindcss";
+
+@layer base {
+	html {
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+		font-size: 16px;
+	}
+	body {
+		margin: 0;
+		font-size: 1rem; /* ensures readable body text */
+	}
+}
+
+/* App-wide resets and typographic defaults to match design tokens */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+a {
+	color: inherit;
+	text-decoration: none;
+	font-family: inherit;
+}
+
+button {
+	font-family: inherit;
+}
+
+h1,h2,h3,h4,h5,h6 {
+	font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+	margin: 0;
+}
+
+/* Utility: container that matches Figma mobile width and centers on desktop */
+.app-container {
+	width: 100%;
+	max-width: 390px; /* match common mobile design width */
+	margin-left: auto;
+	margin-right: auto;
+	padding-left: 16px;
+	padding-right: 16px;
+}
+
+@media (min-width: 768px) {
+  .app-container {
+    max-width: 980px; /* allow wider centered content on desktop */
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+/* Design tokens and component utilities to match Figma */
+:root {
+	--rsu-color-primary: #800000;
+	--rsu-radius-lg: 12px;
+	--rsu-card-padding: 16px; /* slightly tighter to match Figma */
+	--rsu-btn-radius: 10px;
+	--rsu-btn-height: 44px;
+}
+
+/* Headings sizes to mimic Figma */
+h1 {
+	font-weight: 800;
+	font-size: 1.625rem; /* 26px mobile for improved readability */
+	line-height: 1.12;
+}
+@media (min-width: 640px) {
+	h1 { font-size: 1.875rem; /* 30px */ }
+}
+@media (min-width: 768px) {
+	h1 { font-size: 2rem; /* 32px */ }
+}
+
+h2 { font-size: 1.125rem; font-weight: 700; }
+
+/* Card utility */
+.rsu-card {
+	background: #fff;
+	border-radius: var(--rsu-radius-lg);
+	padding: calc(var(--rsu-card-padding) + 4px);
+	box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+	border: 1px solid rgba(0,0,0,0.04);
+}
+
+/* Smaller heading for card titles */
+.rsu-card h2 {
+	font-size: 0.95rem;
+}
+
+/* Empty state icon used in large cards (upcoming trips) */
+.rsu-empty-icon {
+	width: 64px;
+	height: 64px;
+	color: #94a3b8; /* slate-400 */
+}
+
+/* Primary button */
+.rsu-btn-primary {
+	background: var(--rsu-color-primary);
+	color: #fff;
+	height: var(--rsu-btn-height);
+	line-height: calc(var(--rsu-btn-height) - 2px);
+	padding: 0 18px;
+	border-radius: var(--rsu-btn-radius);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	font-weight: 600;
+}
+
+/* Bottom nav safe area */
+.rsu-bottom-nav {
+	padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* bottom nav on mobile: fixed and non-scrolling */
+:root {
+	--rsu-bottom-height: 64px;
+}
+
+@media (max-width: 767px) {
+	.rsu-bottom-nav {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: var(--rsu-bottom-height);
+		display: flex;
+		gap: 0;
+		justify-content: space-between;
+		align-items: center;
+		padding: 8px 8px;
+		background: #fff;
+		border-top: 1px solid rgba(0,0,0,0.06);
+		z-index: 60;
+	}
+
+	.rsu-bottom-nav a {
+		flex: 1 1 0%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+		color: #6b7280; /* gray-500 */
+		font-size: 12px;
+	}
+
+	/* ensure main content doesn't scroll under the nav */
+	main, .app-container, .app-desktop {
+		padding-bottom: calc(var(--rsu-bottom-height) + env(safe-area-inset-bottom));
+	}
+}
+
+/* Header title collapse on mobile to prevent compressed words */
+@media (max-width: 767px) {
+	.header-title { display: none; }
+	.header-logo-only { display: inline-flex; }
+}
+@media (min-width: 768px) {
+	.header-title { display: inline; }
+	.header-logo-only { display: none; }
+}
+
+/* Desktop container for wider screens to match Figma layout */
+.app-desktop {
+	width: 100%;
+	margin-left: auto;
+	margin-right: auto;
+	padding-left: 16px;
+	padding-right: 16px;
+}
+@media (min-width: 768px) {
+	.app-desktop {
+		max-width: 1200px;
+		padding-left: 24px;
+		padding-right: 24px;
+		font-size: 1rem;
+	}
+}
+
+/* Dashboard specific grids */
+.dashboard-top-grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 1rem;
+}
+@media (min-width: 768px) {
+	.dashboard-top-grid {
+		grid-template-columns: 1fr 1fr;
+		align-items: start;
+	}
+}
+
+.dashboard-main-grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 1rem;
+	align-items: start;
+}
+@media (min-width: 768px) {
+	.dashboard-main-grid {
+		grid-template-columns: 2fr 1fr;
+	}
+}
+
+/* Top navigation styles used in header */
+.rsu-topnav {
+	display: none; /* hide on small screens */
+	gap: 10px;
+	align-items: center;
+	flex-shrink: 1;
+	justify-content: flex-end;
+	min-width: 0; /* allow shrinking inside flex container */
+}
+.rsu-topnav a {
+	color: #334155; /* slate-700 */
+	font-size: 0.9rem;
+	padding: 6px 8px;
+	border-radius: 8px;
+	white-space: nowrap;
+	display: inline-block;
+	max-width: 120px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.rsu-topnav a.active {
+	background: rgba(0,0,0,0.03);
+}
+@media (min-width: 768px) {
+	.rsu-topnav { display: flex; }
+    .app-desktop > div:first-child { min-width: 0; }
+}
+
+/* Reduce header nav wrapping by truncating long labels */
+.rsu-topnav a { display: inline-flex; align-items: center; vertical-align: middle; }
+.rsu-topnav a span, .rsu-topnav a { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Header nav and title spacing */
+header .app-desktop { gap: 12px; }
+header .app-desktop > div:first-child { min-width: 0; }
+.rsu-topnav { gap: 10px; }
+.rsu-topnav a { padding: 6px 10px; }
