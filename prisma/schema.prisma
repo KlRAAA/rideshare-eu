@@ -1,0 +1,194 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  STUDENT
+  FACULTY
+  STAFF
+}
+
+enum GenderPreference {
+  ANY
+  SAME_GENDER
+}
+
+// UNSPECIFIED is the safe default for the SAME_GENDER hard constraint to
+// fail closed on: a user who hasn't stated a gender should never be silently
+// treated as a match for a same-gender-only trip.
+enum Gender {
+  MALE
+  FEMALE
+  UNSPECIFIED
+}
+
+enum RecurrenceType {
+  ONE_TIME
+  DAILY
+  WEEKDAYS
+  CUSTOM
+}
+
+enum TripStatus {
+  OPEN
+  FULL
+  CANCELLED
+  COMPLETED
+}
+
+enum MatchStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  CANCELLED
+  COMPLETED
+}
+
+enum NotificationType {
+  MATCH_REQUEST
+  APPROVAL
+  REMINDER
+  RATING_PROMPT
+  CANCELLATION
+}
+
+model User {
+  id           String   @id @default(cuid())
+  universityId String   @unique // self-reported (e.g. "2023-12345"); no live ICTD record to verify it against
+  email        String   @unique
+  passwordHash String   // bcrypt — there is no ICTD/Workspace SSO to hand off to
+  fullName     String
+  role         Role
+  gender       Gender   @default(UNSPECIFIED) // drives the SAME_GENDER hard constraint (Task 10)
+  verified     Boolean  @default(false) // true once registration's OTP + domain whitelist checks pass
+  trustScore   Float    @default(5.0)
+  tripCount    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  vehicles        Vehicle[]
+  hostedTrips     Trip[]          @relation("HostTrips")
+  matches         Match[]         @relation("PassengerMatches")
+  notifications   Notification[]
+  preference      Preference?
+  ratingsGiven    Rating[]        @relation("RaterRatings")
+  ratingsReceived Rating[]        @relation("RateeRatings")
+}
+
+model Vehicle {
+  id                String  @id @default(cuid())
+  ownerId           String
+  owner             User    @relation(fields: [ownerId], references: [id])
+  make              String
+  model             String
+  color             String
+  plate             String?
+  fuelEfficiencyKmL Float
+  trips             Trip[]
+}
+
+model Trip {
+  id                  String           @id @default(cuid())
+  hostId              String
+  host                User             @relation("HostTrips", fields: [hostId], references: [id])
+  vehicleId           String
+  vehicle             Vehicle          @relation(fields: [vehicleId], references: [id])
+  originAddress       String
+  originLat           Float
+  originLng           Float
+  destinationAddress  String
+  destinationLat      Float
+  destinationLng      Float
+  routeWaypoints      Json?            // [{lat,lng}, ...] from OSRM, optional
+  departureTime       DateTime
+  recurrenceType      RecurrenceType
+  customDays          Int[]            @default([]) // 0=Sun..6=Sat, used when CUSTOM
+  totalSeats          Int
+  filledSeats         Int              @default(0)
+  fuelShareSuggested  Float?
+  driverNotes         String?
+  genderPreference    GenderPreference @default(ANY)
+  flexibleDeparture   Boolean          @default(false)
+  flexWindowMinutes   Int              @default(15)
+  familiarRidersOnly  Boolean          @default(false)
+  meetingPointAddress String?
+  meetingPointLat     Float?
+  meetingPointLng     Float?
+  status              TripStatus       @default(OPEN)
+  createdAt           DateTime         @default(now())
+  durationSeconds     Int?             // from OSRM/ORS at creation; null if routing failed — auto-completion skips those, manual override still works
+  cancelReason        String?          // host's optional reason, shown in the passenger cancellation notification
+  cancelledAt         DateTime?
+
+  matches             Match[]
+}
+
+model Match {
+  id                String      @id @default(cuid())
+  tripId            String
+  trip              Trip        @relation(fields: [tripId], references: [id])
+  passengerId       String
+  passenger         User        @relation("PassengerMatches", fields: [passengerId], references: [id])
+  score             Float
+  routeOverlap      Float
+  scheduleAlignment Float
+  preferenceMatch   Boolean
+  status            MatchStatus @default(PENDING)
+  fuelShareAmount   Float
+  createdAt         DateTime    @default(now())
+  respondedAt       DateTime?
+
+  ratings           Rating[]
+}
+
+model Notification {
+  id             String           @id @default(cuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id])
+  type           NotificationType
+  message        String
+  relatedMatchId String?
+  isRead         Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+}
+
+model Preference {
+  id                   String           @id @default(cuid())
+  userId               String           @unique
+  user                 User             @relation(fields: [userId], references: [id])
+  genderPreference     GenderPreference @default(ANY)
+  flexWindowMinutes    Int              @default(15)
+  familiarRidersOnly   Boolean          @default(false)
+  liveLocationSharing  Boolean          @default(false) // gates the optional Geolocation campus-proximity signal
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id])
+  raterId   String
+  rater     User     @relation("RaterRatings", fields: [raterId], references: [id])
+  rateeId   String
+  ratee     User     @relation("RateeRatings", fields: [rateeId], references: [id])
+  score     Int
+  comment   String?
+  createdAt DateTime @default(now())
+}
+
+// Registration 2FA: one row per in-progress signup attempt. Not linked to
+// User because the account doesn't exist until the OTP is verified and the
+// password/name step completes.
+model EmailVerification {
+  id        String   @id @default(cuid())
+  email     String
+  otpHash   String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  consumed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}

@@ -8,6 +8,11 @@
 		-moz-osx-font-smoothing: grayscale;
 		font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
 		font-size: 16px;
+		/* Matches the sticky header's own background so iOS rubber-band
+		   overscroll (which paints html's background, not body's, in the area
+		   revealed above the document) doesn't flash a mismatched white bar
+		   above the header near the notch/status bar. */
+		background-color: #fff;
 	}
 	body {
 		margin: 0;
@@ -115,6 +120,107 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 	font-weight: 600;
 }
 
+/* Secondary button - outline style, pairs with .rsu-btn-primary */
+.rsu-btn-secondary {
+	background: #fff;
+	color: #374151; /* gray-700 */
+	height: var(--rsu-btn-height);
+	line-height: calc(var(--rsu-btn-height) - 2px);
+	padding: 0 18px;
+	border-radius: var(--rsu-btn-radius);
+	border: 1px solid #d1d5db; /* gray-300 */
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	font-weight: 600;
+}
+.rsu-btn-secondary:hover {
+	background: #f9fafb; /* gray-50 */
+}
+
+/* Danger button - outline red, used for destructive actions gated behind a
+   confirmation dialog (e.g. Cancel Trip). Deliberately not a solid red fill:
+   this button always opens a confirmation rather than acting immediately,
+   so it shouldn't read as more alarming than the actual risk at this click. */
+.rsu-btn-danger {
+	background: #fff;
+	color: #dc2626; /* red-600 */
+	height: var(--rsu-btn-height);
+	line-height: calc(var(--rsu-btn-height) - 2px);
+	padding: 0 18px;
+	border-radius: var(--rsu-btn-radius);
+	border: 1px solid #fca5a5; /* red-300 */
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	text-align: center;
+	font-weight: 600;
+}
+.rsu-btn-danger:hover {
+	background: #fef2f2; /* red-50 */
+}
+
+/* Solid variant, used inside the confirm modal itself for the final
+   "Cancel Trip" / "Cancel My Spot" commit action. */
+.rsu-btn-danger-solid {
+	background: #dc2626; /* red-600 */
+	color: #fff;
+	height: var(--rsu-btn-height);
+	line-height: calc(var(--rsu-btn-height) - 2px);
+	padding: 0 18px;
+	border-radius: var(--rsu-btn-radius);
+	border: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	text-align: center;
+	font-weight: 600;
+}
+.rsu-btn-danger-solid:hover {
+	background: #b91c1c; /* red-700 */
+}
+
+/* Badge - small pill used for status/role labels */
+.rsu-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 10px;
+	border-radius: 9999px;
+	font-size: 0.7rem;
+	font-weight: 600;
+	border: 1px solid transparent;
+	white-space: nowrap;
+}
+.rsu-badge-success {
+	background: #ecfdf5; /* green-50 */
+	color: #15803d; /* green-700 */
+	border-color: #bbf7d0; /* green-200 */
+}
+.rsu-badge-warning {
+	background: #fffbeb; /* amber-50 */
+	color: #b45309; /* amber-700 */
+	border-color: #fde68a; /* amber-200 */
+}
+.rsu-badge-neutral {
+	background: #f3f4f6; /* gray-100 */
+	color: #374151; /* gray-700 */
+	border-color: #e5e7eb; /* gray-200 */
+}
+.rsu-badge-primary {
+	background: color-mix(in srgb, var(--rsu-color-primary) 10%, white);
+	color: var(--rsu-color-primary);
+	border-color: color-mix(in srgb, var(--rsu-color-primary) 20%, white);
+}
+.rsu-badge-info {
+	background: #eff6ff; /* blue-50 */
+	color: #1d4ed8; /* blue-700 */
+	border-color: #bfdbfe; /* blue-200 */
+}
+
 /* Bottom nav safe area */
 .rsu-bottom-nav {
 	padding-bottom: env(safe-area-inset-bottom);
@@ -149,14 +255,25 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 		align-items: center;
 		justify-content: center;
 		gap: 4px;
-		color: #6b7280; /* gray-500 */
 		font-size: 12px;
+		/* color intentionally omitted - BottomNav.tsx sets active/inactive color
+		   per-link via Tailwind classes; a rule here would out-specificity those */
 	}
 
 	/* ensure main content doesn't scroll under the nav */
 	main, .app-container, .app-desktop {
 		padding-bottom: calc(var(--rsu-bottom-height) + env(safe-area-inset-bottom));
 	}
+}
+
+/* Extends the sticky header's own white background up under the notch/status
+   bar (padding, not margin, so the box's background paints there too) — the
+   inset is 0 on non-notched devices/desktop so this is a no-op there. The
+   header's visible content height is a separate, explicit h-14/md:h-16 on
+   its inner row (Header.tsx) rather than baked into this padding, so this
+   rule stays purely about the notch and never grows the header further. */
+.rsu-header-bar {
+	padding-top: env(safe-area-inset-top);
 }
 
 /* Header title collapse on mobile to prevent compressed words */

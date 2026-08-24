@@ -1,8 +1,12 @@
+.env
 .env.local
 .next/
 node_modules/
+*.tsbuildinfo
 globals_compiled.css
 figma_error.txt
 response.html
 *.log
 .DS_Store
+.claude/
+graphify-out/
