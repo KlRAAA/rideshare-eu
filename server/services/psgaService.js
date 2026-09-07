@@ -40,23 +40,43 @@ function distanceToSegmentMeters(point, segStart, segEnd, samples = 20) {
   return min;
 }
 
-function computeRouteOverlap(passenger, host, corridorMeters, samples = 20) {
+// Samples the straight line from the passenger's origin to their destination and
+// classifies each point as inside/outside the host route's corridor. `fraction`
+// is the Stage 1 route-overlap score; `samples` is the same classification the
+// RouteMap component paints, so the map and the algorithm can never disagree.
+function computeRouteOverlapDetail(passenger, host, corridorMeters, samples = 20) {
   const { origin, destination } = passenger;
+  const points = [];
   let within = 0;
   for (let i = 0; i <= samples; i++) {
     const t = i / samples;
-    const sample = {
+    const p = {
       lat: origin.lat + (destination.lat - origin.lat) * t,
       lng: origin.lng + (destination.lng - origin.lng) * t,
     };
-    if (distanceToPolylineMeters(sample, host.waypoints) <= corridorMeters) within++;
+    const inside = distanceToPolylineMeters(p, host.waypoints) <= corridorMeters;
+    if (inside) within++;
+    points.push({ lat: p.lat, lng: p.lng, inside });
   }
-  return within / (samples + 1);
+  return { fraction: within / (samples + 1), corridorMeters, samples: points };
+}
+
+function computeRouteOverlap(passenger, host, corridorMeters, samples = 20) {
+  return computeRouteOverlapDetail(passenger, host, corridorMeters, samples).fraction;
 }
 
 function computeScheduleAlignment(timeDiffMinutes, flexWindowMinutes) {
   if (flexWindowMinutes === 0) return timeDiffMinutes === 0 ? 1.0 : 0.0;
   return Math.max(0, 1 - timeDiffMinutes / flexWindowMinutes);
+}
+
+// matchController rejects a non-numeric `departureMinutes` at the HTTP boundary,
+// but guard here too: `Math.abs(null - n)` silently coerces to `Math.abs(-n)`,
+// which is how an empty search-form time field once matched every trip against
+// 00:00. A non-finite input yields Infinity so it fails every time window.
+function departureTimeDiff(passengerMinutes, tripMinutes) {
+  if (!Number.isFinite(passengerMinutes) || !Number.isFinite(tripMinutes)) return Infinity;
+  return Math.abs(passengerMinutes - tripMinutes);
 }
 
 // genderMatchesHost/familiarWithHost are read from `trip`, not `passenger`,
@@ -82,7 +102,7 @@ function runPSGA(passengerRequest, candidateTrips, config) {
   // precision issue described in Task 25's writeup is actually resolved.
   for (const trip of candidateTrips) {
     const routeOverlap = computeRouteOverlap(passengerRequest, trip, corridorMeters);
-    const timeDiff = Math.abs(passengerRequest.departureMinutes - trip.departureMinutes);
+    const timeDiff = departureTimeDiff(passengerRequest.departureMinutes, trip.departureMinutes);
     const flexWindow = passengerRequest.flexWindowMinutes;
     const overlapOk = routeOverlap >= minRouteOverlap;
     const timeOk = timeDiff <= flexWindow;
@@ -114,4 +134,64 @@ function runPSGA(passengerRequest, candidateTrips, config) {
   return { status: 'MATCHED', matches: scored };
 }
 
-module.exports = { computeRouteOverlap, computeScheduleAlignment, checkPreferenceMatch, runPSGA, haversineMeters };
+// Empty-state fallback for Find a Ride. When runPSGA returns NO_MATCH because
+// the matching pool is too thin, the "Show all trips to <destination>" link in
+// the empty state calls this instead. It relaxes Stage 1 ONLY:
+//
+//   - the route-overlap threshold (minRouteOverlap) — dropped entirely
+//   - the departure-time window (flexWindow)         — dropped entirely
+//
+// Everything the PSGA design treats as a safety constraint stays hard:
+//
+//   - the searcher's own "same-gender only" preference is already applied by
+//     the caller (matchController.loadSearchCandidates → eligibleTrips) before
+//     candidates ever reach this function
+//   - the host's genderPreference / familiarRidersOnly — which normal matching
+//     only feeds into the 20%-weight preferenceMatch score — are promoted here
+//     to HARD filters via checkPreferenceMatch, so this view is never a way
+//     around them
+//   - the destination anchor: a candidate is kept only if its destination is
+//     within config.destinationAnchorMeters of the searcher's destination, so
+//     "show all" means "all trips going where you're going," not every trip.
+//
+// routeOverlap / scheduleAlignment are still computed for display and ranking.
+function runShowAllFallback(passengerRequest, candidateTrips, config) {
+  const { weights, corridorMeters, destinationAnchorMeters } = config;
+  const flexWindow = passengerRequest.flexWindowMinutes;
+
+  const kept = candidateTrips.filter((trip) => {
+    if (!trip.destination) return false;
+    const destGap = haversineMeters(passengerRequest.destination, trip.destination);
+    if (destGap > destinationAnchorMeters) return false;
+    // Hard safety gate — seats, host gender preference, familiar-riders-only.
+    return checkPreferenceMatch(passengerRequest, trip);
+  });
+
+  if (kept.length === 0) return { status: 'NO_MATCH' };
+
+  const scored = kept.map((trip) => {
+    const routeOverlap = computeRouteOverlap(passengerRequest, trip, corridorMeters);
+    const timeDiff = departureTimeDiff(passengerRequest.departureMinutes, trip.departureMinutes);
+    const scheduleAlignment = computeScheduleAlignment(timeDiff, flexWindow);
+    // Always 1.0 here (kept trips already passed checkPreferenceMatch), but kept
+    // in the formula so a fallback card's score is comparable to a normal one.
+    const preferenceMatch = 1.0;
+    const score = Number(
+      (weights.w1 * routeOverlap + weights.w2 * scheduleAlignment + weights.w3 * preferenceMatch).toFixed(4)
+    );
+    return { tripId: trip.id, score, routeOverlap, scheduleAlignment, preferenceMatch: true };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return { status: 'MATCHED', matches: scored };
+}
+
+module.exports = {
+  computeRouteOverlap,
+  computeRouteOverlapDetail,
+  computeScheduleAlignment,
+  checkPreferenceMatch,
+  runPSGA,
+  runShowAllFallback,
+  haversineMeters,
+};

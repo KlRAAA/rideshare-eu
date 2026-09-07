@@ -1,6 +1,7 @@
 import React from 'react';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
+import BackButton from '@/components/BackButton';
 import { getCurrentUser } from '@/lib/session';
 import PostTripForm from './PostTripForm';
 
@@ -11,6 +12,7 @@ export default async function PostTripPage() {
     <div className="min-h-screen bg-gray-50 pb-24">
       <Header active="post" />
       <main className="app-desktop w-full pt-2 md:pt-4">
+        <BackButton fallback="/auth/dashboard" className="mb-3" />
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Post a Trip</h1>
           <p className="text-sm text-gray-500 mt-0.5">Share your ride with the university community</p>

@@ -1,7 +1,4 @@
-// Geocoded once via Nominatim during this session's Task 7 testing
-// ("Manuel S. Enverga University Foundation, Lucena") and reused here rather
-// than re-geocoded, per the plan's instruction to hardcode a single lookup.
-export const MSEUF_CAMPUS = { lat: 13.9490188, lng: 121.6202904 };
+import { MSEUF_LUCENA } from '@/lib/constants';
 
 const PROXIMITY_THRESHOLD_METERS = 150;
 const EARTH_RADIUS_M = 6371000;
@@ -34,7 +31,7 @@ export function checkCampusProximity(): Promise<boolean | null> {
       (position) => {
         const distance = haversineMeters(
           { lat: position.coords.latitude, lng: position.coords.longitude },
-          MSEUF_CAMPUS
+          MSEUF_LUCENA
         );
         resolve(distance <= PROXIMITY_THRESHOLD_METERS);
       },

@@ -75,6 +75,27 @@ export function getPhNowTimeString(): string {
   }).format(new Date());
 }
 
+// A stored UTC instant expressed as the "YYYY-MM-DD" / "HH:MM" a Philippine user
+// would read on a clock — for seeding <input type="date"/"time"> when editing a
+// trip. Same PH anchoring as getPhToday/NowString above.
+export function phInputDate(date: Date | string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: DISPLAY_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(date));
+}
+
+export function phInputTime(date: Date | string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: DISPLAY_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(date));
+}
+
 export function recurrenceLabel(type: string): string {
   switch (type) {
     case 'DAILY':

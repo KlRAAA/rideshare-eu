@@ -8,6 +8,7 @@ import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import RatingModal from '@/components/RatingModal';
 import CancelTripModal from '@/components/CancelTripModal';
+import Avatar from '@/components/Avatar';
 import { formatDate, formatTime, recurrenceLabel, roleLabel } from '@/lib/format';
 import { tripStatusBadge, matchStatusBadge } from '@/lib/statusBadge';
 
@@ -21,6 +22,15 @@ interface SafeUser {
   id: string;
   fullName: string;
   role: string;
+  avatarUrl?: string | null;
+}
+
+interface HostedMatch {
+  id: string;
+  passengerId: string;
+  status: string;
+  ratedByMe?: boolean;
+  passenger: { id: string; fullName: string; avatarUrl?: string | null };
 }
 
 export interface HostedTrip {
@@ -33,13 +43,15 @@ export interface HostedTrip {
   filledSeats: number;
   vehicle: Vehicle;
   status: string;
-  fuelShareSuggested: number | null;
+  fuelSharePerSeat: number | null;
+  matches: HostedMatch[];
 }
 
 export interface JoinedTrip extends HostedTrip {
   matchStatus: string;
   matchId: string;
-  fuelShareAmount: number;
+  fuelShareAmount: number | null;
+  ratedByMe?: boolean;
   host: SafeUser;
 }
 
@@ -57,24 +69,32 @@ function bucketJoined(trip: JoinedTrip): Tab {
   return 'upcoming';
 }
 
-function initial(name: string) {
-  return name.charAt(0).toUpperCase();
-}
-
 interface TripsListClientProps {
   hosted: HostedTrip[];
   joined: JoinedTrip[];
   currentUserId: string;
   currentUserName: string;
   currentUserRole: string;
+  currentUserAvatarUrl: string | null;
 }
 
-export default function TripsListClient({ hosted, joined, currentUserId, currentUserName, currentUserRole }: TripsListClientProps) {
+export default function TripsListClient({
+  hosted,
+  joined,
+  currentUserId,
+  currentUserName,
+  currentUserRole,
+  currentUserAvatarUrl,
+}: TripsListClientProps) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('upcoming');
   const [rating, setRating] = useState<{ matchId: string; rateeId: string; rateeName: string } | null>(null);
+  // Matches rated in this session, before router.refresh() brings back the
+  // server's `ratedByMe`. `hasRated` prefers the server flag when present.
   const [ratedMatchIds, setRatedMatchIds] = useState<Set<string>>(new Set());
   const [cancelTarget, setCancelTarget] = useState<{ tripId: string; role: 'host' | 'passenger' } | null>(null);
+
+  const hasRated = (matchId: string, serverFlag?: boolean) => Boolean(serverFlag) || ratedMatchIds.has(matchId);
 
   const hostedByTab = { upcoming: 0, past: 0, cancelled: 0 };
   hosted.forEach((t) => hostedByTab[bucketHosted(t)]++);
@@ -119,9 +139,7 @@ export default function TripsListClient({ hosted, joined, currentUserId, current
               <Card key={`host-${trip.id}`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center text-xs font-bold border border-gray-200">
-                      {initial(currentUserName)}
-                    </div>
+                    <Avatar name={currentUserName} src={currentUserAvatarUrl} sizeClass="w-8 h-8" textClass="text-xs" />
                     <div>
                       <p className="text-sm font-bold text-gray-900">{currentUserName}</p>
                       <Badge tone="neutral">{roleLabel(currentUserRole)}</Badge>
@@ -142,9 +160,9 @@ export default function TripsListClient({ hosted, joined, currentUserId, current
                 <p className="text-xs text-gray-500 mt-1">
                   {trip.vehicle.make} {trip.vehicle.model} ({trip.vehicle.color})
                 </p>
-                {trip.fuelShareSuggested != null && (
+                {trip.fuelSharePerSeat != null && (
                   <p className="text-xs font-semibold text-[color:var(--rsu-color-primary)] mt-1">
-                    Fuel share: ₱{trip.fuelShareSuggested.toFixed(0)} per passenger
+                    Fuel share: ₱{trip.fuelSharePerSeat.toFixed(0)} per seat
                   </p>
                 )}
 
@@ -163,25 +181,56 @@ export default function TripsListClient({ hosted, joined, currentUserId, current
                     </button>
                   )}
                 </div>
+
+                {tab === 'past' &&
+                  (() => {
+                    const ratable = trip.matches.filter((m) => m.status === 'COMPLETED');
+                    if (ratable.length === 0) return null;
+                    return (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs font-semibold text-gray-500 mb-2">Rate your passengers</p>
+                        <div className="space-y-2">
+                          {ratable.map((m) => {
+                            const rated = hasRated(m.id, m.ratedByMe);
+                            return (
+                              <div key={m.id} className="flex items-center justify-between">
+                                <Link href={`/auth/users/${m.passengerId}`} className="text-xs text-gray-700 hover:underline truncate">
+                                  {m.passenger.fullName}
+                                </Link>
+                                <button
+                                  type="button"
+                                  disabled={rated}
+                                  onClick={() =>
+                                    setRating({ matchId: m.id, rateeId: m.passengerId, rateeName: m.passenger.fullName })
+                                  }
+                                  className="text-xs font-semibold text-[color:var(--rsu-color-primary)] hover:underline disabled:opacity-50 disabled:no-underline"
+                                >
+                                  {rated ? 'Rated' : 'Rate'}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
               </Card>
             );
           })}
 
           {visibleJoined.map((trip) => {
             const status = matchStatusBadge(trip.matchStatus);
-            const alreadyRated = ratedMatchIds.has(trip.matchId);
+            const alreadyRated = hasRated(trip.matchId, trip.ratedByMe);
             return (
               <Card key={`join-${trip.matchId}`}>
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center text-xs font-bold border border-gray-200">
-                      {initial(trip.host.fullName)}
-                    </div>
+                  <Link href={`/auth/users/${trip.host.id}`} className="flex items-center gap-2 min-w-0 hover:underline">
+                    <Avatar name={trip.host.fullName} src={trip.host.avatarUrl} sizeClass="w-8 h-8" textClass="text-xs" />
                     <div>
                       <p className="text-sm font-bold text-gray-900">{trip.host.fullName}</p>
                       <Badge tone="neutral">{roleLabel(trip.host.role)}</Badge>
                     </div>
-                  </div>
+                  </Link>
                   <Badge tone={status.tone}>{status.label}</Badge>
                 </div>
 
@@ -194,9 +243,11 @@ export default function TripsListClient({ hosted, joined, currentUserId, current
                 <p className="text-xs text-gray-500 mt-1">
                   {trip.vehicle.make} {trip.vehicle.model} ({trip.vehicle.color})
                 </p>
-                <p className="text-xs font-semibold text-[color:var(--rsu-color-primary)] mt-1">
-                  Fuel share: ₱{trip.fuelShareAmount.toFixed(0)} per passenger
-                </p>
+                {trip.fuelShareAmount != null && (
+                  <p className="text-xs font-semibold text-[color:var(--rsu-color-primary)] mt-1">
+                    Fuel share: ₱{trip.fuelShareAmount.toFixed(0)} per seat
+                  </p>
+                )}
 
                 <div className="flex gap-2 mt-4">
                   <Link href={`/auth/trips/${trip.id}`} className="rsu-btn-secondary flex-1">
@@ -239,6 +290,7 @@ export default function TripsListClient({ hosted, joined, currentUserId, current
           onSubmitted={() => {
             setRatedMatchIds((prev) => new Set(prev).add(rating.matchId));
             setRating(null);
+            router.refresh(); // pull the ratee's updated trust score + ratedByMe flags
           }}
         />
       )}

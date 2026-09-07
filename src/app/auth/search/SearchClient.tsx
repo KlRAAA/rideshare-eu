@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   FaSearch,
   FaSlidersH,
@@ -14,9 +15,11 @@ import {
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import Select from '@/components/Select';
+import Avatar from '@/components/Avatar';
 import DatePicker from '@/components/DatePicker';
 import TimePicker from '@/components/TimePicker';
-import { apiFetch, ApiError } from '@/lib/api';
+import RequestToJoinModal from '@/components/RequestToJoinModal';
+import { apiFetch } from '@/lib/api';
 import { formatDate, formatTime, roleLabel, phTimeToUtcMinutes, getPhTodayDateString, getPhNowTimeString } from '@/lib/format';
 import { tripStatusBadge } from '@/lib/statusBadge';
 
@@ -30,6 +33,7 @@ interface Host {
   id: string;
   fullName: string;
   role: string;
+  avatarUrl?: string | null;
 }
 
 interface Trip {
@@ -50,39 +54,135 @@ interface MatchResult {
   routeOverlap: number;
   scheduleAlignment: number;
   preferenceMatch: boolean;
-  fuelShare: number;
+  fuelShare: number | null; // trip's fixed per-seat share; null if the trip has no computed distance
   trip: Trip;
 }
 
 type SortBy = 'best' | 'earliest';
 
-export default function SearchClient({ passengerId }: { passengerId: string }) {
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('Enverga University, Lucena City');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
-  const [genderPreference, setGenderPreference] = useState<'ANY' | 'SAME_GENDER'>('ANY');
-  const [flexibleTime, setFlexibleTime] = useState(false);
-  const [sortBy, setSortBy] = useState<SortBy>('best');
+const DEFAULT_DESTINATION = 'Enverga University, Lucena City';
+const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+// A concrete "HH:MM" so the search always sends a real departureMinutes. An
+// empty field previously serialized as `departureMinutes: null` and matched
+// every trip against 00:00 (see matchController.isValidDepartureMinutes).
+// Snapped to the 15-min marks the TimePicker offers.
+function defaultSearchTime(): string {
+  const now = getPhNowTimeString(); // "HH:MM" in Philippine time
+  const m = TIME_RE.exec(now);
+  if (!m) return '07:00';
+  let hh = Number(m[1]);
+  let mm = Math.round(Number(m[2]) / 15) * 15;
+  if (mm === 60) {
+    mm = 0;
+    hh = (hh + 1) % 24;
+  }
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
+export interface SearchInitialState {
+  origin: string;
+  destination: string;
+  date: string;
+  time: string;
+  genderPreference: 'ANY' | 'SAME_GENDER';
+  flexibleTime: boolean;
+  sortBy: SortBy;
+}
+
+export default function SearchClient({
+  passengerId,
+  initial,
+}: {
+  passengerId: string;
+  initial: SearchInitialState;
+}) {
+  const router = useRouter();
+
+  const [origin, setOrigin] = useState(initial.origin);
+  const [destination, setDestination] = useState(initial.destination || DEFAULT_DESTINATION);
+  const [date, setDate] = useState(initial.date);
+  const [time, setTime] = useState(() => initial.time || defaultSearchTime());
+  const [genderPreference, setGenderPreference] = useState<'ANY' | 'SAME_GENDER'>(initial.genderPreference);
+  const [flexibleTime, setFlexibleTime] = useState(initial.flexibleTime);
+  const [sortBy, setSortBy] = useState<SortBy>(initial.sortBy);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const [searched, setSearched] = useState(false);
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [joinedTripIds, setJoinedTripIds] = useState<Set<string>>(new Set());
+  const [requestTarget, setRequestTarget] = useState<MatchResult | null>(null);
+  const [searchGeo, setSearchGeo] = useState<{
+    origin: { lat: number; lng: number };
+    destination: { lat: number; lng: number };
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // True only after the user clicks "Show all trips to <destination>" in the
+  // empty state. Reset by every fresh search — a normal search always runs
+  // PSGA matching first and never shows the fallback unprompted.
+  const [isFallback, setIsFallback] = useState(false);
+
+  // Mirror the form into the query string so router.back() from a result page
+  // returns to the same search. Only non-default values, to keep URLs readable.
+  const syncUrl = useCallback(() => {
+    const q = new URLSearchParams();
+    if (origin) q.set('origin', origin);
+    if (destination && destination !== DEFAULT_DESTINATION) q.set('destination', destination);
+    if (date) q.set('date', date);
+    if (time) q.set('time', time);
+    if (genderPreference !== 'ANY') q.set('gender', genderPreference);
+    if (flexibleTime) q.set('flex', '1');
+    if (sortBy !== 'best') q.set('sort', sortBy);
+    const qs = q.toString();
+    router.replace(qs ? `/auth/search?${qs}` : '/auth/search', { scroll: false });
+  }, [origin, destination, date, time, genderPreference, flexibleTime, sortBy, router]);
+
+  const isFirstSync = useRef(true);
+  useEffect(() => {
+    if (isFirstSync.current) {
+      isFirstSync.current = false;
+      return;
+    }
+    const t = setTimeout(syncUrl, 300);
+    return () => clearTimeout(t);
+  }, [syncUrl]);
+
+  // Landing back here with a complete search in the URL: re-run it once so the
+  // results come back too, not just a repopulated form.
+  const didAutoSearch = useRef(false);
+  useEffect(() => {
+    if (didAutoSearch.current) return;
+    didAutoSearch.current = true;
+    if (initial.origin && initial.destination && initial.date && initial.time) {
+      runSearch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
+    runSearch();
+  }
+
+  async function runSearch() {
+    if (!TIME_RE.test(time)) {
+      setSearched(true);
+      setIsFallback(false);
+      setError('Choose a preferred departure time.');
+      return;
+    }
     setLoading(true);
     setError(null);
     setSearched(true);
+    setIsFallback(false);
 
     try {
       const [originGeo, destinationGeo] = await Promise.all([
         apiFetch<{ lat: number; lng: number }>(`/api/geocode?q=${encodeURIComponent(origin)}`),
         apiFetch<{ lat: number; lng: number }>(`/api/geocode?q=${encodeURIComponent(destination)}`),
       ]);
+      setSearchGeo({ origin: originGeo, destination: destinationGeo });
 
       const [hh, mm] = time.split(':').map(Number);
       const departureMinutes = phTimeToUtcMinutes(hh, mm);
@@ -109,24 +209,64 @@ export default function SearchClient({ passengerId }: { passengerId: string }) {
     }
   }
 
-  async function handleJoin(match: MatchResult) {
+  // Empty-state fallback. Reuses the origin/destination already geocoded by the
+  // last search (no re-geocode) and asks the server for every trip heading to
+  // the same destination, ignoring the route-overlap and departure-time gates.
+  // Safety constraints (gender preference, familiar-riders-only) are still
+  // enforced server-side. Only reachable from the "No matching rides" card.
+  async function runShowAll() {
+    if (!searchGeo) return;
+    if (!TIME_RE.test(time)) {
+      setError('Choose a preferred departure time.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+
     try {
-      await apiFetch('/api/matches', {
+      const [hh, mm] = time.split(':').map(Number);
+      const departureMinutes = phTimeToUtcMinutes(hh, mm);
+
+      const result = await apiFetch<{ status: 'MATCHED' | 'NO_MATCH'; matches: MatchResult[] }>('/api/matches/show-all', {
         method: 'POST',
         body: JSON.stringify({
-          tripId: match.tripId,
           passengerId,
-          score: match.score,
-          routeOverlap: match.routeOverlap,
-          scheduleAlignment: match.scheduleAlignment,
-          preferenceMatch: match.preferenceMatch,
-          fuelShareAmount: match.fuelShare,
+          origin: searchGeo.origin,
+          destination: searchGeo.destination,
+          departureMinutes,
+          flexWindowMinutes: flexibleTime ? 30 : 0,
+          genderPreference,
         }),
       });
-      setJoinedTripIds((prev) => new Set(prev).add(match.tripId));
-    } catch (err) {
-      if (!(err instanceof ApiError)) throw err;
+
+      setMatches(result.status === 'MATCHED' ? result.matches : []);
+      setIsFallback(true);
+    } catch {
+      setError('Couldn’t load trips to that destination. Try again.');
+      setMatches([]);
+    } finally {
+      setLoading(false);
     }
+  }
+
+  // The PSGA scores are computed here at search time and aren't stored on the
+  // trip; the searcher's geocoded origin/destination likewise only exist in
+  // this session. Both go to the Ride Details page as params so it can start a
+  // request and draw the route-overlap layer. (The fuel share is on the trip.)
+  function detailsHref(match: MatchResult) {
+    const q = new URLSearchParams({
+      score: String(match.score),
+      overlap: String(match.routeOverlap),
+      sched: String(match.scheduleAlignment),
+      pref: match.preferenceMatch ? '1' : '0',
+    });
+    if (searchGeo) {
+      q.set('plat', String(searchGeo.origin.lat));
+      q.set('plng', String(searchGeo.origin.lng));
+      q.set('dlat', String(searchGeo.destination.lat));
+      q.set('dlng', String(searchGeo.destination.lng));
+    }
+    return `/auth/rides/${match.tripId}?${q.toString()}`;
   }
 
   const sortedMatches = [...matches].sort((a, b) => {
@@ -169,7 +309,9 @@ export default function SearchClient({ passengerId }: { passengerId: string }) {
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Preferred Time</label>
+          <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+            Preferred Time <span className="text-[color:var(--rsu-color-primary)]" aria-hidden="true">*</span>
+          </label>
           <TimePicker
             min={date === getPhTodayDateString() ? getPhNowTimeString() : undefined}
             value={time}
@@ -255,7 +397,9 @@ export default function SearchClient({ passengerId }: { passengerId: string }) {
         {searched && (
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-[color:var(--rsu-color-primary)]">
-              {matches.length} ride{matches.length === 1 ? '' : 's'} available
+              {isFallback
+                ? `${matches.length} trip${matches.length === 1 ? '' : 's'} to your destination`
+                : `${matches.length} ride${matches.length === 1 ? '' : 's'} available`}
             </p>
             <Select
               value={sortBy}
@@ -276,25 +420,47 @@ export default function SearchClient({ passengerId }: { passengerId: string }) {
           </Card>
         )}
 
-        {searched && !loading && matches.length === 0 && !error && (
+        {searched && !loading && matches.length === 0 && !error && !isFallback && (
           <Card>
             <p className="text-sm text-gray-600 text-center py-6 font-medium">No matching rides right now</p>
             <p className="text-xs text-gray-400 text-center">
               Try a wider flexible-time window, or check back later — new trips are posted throughout the day.
+            </p>
+            {searchGeo && (
+              <div className="text-center mt-4">
+                <button type="button" onClick={runShowAll} className="rsu-btn-secondary inline-flex px-4">
+                  Show all trips to {destination} instead
+                </button>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {searched && !loading && !error && isFallback && (
+          <div className="rounded-xl border border-[#fde68a] bg-[#fffbeb] px-3 py-2 text-xs text-[#b45309]">
+            Not matched by route or schedule — shown because your search returned no matches.
+          </div>
+        )}
+
+        {searched && !loading && matches.length === 0 && !error && isFallback && (
+          <Card>
+            <p className="text-sm text-gray-600 text-center py-6 font-medium">No trips heading to {destination} right now</p>
+            <p className="text-xs text-gray-400 text-center">
+              Check back later — new trips are posted throughout the day.
             </p>
           </Card>
         )}
 
         {sortedMatches.map((match) => {
           const status = tripStatusBadge(match.trip.status);
-          const alreadyJoined = joinedTripIds.has(match.tripId);
+          const alreadyRequested = joinedTripIds.has(match.tripId);
+          const rideFull =
+            match.trip.status === 'FULL' || match.trip.filledSeats >= match.trip.totalSeats;
           return (
             <Card key={match.tripId}>
               <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gray-100 text-gray-700 rounded-full flex items-center justify-center font-bold text-sm border border-gray-200">
-                    {match.trip.host.fullName.charAt(0)}
-                  </div>
+                <Link href={`/auth/users/${match.trip.host.id}`} className="flex items-center gap-3 min-w-0 hover:underline">
+                  <Avatar name={match.trip.host.fullName} src={match.trip.host.avatarUrl} sizeClass="w-10 h-10" />
                   <div>
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-bold text-gray-900">{match.trip.host.fullName}</h4>
@@ -302,7 +468,7 @@ export default function SearchClient({ passengerId }: { passengerId: string }) {
                     </div>
                     <span className="text-xs font-semibold text-emerald-600">{Math.round(match.score * 100)}% match</span>
                   </div>
-                </div>
+                </Link>
                 <Badge tone={status.tone}>{status.label}</Badge>
               </div>
 
@@ -329,28 +495,48 @@ export default function SearchClient({ passengerId }: { passengerId: string }) {
                   {match.trip.filledSeats}/{match.trip.totalSeats} filled)
                 </p>
                 <p className="text-[color:var(--rsu-color-primary)] font-semibold">
-                  {match.trip.vehicle.make} {match.trip.vehicle.model} ({match.trip.vehicle.color}) · ₱{match.fuelShare.toFixed(0)} fuel share
+                  {match.trip.vehicle.make} {match.trip.vehicle.model} ({match.trip.vehicle.color})
+                  {match.fuelShare != null && ` · ₱${match.fuelShare.toFixed(0)} per seat`}
                 </p>
               </div>
 
               <div className="flex gap-2 mt-4">
-                <Link href={`/auth/trips/${match.tripId}`} className="rsu-btn-secondary flex-1">
+                <Link href={detailsHref(match)} className="rsu-btn-secondary flex-1">
                   View Details
                 </Link>
                 <button
                   type="button"
-                  disabled={alreadyJoined}
-                  onClick={() => handleJoin(match)}
+                  disabled={alreadyRequested || rideFull}
+                  onClick={() => setRequestTarget(match)}
                   className="rsu-btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <FaUserPlus className="w-3.5 h-3.5" />
-                  {alreadyJoined ? 'Requested' : 'Join'}
+                  {alreadyRequested ? 'Requested' : rideFull ? 'Ride Full' : 'Request to Join'}
                 </button>
               </div>
             </Card>
           );
         })}
       </div>
+
+      {requestTarget && (
+        <RequestToJoinModal
+          tripId={requestTarget.tripId}
+          passengerId={passengerId}
+          hostName={requestTarget.trip.host.fullName}
+          matchPayload={{
+            score: requestTarget.score,
+            routeOverlap: requestTarget.routeOverlap,
+            scheduleAlignment: requestTarget.scheduleAlignment,
+            preferenceMatch: requestTarget.preferenceMatch,
+          }}
+          onClose={() => setRequestTarget(null)}
+          onSubmitted={() => {
+            setJoinedTripIds((prev) => new Set(prev).add(requestTarget.tripId));
+            setRequestTarget(null);
+          }}
+        />
+      )}
     </div>
   );
 }

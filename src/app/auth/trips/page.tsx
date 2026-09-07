@@ -2,7 +2,7 @@ import React from 'react';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { getCurrentUser } from '@/lib/session';
-import { apiFetch } from '@/lib/api';
+import { apiFetch } from '@/lib/api-server';
 import TripsListClient, { type HostedTrip, type JoinedTrip } from './TripsListClient';
 
 export default async function MyTripsPage() {
@@ -33,6 +33,7 @@ export default async function MyTripsPage() {
             currentUserId={user.id}
             currentUserName={user.fullName}
             currentUserRole={user.role}
+            currentUserAvatarUrl={user.avatarUrl}
           />
         ) : (
           <p className="text-sm text-gray-500">Sign in to view your trips.</p>

@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { search, create, updateStatus } = require('../controllers/matchController');
+const { search, showAll, create, updateStatus, routeOverlap } = require('../controllers/matchController');
 const { submitRating } = require('../controllers/ratingController');
 
 router.post('/matches/search', search); // POST, not GET — it carries a filter body
+router.post('/matches/show-all', showAll); // empty-state fallback: relaxes route/schedule, keeps destination + safety
+router.post('/matches/route-overlap', routeOverlap); // map overlap layer for the Ride Details page
 router.post('/matches', create); // "Join" action — creates a PENDING match
 router.patch('/matches/:id', updateStatus); // host approves/declines
 router.post('/matches/:id/ratings', submitRating);

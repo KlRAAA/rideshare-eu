@@ -1,17 +1,21 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan } from 'react-icons/fa';
+import Link from 'next/link';
+import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen } from 'react-icons/fa';
 import Card from '@/components/Card';
 import { apiFetch } from '@/lib/api';
 import { formatDateTimeAgo } from '@/lib/format';
+import { notificationHref } from '@/lib/notificationLink';
 
 export interface NotificationItem {
   id: string;
-  type: 'MATCH_REQUEST' | 'APPROVAL' | 'REMINDER' | 'RATING_PROMPT' | 'CANCELLATION';
+  type: 'MATCH_REQUEST' | 'APPROVAL' | 'REMINDER' | 'RATING_PROMPT' | 'CANCELLATION' | 'TRIP_UPDATED';
   message: string;
   isRead: boolean;
   createdAt: string;
+  relatedTripId: string | null;
+  relatedMatchId: string | null;
 }
 
 const TYPE_ICON: Record<NotificationItem['type'], React.ComponentType<{ className?: string }>> = {
@@ -20,6 +24,7 @@ const TYPE_ICON: Record<NotificationItem['type'], React.ComponentType<{ classNam
   REMINDER: FaClock,
   RATING_PROMPT: FaStar,
   CANCELLATION: FaBan,
+  TRIP_UPDATED: FaPen,
 };
 
 export default function NotificationsClient({ initialNotifications }: { initialNotifications: NotificationItem[] }) {
@@ -34,6 +39,19 @@ export default function NotificationsClient({ initialNotifications }: { initialN
   useEffect(() => setIsMounted(true), []);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  function markReadLocally(id: string) {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+  }
+
+  // Fire-and-forget: the row is already updated locally and we're navigating
+  // away; a failed PATCH just means the dot reappears on next server load.
+  function handleOpen(n: NotificationItem) {
+    if (!n.isRead) {
+      markReadLocally(n.id);
+      apiFetch(`/api/alerts/${n.id}/read`, { method: 'PATCH' }).catch(() => {});
+    }
+  }
 
   async function markAllAsRead() {
     setMarkingAll(true);
@@ -70,8 +88,10 @@ export default function NotificationsClient({ initialNotifications }: { initialN
         <div className="space-y-3 max-w-2xl">
           {notifications.map((n) => {
             const Icon = TYPE_ICON[n.type];
-            return (
-              <Card key={n.id} className="flex items-start gap-3">
+            const href = notificationHref(n);
+
+            const inner = (
+              <>
                 <div
                   className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
                     n.isRead ? 'bg-gray-100 text-gray-400' : 'bg-[color:var(--rsu-color-primary)]/10 text-[color:var(--rsu-color-primary)]'
@@ -81,10 +101,29 @@ export default function NotificationsClient({ initialNotifications }: { initialN
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm ${n.isRead ? 'text-gray-600' : 'text-gray-900 font-medium'}`}>{n.message}</p>
-                  <p className="text-xs text-gray-400 mt-1">{isMounted ? formatDateTimeAgo(n.createdAt) : ' '}</p>
+                  <p className="text-xs text-gray-400 mt-1">{isMounted ? formatDateTimeAgo(n.createdAt) : ' '}</p>
                 </div>
                 {!n.isRead && <span className="w-2 h-2 rounded-full bg-blue-500 mt-2 shrink-0" aria-label="Unread" />}
-              </Card>
+              </>
+            );
+
+            if (!href) {
+              return (
+                <Card key={n.id} className="flex items-start gap-3">
+                  {inner}
+                </Card>
+              );
+            }
+
+            return (
+              <Link
+                key={n.id}
+                href={href}
+                onClick={() => handleOpen(n)}
+                className="rsu-card flex items-start gap-3 transition-colors hover:border-[color:var(--rsu-color-primary)]/30"
+              >
+                {inner}
+              </Link>
             );
           })}
         </div>

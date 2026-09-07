@@ -6,7 +6,7 @@ import BottomNav from '@/components/BottomNav';
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import { getCurrentUser } from '@/lib/session';
-import { apiFetch } from '@/lib/api';
+import { apiFetch } from '@/lib/api-server';
 import { formatDate, formatTime, formatDateTimeAgo, recurrenceLabel, roleLabel } from '@/lib/format';
 
 interface Vehicle {
@@ -31,6 +31,7 @@ interface Trip {
 interface Notification {
   id: string;
   message: string;
+  isRead: boolean;
   createdAt: string;
 }
 
@@ -39,11 +40,12 @@ export default async function DashboardPage() {
 
   let upcoming: (Trip & { role: 'Host' | 'Passenger' })[] = [];
   let alerts: Notification[] = [];
+  let unreadCount = 0;
 
   if (user) {
     const [{ hosted, joined }, { notifications }] = await Promise.all([
       apiFetch<{ hosted: Trip[]; joined: Trip[] }>(`/api/trips/mine?userId=${user.id}`),
-      apiFetch<{ notifications: Notification[] }>(`/api/alerts?userId=${user.id}&limit=2`),
+      apiFetch<{ notifications: Notification[] }>(`/api/alerts?userId=${user.id}`),
     ]);
     upcoming = [
       ...hosted.filter((t) => t.status === 'OPEN').map((t) => ({ ...t, role: 'Host' as const })),
@@ -51,12 +53,15 @@ export default async function DashboardPage() {
         .filter((t) => t.matchStatus === 'PENDING' || t.matchStatus === 'APPROVED')
         .map((t) => ({ ...t, role: 'Passenger' as const })),
     ];
-    alerts = notifications;
+    // The badge counts genuinely unread notifications; the Recent Alerts panel
+    // just shows the two most recent, read or not.
+    unreadCount = notifications.filter((n) => !n.isRead).length;
+    alerts = notifications.slice(0, 2);
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-between pb-24">
-      <Header active="dashboard" unreadCount={alerts.length} />
+      <Header active="dashboard" unreadCount={unreadCount} />
 
       <main className="app-desktop w-full p-0 pt-2 md:pt-4 space-y-6 flex-grow">
         <section>
@@ -169,7 +174,7 @@ export default async function DashboardPage() {
         </section>
       </main>
 
-      <BottomNav active="dashboard" unreadCount={alerts.length} />
+      <BottomNav active="dashboard" unreadCount={unreadCount} />
     </div>
   );
 }

@@ -54,6 +54,7 @@ enum NotificationType {
   REMINDER
   RATING_PROMPT
   CANCELLATION
+  TRIP_UPDATED
 }
 
 model User {
@@ -65,6 +66,7 @@ model User {
   role         Role
   gender       Gender   @default(UNSPECIFIED) // drives the SAME_GENDER hard constraint (Task 10)
   verified     Boolean  @default(false) // true once registration's OTP + domain whitelist checks pass
+  avatarUrl    String?  // /uploads/avatars/<uuid>.<ext>, served from Next's public/; null = show initials
   trustScore   Float    @default(5.0)
   tripCount    Int      @default(0)
   createdAt    DateTime @default(now())
@@ -102,13 +104,15 @@ model Trip {
   destinationAddress  String
   destinationLat      Float
   destinationLng      Float
-  routeWaypoints      Json?            // [{lat,lng}, ...] from OSRM, optional
+  routeWaypoints      Json?            // [{lat,lng}, ...] road geometry from the Mapbox Directions call at creation; null if it failed the sanity check
+  distanceMeters      Int?             // road distance from the same Directions call; feeds nothing yet but persisted alongside durationSeconds so both survive
   departureTime       DateTime
   recurrenceType      RecurrenceType
   customDays          Int[]            @default([]) // 0=Sun..6=Sat, used when CUSTOM
   totalSeats          Int
   filledSeats         Int              @default(0)
-  fuelShareSuggested  Float?
+  fuelShareSuggested  Float?           // DEPRECATED — old host-typed guess, no longer read or written; superseded by fuelSharePerSeat. Kept only to avoid a destructive column drop; safe to remove in a later migration.
+  fuelSharePerSeat    Float?           // fixed voluntary contribution per passenger seat, computed once at posting from distance / vehicle efficiency / fuel price ÷ totalSeats (driver excluded); null if distance was unavailable
   driverNotes         String?
   genderPreference    GenderPreference @default(ANY)
   flexibleDeparture   Boolean          @default(false)
@@ -119,7 +123,7 @@ model Trip {
   meetingPointLng     Float?
   status              TripStatus       @default(OPEN)
   createdAt           DateTime         @default(now())
-  durationSeconds     Int?             // from OSRM/ORS at creation; null if routing failed — auto-completion skips those, manual override still works
+  durationSeconds     Int?             // from the Mapbox Directions call at creation; null if routing failed/implausible — auto-completion skips those, manual override still works
   cancelReason        String?          // host's optional reason, shown in the passenger cancellation notification
   cancelledAt         DateTime?
 
@@ -137,7 +141,8 @@ model Match {
   scheduleAlignment Float
   preferenceMatch   Boolean
   status            MatchStatus @default(PENDING)
-  fuelShareAmount   Float
+  message           String?     // optional note from the passenger to the host, sent with the join request
+  fuelShareAmount   Float?      // snapshot of the trip's fuelSharePerSeat at request time; null if the trip had no computed share
   createdAt         DateTime    @default(now())
   respondedAt       DateTime?
 
@@ -150,7 +155,8 @@ model Notification {
   user           User             @relation(fields: [userId], references: [id])
   type           NotificationType
   message        String
-  relatedMatchId String?
+  relatedMatchId String?          // the specific join request, when the notification is about one
+  relatedTripId  String?          // the trip a click on this notification navigates to
   isRead         Boolean          @default(false)
   createdAt      DateTime         @default(now())
 }
@@ -175,7 +181,13 @@ model Rating {
   ratee     User     @relation("RateeRatings", fields: [rateeId], references: [id])
   score     Int
   comment   String?
+  anonymous Boolean  @default(false) // rater chose to hide their name on the ratee's public profile; enforced in GET /api/users/:id/ratings, which then omits every rater-identifying field
   createdAt DateTime @default(now())
+
+  // One rating per direction per match: the passenger rates the host once, the
+  // host rates the passenger once. Enforced here, not just in the UI — the
+  // submitRating controller maps the resulting P2002 to 409 ALREADY_RATED.
+  @@unique([matchId, raterId])
 }
 
 // Registration 2FA: one row per in-progress signup attempt. Not linked to

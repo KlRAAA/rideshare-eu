@@ -10,3 +10,7 @@ response.html
 .DS_Store
 .claude/
 graphify-out/
+
+public/uploads/
+
+backups/

@@ -17,6 +17,7 @@ export default function RatingModal({ matchId, raterId, rateeId, rateeName, onCl
   const [score, setScore] = useState(0);
   const [hoverScore, setHoverScore] = useState(0);
   const [comment, setComment] = useState('');
+  const [anonymous, setAnonymous] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +32,7 @@ export default function RatingModal({ matchId, raterId, rateeId, rateeName, onCl
     try {
       await apiFetch(`/api/matches/${matchId}/ratings`, {
         method: 'POST',
-        body: JSON.stringify({ raterId, rateeId, score, comment: comment || undefined }),
+        body: JSON.stringify({ raterId, rateeId, score, comment: comment || undefined, anonymous }),
       });
       onSubmitted();
     } catch {
@@ -78,6 +79,16 @@ export default function RatingModal({ matchId, raterId, rateeId, rateeName, onCl
             rows={3}
             className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
           />
+
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={anonymous}
+              onChange={(e) => setAnonymous(e.target.checked)}
+              className="w-5 h-5 accent-[color:var(--rsu-color-primary)]"
+            />
+            Post this review anonymously
+          </label>
 
           {error && <p className="text-xs text-red-600">{error}</p>}
 

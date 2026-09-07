@@ -45,6 +45,7 @@ async function completeTrip(tripId) {
         userId: trip.hostId,
         type: 'RATING_PROMPT',
         message: `Your trip to ${trip.destinationAddress} is complete. Please rate your passengers.`,
+        relatedTripId: tripId,
       },
     }),
     ...approvedMatches.map((m) =>
@@ -54,6 +55,7 @@ async function completeTrip(tripId) {
           type: 'RATING_PROMPT',
           message: `Your trip to ${trip.destinationAddress} is complete. Please rate your host.`,
           relatedMatchId: m.id,
+          relatedTripId: tripId,
         },
       })
     ),

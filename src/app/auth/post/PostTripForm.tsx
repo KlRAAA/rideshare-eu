@@ -7,8 +7,11 @@ import RouteMap from '@/components/RouteMap';
 import Listbox from '@/components/Listbox';
 import DatePicker from '@/components/DatePicker';
 import TimePicker from '@/components/TimePicker';
-import { apiFetch } from '@/lib/api';
-import { getPhTodayDateString, getPhNowTimeString } from '@/lib/format';
+import { apiFetch, ApiError } from '@/lib/api';
+import { getPhTodayDateString, getPhNowTimeString, phInputDate, phInputTime } from '@/lib/format';
+import { fetchRoute, type FetchedRoute } from '@/lib/directions';
+import { FUEL_PRICE_PER_LITER } from '@/lib/constants';
+import ConfirmStructuralEditModal from '@/components/ConfirmStructuralEditModal';
 
 const SEAT_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({ value: n, label: `${n} seat${n > 1 ? 's' : ''}` }));
 const GENDER_PREFERENCE_OPTIONS: { value: 'ANY' | 'SAME_GENDER'; label: string }[] = [
@@ -32,8 +35,37 @@ const RECURRENCE_OPTIONS: { value: Recurrence; label: string; hint: string }[] =
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function useGeocodedAddress(query: string) {
-  const [coords, setCoords] = useState<Coords | null>(null);
+export interface EditableTrip {
+  id: string;
+  originAddress: string;
+  originLat: number;
+  originLng: number;
+  destinationAddress: string;
+  destinationLat: number;
+  destinationLng: number;
+  routeWaypoints: Coords[] | null;
+  distanceMeters: number | null;
+  durationSeconds: number | null;
+  departureTime: string;
+  recurrenceType: Recurrence;
+  customDays: number[];
+  totalSeats: number;
+  filledSeats: number;
+  approvedCount: number;
+  fuelSharePerSeat: number | null;
+  driverNotes: string | null;
+  genderPreference: 'ANY' | 'SAME_GENDER';
+  flexibleDeparture: boolean;
+  flexWindowMinutes: number;
+  familiarRidersOnly: boolean;
+  meetingPointAddress: string | null;
+  meetingPointLat: number | null;
+  meetingPointLng: number | null;
+  vehicle: { make: string; model: string; color: string; plate: string | null; fuelEfficiencyKmL: number };
+}
+
+function useGeocodedAddress(query: string, initial: Coords | null = null) {
+  const [coords, setCoords] = useState<Coords | null>(initial);
   const [resolving, setResolving] = useState(false);
 
   useEffect(() => {
@@ -58,30 +90,38 @@ function useGeocodedAddress(query: string) {
   return { coords, resolving };
 }
 
-export default function PostTripForm({ hostId }: { hostId: string }) {
+export default function PostTripForm({ hostId, editTrip }: { hostId: string; editTrip?: EditableTrip }) {
   const router = useRouter();
+  const isEdit = Boolean(editTrip);
 
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('Enverga University, Lucena City');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('07:00');
-  const [recurrence, setRecurrence] = useState<Recurrence>('ONE_TIME');
-  const [customDays, setCustomDays] = useState<number[]>([]);
-  const [seats, setSeats] = useState(1);
-  const [vehicleMake, setVehicleMake] = useState('');
-  const [vehicleModel, setVehicleModel] = useState('');
-  const [vehicleColor, setVehicleColor] = useState('');
-  const [vehiclePlate, setVehiclePlate] = useState('');
-  const [fuelEfficiency, setFuelEfficiency] = useState('');
-  const [fuelShare, setFuelShare] = useState('');
-  const [driverNotes, setDriverNotes] = useState('');
-  const [genderPreference, setGenderPreference] = useState<'ANY' | 'SAME_GENDER'>('ANY');
-  const [flexibleDeparture, setFlexibleDeparture] = useState(false);
-  const [familiarRidersOnly, setFamiliarRidersOnly] = useState(false);
-  const [meetingPointAddress, setMeetingPointAddress] = useState('');
+  const [origin, setOrigin] = useState(editTrip?.originAddress ?? '');
+  const [destination, setDestination] = useState(editTrip?.destinationAddress ?? 'Enverga University, Lucena City');
+  const [date, setDate] = useState(editTrip ? phInputDate(editTrip.departureTime) : '');
+  const [time, setTime] = useState(editTrip ? phInputTime(editTrip.departureTime) : '07:00');
+  const [recurrence, setRecurrence] = useState<Recurrence>(editTrip?.recurrenceType ?? 'ONE_TIME');
+  const [customDays, setCustomDays] = useState<number[]>(editTrip?.customDays ?? []);
+  const [seats, setSeats] = useState(editTrip?.totalSeats ?? 1);
+  const [vehicleMake, setVehicleMake] = useState(editTrip?.vehicle.make ?? '');
+  const [vehicleModel, setVehicleModel] = useState(editTrip?.vehicle.model ?? '');
+  const [vehicleColor, setVehicleColor] = useState(editTrip?.vehicle.color ?? '');
+  const [vehiclePlate, setVehiclePlate] = useState(editTrip?.vehicle.plate ?? '');
+  const [fuelEfficiency, setFuelEfficiency] = useState(
+    editTrip ? String(editTrip.vehicle.fuelEfficiencyKmL) : ''
+  );
+  const [driverNotes, setDriverNotes] = useState(editTrip?.driverNotes ?? '');
+  const [genderPreference, setGenderPreference] = useState<'ANY' | 'SAME_GENDER'>(editTrip?.genderPreference ?? 'ANY');
+  const [flexibleDeparture, setFlexibleDeparture] = useState(editTrip?.flexibleDeparture ?? false);
+  const [familiarRidersOnly, setFamiliarRidersOnly] = useState(editTrip?.familiarRidersOnly ?? false);
+  const [meetingPointAddress, setMeetingPointAddress] = useState(editTrip?.meetingPointAddress ?? '');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Server's CONFIRMATION_REQUIRED payload, shown in the modal before a second submit.
+  const [confirmData, setConfirmData] = useState<{
+    changeSummary: string;
+    approvedCount: number;
+    fuelShareWouldChange: { from: number; to: number } | null;
+  } | null>(null);
   // `disabled={isSubmitting}` alone has a real gap: a second click fired
   // before React re-renders with the disabled button reads `isSubmitting`
   // from the same stale closure as the first, since state updates aren't
@@ -89,21 +129,84 @@ export default function PostTripForm({ hostId }: { hostId: string }) {
   // the state is just what drives the visible disabled/spinner UI.
   const isSubmittingRef = useRef(false);
 
-  const { coords: originCoords } = useGeocodedAddress(origin);
-  const { coords: destinationCoords } = useGeocodedAddress(destination);
-  const { coords: meetingCoords } = useGeocodedAddress(meetingPointAddress);
+  const { coords: originCoords } = useGeocodedAddress(
+    origin,
+    editTrip ? { lat: editTrip.originLat, lng: editTrip.originLng } : null
+  );
+  const { coords: destinationCoords } = useGeocodedAddress(
+    destination,
+    editTrip ? { lat: editTrip.destinationLat, lng: editTrip.destinationLng } : null
+  );
+  const { coords: meetingCoords } = useGeocodedAddress(
+    meetingPointAddress,
+    editTrip && editTrip.meetingPointLat != null && editTrip.meetingPointLng != null
+      ? { lat: editTrip.meetingPointLat, lng: editTrip.meetingPointLng }
+      : null
+  );
+
+  // Fetch the road route once both ends resolve. The result feeds the map
+  // preview AND is sent with the trip so the server can persist distance +
+  // duration (after a sanity check) — trip-completion timing and the fuel-share
+  // estimate both read those. Re-fetched only when an endpoint actually moves.
+  const [route, setRoute] = useState<FetchedRoute | null>(
+    editTrip?.routeWaypoints && editTrip.distanceMeters != null && editTrip.durationSeconds != null
+      ? {
+          waypoints: editTrip.routeWaypoints,
+          distanceMeters: editTrip.distanceMeters,
+          durationSeconds: editTrip.durationSeconds,
+        }
+      : null
+  );
+  useEffect(() => {
+    if (!originCoords || !destinationCoords) {
+      if (!isEdit) setRoute(null);
+      return;
+    }
+    let cancelled = false;
+    fetchRoute(originCoords, destinationCoords).then((r) => {
+      if (cancelled) return;
+      // In edit mode a failed re-fetch keeps the trip's stored route rather than
+      // wiping it (which would look like the host cleared the route).
+      if (r || !isEdit) setRoute(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [originCoords?.lat, originCoords?.lng, destinationCoords?.lat, destinationCoords?.lng]);
+
+  // Preview of the fixed per-seat fuel share. The server computes and persists
+  // the authoritative value at posting time (from the same formula); this is a
+  // display-only "≈" so the host sees roughly what riders will be asked to
+  // chip in. Driver excluded — divided by seats offered.
+  const efficiencyNum = Number(fuelEfficiency);
+  // Once a passenger is approved the price is locked — show the stored value,
+  // not a live recompute that would mislead the host into thinking it moved.
+  const fuelShareLocked = isEdit && (editTrip?.approvedCount ?? 0) > 0;
+  const fuelSharePreview = fuelShareLocked
+    ? editTrip?.fuelSharePerSeat ?? null
+    : route?.distanceMeters && efficiencyNum > 0 && seats > 0
+      ? ((route.distanceMeters / 1000 / efficiencyNum) * FUEL_PRICE_PER_LITER) / seats
+      : null;
+
+  const seatOptions = editTrip
+    ? SEAT_OPTIONS.filter((o) => o.value >= editTrip.filledSeats)
+    : SEAT_OPTIONS;
 
   function toggleCustomDay(day: number) {
     setCustomDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    submitTrip(false);
+  }
+
+  async function submitTrip(confirmStructural: boolean) {
     if (isSubmittingRef.current) return;
     setError(null);
 
     if (!originCoords || !destinationCoords) {
-      setError('Enter an origin and destination we can find on the map before publishing.');
+      setError('Enter an origin and destination we can find on the map before saving.');
       return;
     }
     if (!date || !time) {
@@ -123,9 +226,74 @@ export default function PostTripForm({ hostId }: { hostId: string }) {
       return;
     }
 
+    // Anchor to Philippine Standard Time explicitly rather than relying on the
+    // browser's local timezone (thesis §5.1.4).
+    const departureTime = new Date(`${date}T${time}:00+08:00`).toISOString();
+
     isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
+      if (isEdit && editTrip) {
+        // Only send origin/destination (and the derived route) when the address
+        // text actually changed — otherwise geocoder drift on re-lookup would
+        // register as a route edit the host never made.
+        const originChanged = origin !== editTrip.originAddress;
+        const destChanged = destination !== editTrip.destinationAddress;
+        const routeChanged = originChanged || destChanged;
+        const meetingChanged = meetingPointAddress !== (editTrip.meetingPointAddress ?? '');
+
+        await apiFetch(`/api/trips/${editTrip.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            userId: hostId,
+            confirmStructural,
+            ...(originChanged
+              ? { originAddress: origin, originLat: originCoords.lat, originLng: originCoords.lng }
+              : {}),
+            ...(destChanged
+              ? {
+                  destinationAddress: destination,
+                  destinationLat: destinationCoords.lat,
+                  destinationLng: destinationCoords.lng,
+                }
+              : {}),
+            ...(routeChanged
+              ? {
+                  routeWaypoints: route?.waypoints ?? null,
+                  distanceMeters: route?.distanceMeters ?? null,
+                  durationSeconds: route?.durationSeconds ?? null,
+                }
+              : {}),
+            departureTime,
+            recurrenceType: recurrence,
+            customDays: recurrence === 'CUSTOM' ? customDays : [],
+            totalSeats: seats,
+            driverNotes: driverNotes || null,
+            genderPreference,
+            flexibleDeparture,
+            flexWindowMinutes: 15,
+            familiarRidersOnly,
+            ...(meetingChanged
+              ? {
+                  meetingPointAddress: meetingPointAddress || null,
+                  meetingPointLat: meetingCoords?.lat ?? null,
+                  meetingPointLng: meetingCoords?.lng ?? null,
+                }
+              : {}),
+            vehicle: {
+              make: vehicleMake,
+              model: vehicleModel,
+              color: vehicleColor,
+              plate: vehiclePlate || null,
+              fuelEfficiencyKmL: Number(fuelEfficiency),
+            },
+          }),
+        });
+        setConfirmData(null);
+        router.push(`/auth/trips/${editTrip.id}`);
+        return;
+      }
+
       const { vehicle } = await apiFetch<{ vehicle: { id: string } }>('/api/vehicles', {
         method: 'POST',
         body: JSON.stringify({
@@ -137,11 +305,6 @@ export default function PostTripForm({ hostId }: { hostId: string }) {
           fuelEfficiencyKmL: fuelEfficiency,
         }),
       });
-
-      // Anchor to Philippine Standard Time explicitly rather than relying on
-      // the browser's local timezone, so storage stays correct UTC (thesis
-      // §5.1.4) regardless of where this form happens to be opened from.
-      const departureTime = new Date(`${date}T${time}:00+08:00`).toISOString();
 
       await apiFetch('/api/trips', {
         method: 'POST',
@@ -158,7 +321,6 @@ export default function PostTripForm({ hostId }: { hostId: string }) {
           recurrenceType: recurrence,
           customDays: recurrence === 'CUSTOM' ? customDays : [],
           totalSeats: seats,
-          fuelShareSuggested: fuelShare ? Number(fuelShare) : undefined,
           driverNotes: driverNotes || undefined,
           genderPreference,
           flexibleDeparture,
@@ -167,12 +329,29 @@ export default function PostTripForm({ hostId }: { hostId: string }) {
           meetingPointAddress: meetingPointAddress || undefined,
           meetingPointLat: meetingCoords?.lat,
           meetingPointLng: meetingCoords?.lng,
+          routeWaypoints: route?.waypoints,
+          distanceMeters: route?.distanceMeters,
+          durationSeconds: route?.durationSeconds,
         }),
       });
 
       router.push('/auth/trips');
-    } catch {
-      setError('Couldn’t publish that trip. Check the fields above and try again.');
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'CONFIRMATION_REQUIRED') {
+        setConfirmData({
+          changeSummary: String(err.body?.changeSummary ?? 'this trip'),
+          approvedCount: Number(err.body?.approvedCount ?? 0),
+          fuelShareWouldChange:
+            (err.body?.fuelShareWouldChange as { from: number; to: number } | null) ?? null,
+        });
+      } else if (err instanceof ApiError && err.code === 'SEAT_COUNT_BELOW_FILLED') {
+        const n = err.body?.filledSeats;
+        setError(`This trip has ${n} confirmed passenger${n === 1 ? '' : 's'}. Decline a passenger before reducing seats below ${n}.`);
+      } else if (err instanceof ApiError && err.code === 'TRIP_NOT_EDITABLE') {
+        setError('This trip can no longer be edited.');
+      } else {
+        setError(isEdit ? 'Couldn’t save those changes. Try again in a moment.' : 'Couldn’t publish that trip. Check the fields above and try again.');
+      }
     } finally {
       isSubmittingRef.current = false;
       setIsSubmitting(false);
@@ -281,27 +460,28 @@ export default function PostTripForm({ hostId }: { hostId: string }) {
               <Listbox<number>
                 value={seats}
                 onChange={setSeats}
-                options={SEAT_OPTIONS}
+                options={seatOptions}
                 ariaLabel="Available seats"
                 className="pl-3 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm"
               />
+              {editTrip && editTrip.filledSeats > 0 && (
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Can’t go below {editTrip.filledSeats} — that many seats are filled. Decline a passenger first.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                Fuel Share Contribution
+                Voluntary Fuel Share
               </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₱</span>
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="e.g., 50"
-                  value={fuelShare}
-                  onChange={(e) => setFuelShare(e.target.value)}
-                  className="w-full pl-7 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none"
-                />
+              <div className="px-3 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-700">
+                {fuelSharePreview != null ? `${fuelShareLocked ? '' : '≈ '}₱${fuelSharePreview.toFixed(2)}` : '—'}
               </div>
-              <p className="text-[11px] text-gray-400 mt-1">Suggested amount per passenger (PHP)</p>
+              <p className="text-[11px] text-gray-400 mt-1">
+                {fuelShareLocked
+                  ? 'Locked — passengers have matched. Editing the vehicle or seats won’t change this.'
+                  : 'Per seat — set from route, mileage & fuel price. Fixed once you post.'}
+              </p>
             </div>
           </div>
 
@@ -439,9 +619,13 @@ export default function PostTripForm({ hostId }: { hostId: string }) {
             className="rsu-btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {isSubmitting && <FaSpinner className="w-4 h-4 animate-spin" />}
-            {isSubmitting ? 'Posting...' : 'Publish Trip'}
+            {isSubmitting ? (isEdit ? 'Saving...' : 'Posting...') : isEdit ? 'Save Changes' : 'Publish Trip'}
           </button>
-          <button type="button" onClick={() => router.push('/auth/dashboard')} className="rsu-btn-secondary flex-1">
+          <button
+            type="button"
+            onClick={() => router.push(isEdit && editTrip ? `/auth/trips/${editTrip.id}` : '/auth/dashboard')}
+            className="rsu-btn-secondary flex-1"
+          >
             Cancel
           </button>
         </div>
@@ -454,7 +638,17 @@ export default function PostTripForm({ hostId }: { hostId: string }) {
 
           {originCoords && destinationCoords ? (
             <>
-              <RouteMap origin={originCoords} destination={destinationCoords} />
+              <RouteMap
+                origin={originCoords}
+                destination={destinationCoords}
+                meetingPoint={meetingCoords}
+                routeWaypoints={route?.waypoints}
+              />
+              {route && (
+                <p className="mt-2 text-xs text-gray-500">
+                  {(route.distanceMeters / 1000).toFixed(1)} km · about {Math.round(route.durationSeconds / 60)} min drive
+                </p>
+              )}
               <div className="mt-3">
                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                   Meeting Point (optional)
@@ -475,6 +669,17 @@ export default function PostTripForm({ hostId }: { hostId: string }) {
           )}
         </div>
       </div>
+
+      {confirmData && (
+        <ConfirmStructuralEditModal
+          changeSummary={confirmData.changeSummary}
+          approvedCount={confirmData.approvedCount}
+          fuelShareWouldChange={confirmData.fuelShareWouldChange}
+          loading={isSubmitting}
+          onClose={() => setConfirmData(null)}
+          onConfirm={() => submitTrip(true)}
+        />
+      )}
     </form>
   );
 }

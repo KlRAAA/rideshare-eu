@@ -19,4 +19,5 @@ module.exports = {
   trustScore: true,
   tripCount: true,
   verified: true,
+  avatarUrl: true,
 };

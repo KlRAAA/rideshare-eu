@@ -1,7 +1,7 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
-import { apiFetch } from './api';
+import { apiFetch } from './api-server';
 
 const COOKIE_NAME = 'rsu_session';
 
@@ -11,6 +11,7 @@ export interface CurrentUser {
   fullName: string;
   role: 'STUDENT' | 'FACULTY' | 'STAFF';
   universityId: string;
+  avatarUrl: string | null;
   trustScore: number;
   tripCount: number;
   verified: boolean;

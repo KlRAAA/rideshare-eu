@@ -1,14 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FaUser, FaFlag, FaSignOutAlt } from 'react-icons/fa';
+import { FaFlag, FaSignOutAlt, FaSpinner } from 'react-icons/fa';
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import Select from '@/components/Select';
-import { apiFetch, clearSessionCookie } from '@/lib/api';
+import Avatar from '@/components/Avatar';
+import { apiFetch, clearSessionCookie, API_BASE } from '@/lib/api';
 import { roleLabel } from '@/lib/format';
 import type { CurrentUser } from '@/lib/session';
+
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const AVATAR_ERROR_COPY: Record<string, string> = {
+  UNSUPPORTED_IMAGE_TYPE: 'That file isn’t a JPEG, PNG, or WebP image.',
+  FILE_TOO_LARGE: 'Image must be 5 MB or smaller.',
+  NO_FILE: 'No file selected.',
+};
 
 export interface Preference {
   genderPreference: 'ANY' | 'SAME_GENDER';
@@ -25,6 +34,53 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
   const [preference, setPreference] = useState(initialPreference);
   const [saving, setSaving] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatarUrl);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+
+  async function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // let the same file be re-picked after a failure
+    if (!file) return;
+
+    setAvatarError(null);
+    if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+      setAvatarError(AVATAR_ERROR_COPY.UNSUPPORTED_IMAGE_TYPE);
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      setAvatarError(AVATAR_ERROR_COPY.FILE_TOO_LARGE);
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
+    setAvatarUploading(true);
+    try {
+      const form = new FormData();
+      form.append('userId', user.id);
+      form.append('avatar', file);
+      const res = await fetch(`${API_BASE}/api/users/me/avatar`, { method: 'POST', body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAvatarError(AVATAR_ERROR_COPY[data.error] ?? 'Couldn’t upload that image. Try again.');
+        setAvatarPreview(null);
+        URL.revokeObjectURL(previewUrl);
+        return;
+      }
+      setAvatarUrl(data.user.avatarUrl); // preview stays visible until navigation
+      router.refresh();
+    } catch {
+      setAvatarError('Couldn’t upload that image. Try again.');
+      setAvatarPreview(null);
+      URL.revokeObjectURL(previewUrl);
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -46,8 +102,18 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div className="space-y-4">
         <Card className="text-center">
-          <div className="w-16 h-16 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-3">
-            <FaUser className="w-6 h-6" />
+          <div className="relative w-16 h-16 mx-auto mb-3">
+            <Avatar
+              name={user.fullName}
+              src={avatarPreview ?? avatarUrl}
+              sizeClass="w-16 h-16"
+              textClass="text-xl"
+            />
+            {avatarUploading && (
+              <div className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center">
+                <FaSpinner className="w-4 h-4 text-white animate-spin" />
+              </div>
+            )}
           </div>
           <h2 className="text-lg font-bold text-gray-900">{user.fullName}</h2>
           <div className="flex justify-center mt-1">
@@ -57,13 +123,24 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
           <p className="text-sm font-semibold text-gray-800 mt-3">
             ★ {user.trustScore.toFixed(1)} <span className="text-gray-400 font-normal">/5.0</span>
           </p>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={handleAvatarSelect}
+          />
           <button
             type="button"
-            title="Photo uploads aren't available yet"
-            className="rsu-btn-secondary w-full mt-4 opacity-60 cursor-not-allowed"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={avatarUploading}
+            className="rsu-btn-secondary w-full mt-4 disabled:opacity-60"
           >
-            Edit Profile Photo
+            {avatarUploading ? 'Uploading…' : avatarUrl ? 'Change Profile Photo' : 'Add Profile Photo'}
           </button>
+          {avatarError && <p className="text-xs text-red-600 mt-2">{avatarError}</p>}
+          <p className="text-[11px] text-gray-400 mt-1">JPEG, PNG or WebP · up to 5 MB</p>
         </Card>
 
         <Card>

@@ -1,12 +1,50 @@
-const { computeFuelShare } = require('../fuelShareService');
+const { computeFuelSharePerSeat } = require('../fuelShareService');
 
-test('matches the thesis formula exactly', () => {
-  const result = computeFuelShare({ distanceKm: 24.5, fuelEfficiencyKmL: 14, fuelPricePerLiter: 65, filledSeats: 1 });
-  const expected = (24.5 / 14) * 65 / (1 + 1);
-  expect(result).toBeCloseTo(expected, 4);
-});
+describe('computeFuelSharePerSeat', () => {
+  test('splits the one-way fuel cost across passenger seats only', () => {
+    // 30 km, 12 km/L, ₱62.55/L → 2.5 L → ₱156.375 total → ÷ 3 seats = ₱52.13
+    const result = computeFuelSharePerSeat({
+      distanceMeters: 30000,
+      efficiencyKmL: 12,
+      pricePerLiter: 62.55,
+      passengerSeats: 3,
+    });
+    expect(result).toBeCloseTo(52.13, 2);
+  });
 
-test('divides by 1 + filledSeats, not filledSeats alone', () => {
-  const result = computeFuelShare({ distanceKm: 10, fuelEfficiencyKmL: 10, fuelPricePerLiter: 60, filledSeats: 0 });
-  expect(result).toBeCloseTo(60, 4); // (10/10)*60 / (1+0) = 60
+  test('never divides by the driver — 1 seat means the passenger covers the whole cost', () => {
+    const result = computeFuelSharePerSeat({
+      distanceMeters: 10000,
+      efficiencyKmL: 10,
+      pricePerLiter: 60,
+      passengerSeats: 1,
+    });
+    expect(result).toBeCloseTo(60, 2); // (10/10) * 60 / 1
+  });
+
+  test('is fixed to seats offered — there is no filledSeats input', () => {
+    const args = { distanceMeters: 24500, efficiencyKmL: 14, pricePerLiter: 62.55, passengerSeats: 4 };
+    expect(computeFuelSharePerSeat(args)).toBe(computeFuelSharePerSeat({ ...args }));
+  });
+
+  test('returns null when distance is missing (routing failed at posting)', () => {
+    expect(
+      computeFuelSharePerSeat({ distanceMeters: null, efficiencyKmL: 14, pricePerLiter: 62.55, passengerSeats: 3 })
+    ).toBeNull();
+    expect(
+      computeFuelSharePerSeat({ distanceMeters: 0, efficiencyKmL: 14, pricePerLiter: 62.55, passengerSeats: 3 })
+    ).toBeNull();
+  });
+
+  test('returns null when the vehicle has no registered efficiency', () => {
+    expect(
+      computeFuelSharePerSeat({ distanceMeters: 30000, efficiencyKmL: null, pricePerLiter: 62.55, passengerSeats: 3 })
+    ).toBeNull();
+  });
+
+  test('returns null for a non-positive seat count', () => {
+    expect(
+      computeFuelSharePerSeat({ distanceMeters: 30000, efficiencyKmL: 14, pricePerLiter: 62.55, passengerSeats: 0 })
+    ).toBeNull();
+  });
 });

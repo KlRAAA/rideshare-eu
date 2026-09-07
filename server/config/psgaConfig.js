@@ -13,5 +13,16 @@ module.exports = {
   // proximity, not just "same city."
   corridorMeters: 1500,
   defaultFlexWindowMinutes: 15,
-  fuelPricePerLiter: 65.0,
+  // Only used by the Find a Ride empty-state "Show all trips to <destination>"
+  // fallback (server/services/psgaService.js → runShowAllFallback). That view
+  // relaxes the Stage 1 route-overlap and departure-time gates, but still
+  // anchors on the destination: a candidate trip is kept only if its own
+  // destination is within this radius of the searcher's destination. 3km is
+  // loose enough to absorb the ±1-2km Nominatim geocoding drift noted above
+  // while still meaning "heading to the same place," not "same city."
+  destinationAnchorMeters: 3000,
+  // Retail gas price (PHP/L). Baked into each trip's fuelSharePerSeat at posting
+  // time, so changing it only affects trips posted afterward — existing trips
+  // keep the price they were posted with. Update roughly weekly.
+  fuelPricePerLiter: 62.55,
 };

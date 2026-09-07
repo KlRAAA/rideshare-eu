@@ -2,7 +2,7 @@ import React from 'react';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { getCurrentUser } from '@/lib/session';
-import { apiFetch } from '@/lib/api';
+import { apiFetch } from '@/lib/api-server';
 import NotificationsClient, { type NotificationItem } from './NotificationsClient';
 
 export default async function NotificationsPage() {

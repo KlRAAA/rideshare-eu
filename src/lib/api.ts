@@ -1,23 +1,32 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export class ApiError extends Error {
   status: number;
   code?: string;
-  constructor(status: number, message: string, code?: string) {
+  // The full parsed error body — some endpoints return extra context alongside
+  // `error` (e.g. the trip-edit confirm gate returns approvedCount + fuel-share
+  // delta). Undefined when the response wasn't JSON.
+  body?: Record<string, unknown>;
+  constructor(status: number, message: string, code?: string, body?: Record<string, unknown>) {
     super(message);
     this.status = status;
     this.code = code;
+    this.body = body;
   }
 }
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
+    // Send the httpOnly `rsu_session` cookie on cross-origin browser calls so
+    // the Express auth middleware can verify the session. No-op server-side
+    // (RSC calls forward the token as a Bearer header via lib/api-server.ts).
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, data.message || data.error || 'Request failed', data.error);
+    throw new ApiError(res.status, data.message || data.error || 'Request failed', data.error, data);
   }
   return data as T;
 }
