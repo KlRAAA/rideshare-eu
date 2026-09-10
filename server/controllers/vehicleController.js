@@ -1,9 +1,10 @@
 const prisma = require('../config/db');
 
 async function createVehicle(req, res) {
-  const { ownerId, make, model, color, plate, fuelEfficiencyKmL } = req.body;
+  // The owner is the verified caller (phase 2), never a client-supplied field.
+  const { make, model, color, plate, fuelEfficiencyKmL } = req.body;
   const vehicle = await prisma.vehicle.create({
-    data: { ownerId, make, model, color, plate, fuelEfficiencyKmL: Number(fuelEfficiencyKmL) },
+    data: { ownerId: req.user.id, make, model, color, plate, fuelEfficiencyKmL: Number(fuelEfficiencyKmL) },
   });
   res.status(201).json({ vehicle });
 }
