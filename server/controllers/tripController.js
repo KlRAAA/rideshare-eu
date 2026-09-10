@@ -19,7 +19,8 @@ async function createTrip(req, res) {
   const { originLat, originLng, destinationLat, destinationLng } = req.body;
   // fuelShareSuggested is the deprecated host-typed field — strip it if an old
   // client still sends it; the value is computed below, not accepted from input.
-  const { routeWaypoints, distanceMeters, durationSeconds, fuelShareSuggested: _legacy, ...body } = req.body;
+  // hostId is stripped too — the host is the verified req.user.id (phase 2).
+  const { routeWaypoints, distanceMeters, durationSeconds, fuelShareSuggested: _legacy, hostId: _clientHostId, ...body } = req.body;
 
   const check = validateClientRoute({
     origin: { lat: originLat, lng: originLng },
@@ -54,12 +55,14 @@ async function createTrip(req, res) {
     passengerSeats: Number(body.totalSeats),
   });
 
-  const trip = await prisma.trip.create({ data: { ...body, ...routeData, fuelSharePerSeat } });
+  const trip = await prisma.trip.create({
+    data: { ...body, hostId: req.user.id, ...routeData, fuelSharePerSeat },
+  });
   res.status(201).json({ trip });
 }
 
 async function listMine(req, res) {
-  const { userId } = req.query;
+  const userId = req.user.id;
 
   // `matches` is included so the host's My Trips "Past" tab can show a Rate
   // button per completed passenger (the passenger-side Rate button already had
@@ -116,9 +119,7 @@ async function listMine(req, res) {
 // Plate number is masked from anyone but the host and passengers with an
 // approved/completed match on this specific trip (RA 10173 / Data Privacy
 // Act — a confirmed trip is when vehicle identification becomes relevant
-// for safety, not before). `userId` is client-supplied like every other
-// identity check in this backend (see plan doc's auth gap note) — this is
-// a privacy gate against casual exposure, not a substitute for real auth.
+// for safety, not before). `userId` is the verified req.user.id (phase 2).
 function canViewPlate(trip, userId) {
   if (!userId) return false;
   if (userId === trip.hostId) return true;
@@ -126,7 +127,7 @@ function canViewPlate(trip, userId) {
 }
 
 async function getById(req, res) {
-  const { userId } = req.query;
+  const userId = req.user.id;
   const trip = await prisma.trip.findUnique({
     where: { id: req.params.id },
     include: {
@@ -145,14 +146,12 @@ async function getById(req, res) {
   // Tag each match with whether this user has already rated it, so the detail
   // page can keep the Rate button disabled across reloads instead of relying on
   // frontend-only state that resets on refresh.
-  if (userId) {
-    const myRatings = await prisma.rating.findMany({
-      where: { raterId: userId, matchId: { in: trip.matches.map((m) => m.id) } },
-      select: { matchId: true },
-    });
-    const rated = new Set(myRatings.map((r) => r.matchId));
-    trip.matches = trip.matches.map((m) => ({ ...m, ratedByMe: rated.has(m.id) }));
-  }
+  const myRatings = await prisma.rating.findMany({
+    where: { raterId: userId, matchId: { in: trip.matches.map((m) => m.id) } },
+    select: { matchId: true },
+  });
+  const rated = new Set(myRatings.map((r) => r.matchId));
+  trip.matches = trip.matches.map((m) => ({ ...m, ratedByMe: rated.has(m.id) }));
 
   res.json({ trip });
 }
@@ -162,7 +161,7 @@ async function getById(req, res) {
 // matches complete, pending ones decline, both sides get rating prompts).
 async function markCompleted(req, res) {
   const { id } = req.params;
-  const { userId } = req.body;
+  const userId = req.user.id;
 
   const trip = await prisma.trip.findUnique({ where: { id } });
   if (!trip) return res.status(404).json({ error: 'TRIP_NOT_FOUND' });
@@ -189,8 +188,8 @@ async function geocode(req, res) {
 // match. See Task 12 in the plan doc for the full rationale.
 async function cancelTrip(req, res) {
   const { id } = req.params;
-  const { userId, reason } = req.body;
-  if (!userId) return res.status(400).json({ error: 'MISSING_USER_ID' });
+  const { reason } = req.body;
+  const userId = req.user.id;
 
   const trip = await prisma.trip.findUnique({
     where: { id },
@@ -273,8 +272,8 @@ const LATLNG_FIELDS = new Set(['originLat', 'originLng', 'destinationLat', 'dest
 // fuelShareWouldChange is returned only so the host sees the note.
 async function updateTrip(req, res) {
   const { id } = req.params;
-  const { userId, confirmStructural, vehicle: vehiclePatch, ...bodyFields } = req.body;
-  if (!userId) return res.status(400).json({ error: 'MISSING_USER_ID' });
+  const { userId: _clientUserId, confirmStructural, vehicle: vehiclePatch, ...bodyFields } = req.body;
+  const userId = req.user.id;
 
   const trip = await prisma.trip.findUnique({ where: { id }, include: { matches: true, vehicle: true } });
   if (!trip) return res.status(404).json({ error: 'TRIP_NOT_FOUND' });
