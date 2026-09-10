@@ -94,6 +94,27 @@ describe('POST /api/trips', () => {
     const res = await json('POST', '/api/trips', null, tripBody());
     expect(res.status).toBe(401);
   });
+
+  test('lifecycle fields in the body are ignored — a new trip starts OPEN with 0 filled seats', async () => {
+    if (guard()) return;
+    const res = await json(
+      'POST',
+      '/api/trips',
+      host.id,
+      tripBody({ status: 'COMPLETED', filledSeats: 99, cancelReason: 'x', fuelSharePerSeat: 9999 })
+    );
+    expect(res.status).toBe(201);
+    const { trip } = await res.json();
+    expect(trip.status).toBe('OPEN');
+    expect(trip.filledSeats).toBe(0);
+    expect(trip.cancelReason).toBeNull();
+
+    const fresh = await prisma.trip.findUnique({ where: { id: trip.id } });
+    expect(fresh.status).toBe('OPEN');
+    expect(fresh.filledSeats).toBe(0);
+    // fuelSharePerSeat is computed server-side, not taken from the body
+    expect(fresh.fuelSharePerSeat).not.toBe(9999);
+  });
 });
 
 describe('GET /api/trips/mine', () => {

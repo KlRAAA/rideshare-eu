@@ -7,6 +7,23 @@ const { applyLazyCompletion, completeTrip } = require('../services/tripCompletio
 const psgaConfig = require('../config/psgaConfig');
 const safeUserSelect = require('../config/safeUserSelect');
 
+// Fields a trip's creator may set at creation — mirrors updateTrip's
+// EDITABLE_TRIP_FIELDS allowlist pattern. Everything a client POSTs is filtered
+// through this, so lifecycle-controlled fields (`status`, `filledSeats`),
+// server-derived fields (`hostId` -> req.user.id, `fuelSharePerSeat`,
+// `cancelReason`/`cancelledAt`) and Prisma-managed fields (`id`, `createdAt`)
+// can't be injected. A new trip always starts OPEN with 0 filled seats.
+// Route geometry (routeWaypoints/distanceMeters/durationSeconds) is validated
+// and added separately in createTrip, so it isn't listed here.
+const CREATABLE_TRIP_FIELDS = [
+  'vehicleId',
+  'originAddress', 'originLat', 'originLng',
+  'destinationAddress', 'destinationLat', 'destinationLng',
+  'departureTime', 'recurrenceType', 'customDays', 'totalSeats',
+  'driverNotes', 'genderPreference', 'flexibleDeparture', 'flexWindowMinutes', 'familiarRidersOnly',
+  'meetingPointAddress', 'meetingPointLat', 'meetingPointLng',
+];
+
 // The trip's own origin→destination route. Post a Ride fetches it from Mapbox
 // Directions client-side (the RouteMap preview) and sends the geometry +
 // distance + duration here, so there's no second server-side Directions call.
@@ -16,11 +33,12 @@ const safeUserSelect = require('../config/safeUserSelect');
 // reads distance. A failed check drops all three — the trip is still created,
 // just without route data (the pre-existing "routing unavailable" path).
 async function createTrip(req, res) {
-  const { originLat, originLng, destinationLat, destinationLng } = req.body;
-  // fuelShareSuggested is the deprecated host-typed field — strip it if an old
-  // client still sends it; the value is computed below, not accepted from input.
-  // hostId is stripped too — the host is the verified req.user.id (phase 2).
-  const { routeWaypoints, distanceMeters, durationSeconds, fuelShareSuggested: _legacy, hostId: _clientHostId, ...body } = req.body;
+  const { originLat, originLng, destinationLat, destinationLng, routeWaypoints, distanceMeters, durationSeconds } = req.body;
+
+  // Only the allowlisted creator-set fields — never a raw req.body spread, so a
+  // client can't POST a trip pre-marked COMPLETED or with filledSeats set.
+  const body = {};
+  for (const k of CREATABLE_TRIP_FIELDS) if (k in req.body) body[k] = req.body[k];
 
   const check = validateClientRoute({
     origin: { lat: originLat, lng: originLng },
