@@ -209,10 +209,25 @@ describe('POST /api/matches/:id/ratings', () => {
     expect(res.status).toBe(403);
   });
 
-  test('missing raterId → 400 MISSING_PARTICIPANTS', async () => {
+  test('missing rateeId → 400 MISSING_RATEE', async () => {
     if (guard()) return;
-    const res = await rate(matchDoneA.id, { rateeId: host.id, score: 5 });
+    const res = await rate(matchDoneA.id, { raterId: pax1.id, score: 5 });
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe('MISSING_PARTICIPANTS');
+    expect((await res.json()).error).toBe('MISSING_RATEE');
+  });
+
+  // Phase 2: the rater is the verified token identity, never the body.
+  test('a body raterId claiming a real participant is ignored — the token identity is used', async () => {
+    if (guard()) return;
+    // token = outsider, body claims raterId = pax1 (a real participant on matchDoneB)
+    const res = await fetch(`${base}/api/matches/${matchDoneB.id}/ratings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...bearer(outsider.id) },
+      body: JSON.stringify({ raterId: pax1.id, rateeId: host.id, score: 5 }),
+    });
+    expect(res.status).toBe(403); // outsider is not a participant on matchDoneB
+    expect((await res.json()).error).toBe('NOT_A_PARTICIPANT');
+    const leaked = await prisma.rating.findFirst({ where: { matchId: matchDoneB.id, raterId: pax1.id } });
+    expect(leaked).toBeNull();
   });
 });

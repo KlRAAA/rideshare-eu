@@ -8,17 +8,19 @@ const MAX_SCORE = 5;
 // 1–5, which updates the ratee's running-average trust score.
 //
 // Every gate here is server-enforced, not just hidden in the UI:
+//   - the rater is the verified req.user.id (phase 2), never a client field
 //   - the match must exist and be COMPLETED
-//   - raterId and rateeId must be the two real people on that match
+//   - the rater and rateeId must be the two real people on that match
 //   - score must be an integer 1–5
 //   - one rating per (match, rater) — the DB @@unique([matchId, raterId])
 //     backstops this; a repeat submit comes back as 409 ALREADY_RATED
 async function submitRating(req, res) {
   const { id: matchId } = req.params;
-  const { raterId, rateeId, score, comment, anonymous } = req.body;
+  const raterId = req.user.id;
+  const { rateeId, score, comment, anonymous } = req.body;
 
-  if (!raterId || !rateeId) {
-    return res.status(400).json({ error: 'MISSING_PARTICIPANTS' });
+  if (!rateeId) {
+    return res.status(400).json({ error: 'MISSING_RATEE' });
   }
   if (!Number.isInteger(score) || score < MIN_SCORE || score > MAX_SCORE) {
     return res.status(400).json({ error: 'INVALID_SCORE' });
@@ -33,12 +35,9 @@ async function submitRating(req, res) {
     return res.status(409).json({ error: 'TRIP_NOT_COMPLETED' });
   }
 
-  // Participant check. NOTE: this only verifies that raterId and rateeId ARE
-  // the two people on this match — it cannot verify the CALLER actually is
-  // raterId, because this Express API has no authenticated session wired in
-  // yet (the session JWT is only checked in the Next.js layer, see
-  // src/lib/session.ts). Replace this with a real caller-identity check once
-  // request-level auth exists on the API.
+  // Participant check. raterId is the verified caller (req.user.id), so this
+  // now genuinely enforces "only a party to this completed ride may rate the
+  // other" — an authenticated non-participant hits NOT_A_PARTICIPANT here.
   const participants = [match.trip.hostId, match.passengerId];
   if (raterId === rateeId || !participants.includes(raterId) || !participants.includes(rateeId)) {
     return res.status(403).json({ error: 'NOT_A_PARTICIPANT' });
