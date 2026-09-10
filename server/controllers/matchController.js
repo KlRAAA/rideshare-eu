@@ -200,12 +200,24 @@ async function create(req, res) {
 // Host approves/declines a join request. Thesis: "Hosts approve manually."
 // Approving increments the trip's filledSeats and notifies the passenger;
 // declining just notifies them, seats are untouched.
+//
+// Only the host of the trip this match belongs to may approve/decline it —
+// checked against the verified req.user.id (phase 2), which the auth middleware
+// set from the session token. Before phase 2 this endpoint checked no caller
+// identity at all.
 async function updateStatus(req, res) {
   const { id } = req.params;
   const { status } = req.body; // 'APPROVED' | 'DECLINED'
   if (status !== 'APPROVED' && status !== 'DECLINED') {
     return res.status(400).json({ error: 'INVALID_STATUS' });
   }
+
+  const existing = await prisma.match.findUnique({
+    where: { id },
+    include: { trip: { select: { hostId: true } } },
+  });
+  if (!existing) return res.status(404).json({ error: 'MATCH_NOT_FOUND' });
+  if (existing.trip.hostId !== req.user.id) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
 
   const match = await prisma.match.update({
     where: { id },
