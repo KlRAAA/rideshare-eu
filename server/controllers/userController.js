@@ -20,7 +20,13 @@ async function getById(req, res) {
     prisma.match.count({ where: { passengerId: user.id, status: { in: ['APPROVED', 'COMPLETED'] } } }),
   ]);
 
-  res.json({ user: { ...user, tripsHosted, tripsJoined } });
+  // Email is only returned on your own record — the public profile page reads
+  // this endpoint for any user and only needs name/avatar/role/trustScore.
+  // Every other safeUserSelect field stays visible to any authenticated caller.
+  const { email, ...rest } = user;
+  const visible = req.user.id === req.params.id ? user : rest;
+
+  res.json({ user: { ...visible, tripsHosted, tripsJoined } });
 }
 
 // "First L." from a full name, for showing who left a (non-anonymous) review
@@ -66,15 +72,13 @@ async function getRatings(req, res) {
   res.json({ trustScore: user.trustScore, count: ratings.length, ratings });
 }
 
-// Sets a user's profile photo. `userId` comes from the multipart form — the same
-// client-asserted identity model as every other mutation in this backend (the
-// frontend only ever sends the session user's own id). The file is validated by
-// its real bytes (not the extension), renamed to a server-generated UUID so a
-// client filename can never cause traversal or overwrite, and the previous
+// Sets the caller's own profile photo — the target user is the verified
+// req.user.id (phase 2), never a client-supplied field. The file is validated
+// by its real bytes (not the extension), renamed to a server-generated UUID so
+// a client filename can never cause traversal or overwrite, and the previous
 // avatar file is best-effort deleted.
 async function uploadAvatar(req, res) {
-  const { userId } = req.body;
-  if (!userId) return res.status(400).json({ error: 'MISSING_USER_ID' });
+  const userId = req.user.id;
   if (!req.file || !req.file.buffer || req.file.buffer.length === 0) {
     return res.status(400).json({ error: 'NO_FILE' });
   }
