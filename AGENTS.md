@@ -52,9 +52,9 @@ npm run server   # Express API on :4000
 npm run dev       # Next.js on :3000
 ```
 
-## API authentication (phase 1 — Sep 2026)
+## API authentication (Sep 2026)
 
-The Express API now requires a valid session JWT on every route **except**
+The Express API requires a valid session JWT on every route **except**
 `/api/auth/*`. `server/middleware/authenticate.js` verifies the token
 (HS256, `JWT_SECRET`) and sets `req.user.id`; a missing/invalid/expired token
 gets `401 UNAUTHENTICATED`.
@@ -64,11 +64,21 @@ gets `401 UNAUTHENTICATED`.
   credentialed CORS — `CORS_ORIGIN`, default `http://localhost:3000`); server
   components via `src/lib/api-server.ts`, which reads the cookie and sends a
   Bearer header. Client components keep importing `apiFetch` from `@/lib/api`.
-- **Phase 2 (not done):** controllers still trust the client-supplied
-  `userId`/`passengerId`/etc. — they need to switch to `req.user.id`. Priority
-  order: `PATCH /api/matches/:id` (approve/decline — currently checks *no*
-  caller identity), then the rest. Also: `GET /api/users/:id` leaks `email` to
-  any caller; drop `POST /api/alerts` (forgeable, unused).
-- **Before deploy:** `JWT_SECRET` is still the dev placeholder — generate a real
-  random secret. Production also needs the cookie set `sameSite: 'none'; secure`
-  once frontend/API are on different domains.
+
+**Phase 2 (branch `auth-phase2`):** every controller derives the caller from
+`req.user.id`, not the request body/query/params.
+- Self-identity fields (`hostId` on create, `userId`/`passengerId`/`raterId`/
+  `ownerId`) are taken from the token; the client may still send them, they are
+  ignored.
+- Resource-ownership: `PATCH /api/matches/:id` requires the verified trip host;
+  `PATCH /api/alerts/:id/read` requires the notification owner;
+  `/api/preferences/:userId` requires `:userId === req.user.id` — all 403 on
+  mismatch, 404 if the resource is missing.
+- `GET /api/users/:id` returns `email` only on your own record.
+- `POST /api/alerts` (forgeable, unused) — deleted.
+- Not done in phase 2: `createTrip` still mass-assigns `req.body` (a client
+  could set `status`/`filledSeats` on create) — separate hardening pass.
+
+**Before deploy:** `JWT_SECRET` is still the dev placeholder — generate a real
+random secret. Production also needs the cookie set `sameSite: 'none'; secure`
+once frontend/API are on different domains.
