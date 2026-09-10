@@ -166,22 +166,18 @@ describe('departureMinutes validation (both search endpoints)', () => {
       body: JSON.stringify(body),
     });
 
+  // passengerId is no longer a request field (phase 2 — it's req.user.id), so
+  // the body carries only the time value being validated.
   test.each([
-    ['/api/matches/search', { passengerId: 'anyone', departureMinutes: null }],
-    ['/api/matches/search', { passengerId: 'anyone' }], // missing
-    ['/api/matches/search', { passengerId: 'anyone', departureMinutes: 1440 }], // out of range
-    ['/api/matches/search', { passengerId: 'anyone', departureMinutes: '60' }], // string
-    ['/api/matches/show-all', { passengerId: 'anyone', departureMinutes: null }],
-    ['/api/matches/show-all', { passengerId: 'anyone', departureMinutes: -1 }],
+    ['/api/matches/search', { departureMinutes: null }],
+    ['/api/matches/search', {}], // missing
+    ['/api/matches/search', { departureMinutes: 1440 }], // out of range
+    ['/api/matches/search', { departureMinutes: '60' }], // string
+    ['/api/matches/show-all', { departureMinutes: null }],
+    ['/api/matches/show-all', { departureMinutes: -1 }],
   ])('%s → 400 INVALID_DEPARTURE_MINUTES for %o', async (path, body) => {
     const res = await post(path, body);
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('INVALID_DEPARTURE_MINUTES');
-  });
-
-  test('/api/matches/search still validates passengerId first', async () => {
-    const res = await post('/api/matches/search', { departureMinutes: null });
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe('MISSING_PASSENGER_ID');
   });
 });

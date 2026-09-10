@@ -16,6 +16,7 @@ let host;
 let passenger;
 let outsider;
 let pendingMatch;
+let joinTrip;
 
 const req = (method, path, { token, body } = {}) =>
   fetch(`${base}${path}`, {
@@ -41,6 +42,7 @@ beforeAll(async () => {
   const vehicle = await makeVehicle(bag, host.id);
   const trip = await makeTrip(bag, host.id, vehicle.id);
   pendingMatch = await makeMatch(bag, trip.id, passenger.id, { status: 'PENDING' });
+  joinTrip = await makeTrip(bag, host.id, vehicle.id, { status: 'OPEN' });
 });
 
 afterAll(async () => {
@@ -105,5 +107,35 @@ describe('PATCH /api/matches/:id (approve/decline)', () => {
     const fresh = await prisma.match.findUnique({ where: { id: pendingMatch.id }, include: { trip: true } });
     expect(fresh.status).toBe('APPROVED');
     expect(fresh.trip.filledSeats).toBe(1);
+  });
+});
+
+describe('POST /api/matches (join request)', () => {
+  test('no token → 401', async () => {
+    if (guard()) return;
+    const res = await req('POST', '/api/matches', { body: { tripId: joinTrip.id } });
+    expect(res.status).toBe(401);
+  });
+
+  test("passengerId is the verified caller; a body passengerId claiming someone else is ignored", async () => {
+    if (guard()) return;
+    const res = await req('POST', '/api/matches', {
+      token: outsider.id,
+      body: { tripId: joinTrip.id, passengerId: passenger.id, score: 0.8, routeOverlap: 0.8, scheduleAlignment: 0.8, preferenceMatch: true },
+    });
+    expect(res.status).toBe(201);
+    const { match } = await res.json();
+    expect(match.passengerId).toBe(outsider.id);
+    bag.matchIds.push(match.id);
+  });
+
+  test('the host cannot join their own trip (passengerId comes from the token) → 400', async () => {
+    if (guard()) return;
+    const res = await req('POST', '/api/matches', {
+      token: host.id,
+      body: { tripId: joinTrip.id, score: 0.8, routeOverlap: 0.8, scheduleAlignment: 0.8, preferenceMatch: true },
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('CANNOT_JOIN_OWN_TRIP');
   });
 });

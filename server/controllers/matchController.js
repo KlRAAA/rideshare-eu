@@ -23,9 +23,8 @@ function isValidDepartureMinutes(v) {
 // score the same candidate pool, built from the same real-data-only per-host
 // facts — they differ only in which scoring function runs afterward. Returns
 // `{ error }` for the caller to relay, or `{ openTrips, candidates }`.
-async function loadSearchCandidates(passengerRequest) {
-  const { passengerId } = passengerRequest;
-
+// `passengerId` is the verified req.user.id (phase 2).
+async function loadSearchCandidates(passengerId, passengerRequest) {
   const searcher = await prisma.user.findUnique({ where: { id: passengerId }, select: { gender: true } });
   if (!searcher) return { error: { status: 404, body: { error: 'USER_NOT_FOUND' } } };
 
@@ -114,13 +113,12 @@ function enrichMatches(matches, openTrips) {
 }
 
 async function search(req, res) {
-  const passengerRequest = req.body; // { passengerId, origin: {lat,lng}, destination: {lat,lng}, departureMinutes, flexWindowMinutes }
-  if (!passengerRequest.passengerId) return res.status(400).json({ error: 'MISSING_PASSENGER_ID' });
+  const passengerRequest = req.body; // { origin: {lat,lng}, destination: {lat,lng}, departureMinutes, flexWindowMinutes, genderPreference }
   if (!isValidDepartureMinutes(passengerRequest.departureMinutes)) {
     return res.status(400).json({ error: 'INVALID_DEPARTURE_MINUTES' });
   }
 
-  const loaded = await loadSearchCandidates(passengerRequest);
+  const loaded = await loadSearchCandidates(req.user.id, passengerRequest);
   if (loaded.error) return res.status(loaded.error.status).json(loaded.error.body);
 
   const result = runPSGA(passengerRequest, loaded.candidates, psgaConfig);
@@ -136,12 +134,11 @@ async function search(req, res) {
 // psgaService.runShowAllFallback. A fresh search always hits `search` first.
 async function showAll(req, res) {
   const passengerRequest = req.body;
-  if (!passengerRequest.passengerId) return res.status(400).json({ error: 'MISSING_PASSENGER_ID' });
   if (!isValidDepartureMinutes(passengerRequest.departureMinutes)) {
     return res.status(400).json({ error: 'INVALID_DEPARTURE_MINUTES' });
   }
 
-  const loaded = await loadSearchCandidates(passengerRequest);
+  const loaded = await loadSearchCandidates(req.user.id, passengerRequest);
   if (loaded.error) return res.status(loaded.error.status).json(loaded.error.body);
 
   const result = runShowAllFallback(passengerRequest, loaded.candidates, psgaConfig);
@@ -156,7 +153,8 @@ async function showAll(req, res) {
 // checked before anything is written; the frontend mirrors the seat check for
 // immediate feedback but this is the authoritative gate.
 async function create(req, res) {
-  const { tripId, passengerId, score, routeOverlap, scheduleAlignment, preferenceMatch, message } = req.body;
+  const passengerId = req.user.id;
+  const { tripId, score, routeOverlap, scheduleAlignment, preferenceMatch, message } = req.body;
 
   const trip = await prisma.trip.findUnique({
     where: { id: tripId },
