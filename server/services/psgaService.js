@@ -96,26 +96,13 @@ function runPSGA(passengerRequest, candidateTrips, config) {
   const { weights, minRouteOverlap, corridorMeters } = config;
   const filtered = [];
 
-  // Temporary diagnostic logging (per explicit request) to see the Stage 1
-  // filter's actual per-trip decisions instead of guessing why a trip is
-  // missing from results. Left in place until the corridor/geocoding
-  // precision issue described in Task 25's writeup is actually resolved.
   for (const trip of candidateTrips) {
     const routeOverlap = computeRouteOverlap(passengerRequest, trip, corridorMeters);
     const timeDiff = departureTimeDiff(passengerRequest.departureMinutes, trip.departureMinutes);
     const flexWindow = passengerRequest.flexWindowMinutes;
-    const overlapOk = routeOverlap >= minRouteOverlap;
-    const timeOk = timeDiff <= flexWindow;
 
-    if (overlapOk && timeOk) {
+    if (routeOverlap >= minRouteOverlap && timeDiff <= flexWindow) {
       filtered.push({ trip, routeOverlap, timeDiff, flexWindow });
-      console.log(`[PSGA] Accepted trip ${trip.id}: routeOverlap=${routeOverlap.toFixed(2)} (>=${minRouteOverlap}), timeDiff=${timeDiff}min (<=${flexWindow}min)`);
-    } else if (!overlapOk && !timeOk) {
-      console.log(`[PSGA] Rejected trip ${trip.id}: Route overlap ${routeOverlap.toFixed(2)} below threshold ${minRouteOverlap} AND time mismatch (diff ${timeDiff}min > window ${flexWindow}min)`);
-    } else if (!overlapOk) {
-      console.log(`[PSGA] Rejected trip ${trip.id}: Route overlap ${routeOverlap.toFixed(2)} below threshold ${minRouteOverlap} (corridor=${corridorMeters}m)`);
-    } else {
-      console.log(`[PSGA] Rejected trip ${trip.id}: Time mismatch — diff ${timeDiff}min exceeds window ${flexWindow}min`);
     }
   }
 
