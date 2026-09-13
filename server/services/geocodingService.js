@@ -17,4 +17,22 @@ async function geocodeAddress(query) {
   return { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon), displayName: results[0].display_name };
 }
 
-module.exports = { geocodeAddress };
+// Coordinates -> a human-readable address, for "Use my current location"
+// buttons. Same provider, same usage-policy constraints as geocodeAddress —
+// Nominatim's /reverse endpoint, not a second dependency. Unlike a failed
+// forward search (an empty array), a failed reverse lookup (e.g. a point
+// with no nearby addressable feature) comes back as a 200 with an `error`
+// field in the body, not a non-2xx — checked explicitly below.
+async function reverseGeocode(lat, lng) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'RideShareEU-MSEUF-Thesis-Prototype/1.0' } });
+  if (!res.ok) {
+    console.warn(`[reverseGeocode] Nominatim returned ${res.status} for (${lat}, ${lng})`);
+    return null;
+  }
+  const result = await res.json();
+  if (!result || result.error || !result.display_name) return null;
+  return { lat: parseFloat(result.lat), lng: parseFloat(result.lon), displayName: result.display_name };
+}
+
+module.exports = { geocodeAddress, reverseGeocode };

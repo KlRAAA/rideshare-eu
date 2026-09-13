@@ -22,6 +22,7 @@ import RequestToJoinModal from '@/components/RequestToJoinModal';
 import { apiFetch } from '@/lib/api';
 import { formatDate, formatTime, roleLabel, phTimeToUtcMinutes, getPhTodayDateString, getPhNowTimeString } from '@/lib/format';
 import { tripStatusBadge } from '@/lib/statusBadge';
+import { useCurrentLocationAddress } from '@/lib/useCurrentLocationAddress';
 
 interface Vehicle {
   make: string;
@@ -100,6 +101,18 @@ export default function SearchClient({
   const router = useRouter();
 
   const [origin, setOrigin] = useState(initial.origin);
+  const {
+    resolving: locatingOrigin,
+    error: originLocationError,
+    resolve: resolveCurrentLocation,
+  } = useCurrentLocationAddress();
+  // Sets the same text state manual typing would — origin/destination are
+  // only ever forward-geocoded at search-submit time here (runSearch below),
+  // so there's no separate coordinate state to keep in sync ahead of that.
+  async function useMyCurrentLocation() {
+    const address = await resolveCurrentLocation();
+    if (address) setOrigin(address);
+  }
   const [destination, setDestination] = useState(initial.destination || DEFAULT_DESTINATION);
   const [date, setDate] = useState(initial.date);
   const [time, setTime] = useState(() => initial.time || defaultSearchTime());
@@ -277,7 +290,17 @@ export default function SearchClient({
   const filterFields = (
     <>
       <div>
-        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Origin</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">Origin</label>
+          <button
+            type="button"
+            onClick={useMyCurrentLocation}
+            disabled={locatingOrigin}
+            className="text-xs font-semibold text-[color:var(--rsu-color-primary)] hover:underline disabled:opacity-50"
+          >
+            {locatingOrigin ? 'Locating...' : 'Use my current location'}
+          </button>
+        </div>
         <input
           type="text"
           required
@@ -286,6 +309,7 @@ export default function SearchClient({
           onChange={(e) => setOrigin(e.target.value)}
           className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
         />
+        {originLocationError && <p className="text-xs text-red-600 mt-1">{originLocationError}</p>}
       </div>
       <div>
         <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Destination</label>

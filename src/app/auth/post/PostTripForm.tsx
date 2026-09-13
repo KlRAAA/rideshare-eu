@@ -12,6 +12,7 @@ import { getPhTodayDateString, getPhNowTimeString, phInputDate, phInputTime } fr
 import { fetchRoute, type FetchedRoute } from '@/lib/directions';
 import { FUEL_PRICE_PER_LITER, MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER } from '@/lib/constants';
 import ConfirmStructuralEditModal from '@/components/ConfirmStructuralEditModal';
+import { useCurrentLocationAddress } from '@/lib/useCurrentLocationAddress';
 
 const SEAT_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({ value: n, label: `${n} seat${n > 1 ? 's' : ''}` }));
 const GENDER_PREFERENCE_OPTIONS: { value: 'ANY' | 'SAME_GENDER'; label: string }[] = [
@@ -95,6 +96,19 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
   const isEdit = Boolean(editTrip);
 
   const [origin, setOrigin] = useState(editTrip?.originAddress ?? '');
+  const {
+    resolving: locatingOrigin,
+    error: originLocationError,
+    resolve: resolveCurrentLocation,
+  } = useCurrentLocationAddress();
+  async function useMyCurrentLocation() {
+    const address = await resolveCurrentLocation();
+    // Sets the same text state manual typing would — useGeocodedAddress below
+    // then forward-geocodes it into coordinates exactly like any typed
+    // address, since that's the only mechanism either path has for setting
+    // origin's coordinates.
+    if (address) setOrigin(address);
+  }
   const [destination, setDestination] = useState(editTrip?.destinationAddress ?? 'Enverga University, Lucena City');
   const [date, setDate] = useState(editTrip ? phInputDate(editTrip.departureTime) : '');
   const [time, setTime] = useState(editTrip ? phInputTime(editTrip.departureTime) : '07:00');
@@ -408,7 +422,17 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Origin</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">Origin</label>
+              <button
+                type="button"
+                onClick={useMyCurrentLocation}
+                disabled={locatingOrigin}
+                className="text-xs font-semibold text-[color:var(--rsu-color-primary)] hover:underline disabled:opacity-50"
+              >
+                {locatingOrigin ? 'Locating...' : 'Use my current location'}
+              </button>
+            </div>
             <input
               type="text"
               required
@@ -417,6 +441,7 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
               onChange={(e) => setOrigin(e.target.value)}
               className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
             />
+            {originLocationError && <p className="text-xs text-red-600 mt-1">{originLocationError}</p>}
           </div>
 
           <div>
