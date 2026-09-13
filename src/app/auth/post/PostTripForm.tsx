@@ -10,7 +10,7 @@ import TimePicker from '@/components/TimePicker';
 import { apiFetch, ApiError } from '@/lib/api';
 import { getPhTodayDateString, getPhNowTimeString, phInputDate, phInputTime } from '@/lib/format';
 import { fetchRoute, type FetchedRoute } from '@/lib/directions';
-import { FUEL_PRICE_PER_LITER } from '@/lib/constants';
+import { FUEL_PRICE_PER_LITER, MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER } from '@/lib/constants';
 import ConfirmStructuralEditModal from '@/components/ConfirmStructuralEditModal';
 
 const SEAT_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({ value: n, label: `${n} seat${n > 1 ? 's' : ''}` }));
@@ -101,6 +101,14 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
   const [recurrence, setRecurrence] = useState<Recurrence>(editTrip?.recurrenceType ?? 'ONE_TIME');
   const [customDays, setCustomDays] = useState<number[]>(editTrip?.customDays ?? []);
   const [seats, setSeats] = useState(editTrip?.totalSeats ?? 1);
+  // Create-only (fuelPricePerLiter isn't in EDITABLE_TRIP_FIELDS — a host's
+  // entered price is frozen alongside fuelSharePerSeat once posted, same as
+  // the rest of that computation). Pre-filled with the same default the old
+  // hardcoded constant used, fully editable to today's actual price.
+  // Kept as a raw string (matching fuelEfficiency below) — coercing straight
+  // to a number on every keystroke turns a cleared field into 0 instead of
+  // empty, so typing "85" after clearing produces "085".
+  const [fuelPricePerLiter, setFuelPricePerLiter] = useState(String(FUEL_PRICE_PER_LITER));
   const [vehicleMake, setVehicleMake] = useState(editTrip?.vehicle.make ?? '');
   const [vehicleModel, setVehicleModel] = useState(editTrip?.vehicle.model ?? '');
   const [vehicleColor, setVehicleColor] = useState(editTrip?.vehicle.color ?? '');
@@ -174,6 +182,24 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
     };
   }, [originCoords?.lat, originCoords?.lng, destinationCoords?.lat, destinationCoords?.lng]);
 
+  // Parsed only where the numeric value is actually needed (bounds check,
+  // preview math, submit payload) — null while empty or unparseable, not 0,
+  // so an in-progress edit (cleared field, "62." mid-type) doesn't read as
+  // "below the minimum."
+  const fuelPriceValue = fuelPricePerLiter.trim() === '' ? null : Number(fuelPricePerLiter);
+  const fuelPriceIsValidNumber = fuelPriceValue != null && Number.isFinite(fuelPriceValue);
+
+  // Sanity-bound the host's typed price — an obvious typo (an extra digit)
+  // would otherwise produce a wildly wrong fuel-share figure shown to
+  // passengers. Server-enforced too (tripController.js); this is just the
+  // immediate inline feedback before submit. Only fires once there's an
+  // actual out-of-range number — an empty/in-progress field isn't "invalid,"
+  // it's just incomplete, and is instead caught at submit time below.
+  const fuelPriceError =
+    !isEdit && fuelPriceIsValidNumber && (fuelPriceValue < MIN_FUEL_PRICE_PER_LITER || fuelPriceValue > MAX_FUEL_PRICE_PER_LITER)
+      ? `Enter a price between ₱${MIN_FUEL_PRICE_PER_LITER} and ₱${MAX_FUEL_PRICE_PER_LITER} per liter.`
+      : null;
+
   // Preview of the fixed per-seat fuel share. The server computes and persists
   // the authoritative value at posting time (from the same formula); this is a
   // display-only "≈" so the host sees roughly what riders will be asked to
@@ -184,8 +210,8 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
   const fuelShareLocked = isEdit && (editTrip?.approvedCount ?? 0) > 0;
   const fuelSharePreview = fuelShareLocked
     ? editTrip?.fuelSharePerSeat ?? null
-    : route?.distanceMeters && efficiencyNum > 0 && seats > 0
-      ? ((route.distanceMeters / 1000 / efficiencyNum) * FUEL_PRICE_PER_LITER) / seats
+    : route?.distanceMeters && efficiencyNum > 0 && seats > 0 && fuelPriceValue
+      ? ((route.distanceMeters / 1000 / efficiencyNum) * fuelPriceValue) / seats
       : null;
 
   const seatOptions = editTrip
@@ -223,6 +249,19 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
     }
     if (!vehicleMake || !vehicleModel || !vehicleColor || !fuelEfficiency) {
       setError('Fill in your vehicle details, including fuel efficiency — it drives the fuel share estimate.');
+      return;
+    }
+    // Empty is caught here rather than disabling the submit button live — an
+    // in-progress edit (cleared field, about to type) shouldn't look like an
+    // error before the host has even finished. Out-of-range already blocks
+    // the button (fuelPriceError); this re-check is defense in depth for the
+    // same reason the departure-time one above exists.
+    if (!isEdit && !fuelPriceIsValidNumber) {
+      setError('Enter today’s fuel price before posting.');
+      return;
+    }
+    if (!isEdit && fuelPriceError) {
+      setError(fuelPriceError);
       return;
     }
 
@@ -321,6 +360,7 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
           recurrenceType: recurrence,
           customDays: recurrence === 'CUSTOM' ? customDays : [],
           totalSeats: seats,
+          fuelPricePerLiter: fuelPriceValue,
           driverNotes: driverNotes || undefined,
           genderPreference,
           flexibleDeparture,
@@ -485,6 +525,28 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
             </div>
           </div>
 
+          {!isEdit && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                Current Fuel Price (₱/liter)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min={MIN_FUEL_PRICE_PER_LITER}
+                max={MAX_FUEL_PRICE_PER_LITER}
+                placeholder={`e.g., ${FUEL_PRICE_PER_LITER}`}
+                value={fuelPricePerLiter}
+                onChange={(e) => setFuelPricePerLiter(e.target.value)}
+                className="rsu-input-no-spinner w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">
+                Today's pump price — used to compute the fuel share above. No live price feed, so enter it yourself.
+              </p>
+              {fuelPriceError && <p className="text-xs text-red-600 mt-1">{fuelPriceError}</p>}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Vehicle Make</label>
@@ -615,7 +677,7 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
         <div className="flex gap-3">
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || Boolean(fuelPriceError)}
             className="rsu-btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {isSubmitting && <FaSpinner className="w-4 h-4 animate-spin" />}

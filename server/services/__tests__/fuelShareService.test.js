@@ -47,4 +47,20 @@ describe('computeFuelSharePerSeat', () => {
       computeFuelSharePerSeat({ distanceMeters: 30000, efficiencyKmL: 14, pricePerLiter: 62.55, passengerSeats: 0 })
     ).toBeNull();
   });
+
+  // pricePerLiter used to always come from a fixed app-wide config default,
+  // so it was never missing. Now it's host-entered per trip (no reliable free
+  // PH fuel-price API exists), and a host may not have set one yet — this
+  // must return null like the other missing-input cases, not NaN.
+  test('returns null when pricePerLiter is missing (host has not set one yet)', () => {
+    expect(
+      computeFuelSharePerSeat({ distanceMeters: 30000, efficiencyKmL: 14, pricePerLiter: null, passengerSeats: 3 })
+    ).toBeNull();
+    expect(
+      computeFuelSharePerSeat({ distanceMeters: 30000, efficiencyKmL: 14, pricePerLiter: undefined, passengerSeats: 3 })
+    ).toBeNull();
+    expect(
+      computeFuelSharePerSeat({ distanceMeters: 30000, efficiencyKmL: 14, pricePerLiter: 0, passengerSeats: 3 })
+    ).toBeNull();
+  });
 });

@@ -117,6 +117,61 @@ describe('POST /api/trips', () => {
   });
 });
 
+// No reliable free PH fuel-price API exists, so the host types today's price
+// at posting instead of a fixed app-wide default. Route data is included here
+// (tripBody() alone has none) so fuelSharePerSeat is actually non-null and the
+// price's effect on it is observable, not masked by the "no route" null path.
+describe('POST /api/trips — fuelPricePerLiter', () => {
+  const withRoute = (over = {}) =>
+    tripBody({ distanceMeters: 8000, durationSeconds: 900, routeWaypoints: null, ...over });
+
+  test('the host-supplied price is persisted and used to compute fuelSharePerSeat', async () => {
+    if (guard()) return;
+    const res = await json('POST', '/api/trips', host.id, withRoute({ fuelPricePerLiter: 70, totalSeats: 3 }));
+    expect(res.status).toBe(201);
+    const { trip } = await res.json();
+    expect(trip.fuelPricePerLiter).toBe(70);
+    // 8km / 12km/L (seed vehicle) = 0.6667L * ₱70 / 3 seats = ₱15.56
+    expect(trip.fuelSharePerSeat).toBeCloseTo(15.56, 2);
+  });
+
+  test.each([[19.99], [150.01], [0], [-5]])('price %p outside ₱20–₱150 → 400 INVALID_FUEL_PRICE, nothing created', async (price) => {
+    if (guard()) return;
+    const res = await json('POST', '/api/trips', host.id, withRoute({ fuelPricePerLiter: price }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('INVALID_FUEL_PRICE');
+  });
+
+  test.each([[20], [150]])('the boundary values %p are accepted, not rejected', async (price) => {
+    if (guard()) return;
+    const res = await json('POST', '/api/trips', host.id, withRoute({ fuelPricePerLiter: price }));
+    expect(res.status).toBe(201);
+    const { trip } = await res.json();
+    expect(trip.fuelPricePerLiter).toBe(price);
+  });
+
+  test('omitting the price entirely still creates the trip — no suggested share, not an error', async () => {
+    if (guard()) return;
+    const res = await json('POST', '/api/trips', host.id, withRoute());
+    expect(res.status).toBe(201);
+    const { trip } = await res.json();
+    expect(trip.fuelPricePerLiter).toBeNull();
+    expect(trip.fuelSharePerSeat).toBeNull();
+  });
+
+  test('editing seats before any approval recomputes fuelSharePerSeat from the trip\'s own stored price', async () => {
+    if (guard()) return;
+    const created = await (await json('POST', '/api/trips', host.id, withRoute({ fuelPricePerLiter: 80, totalSeats: 2 }))).json();
+    const id = created.trip.id;
+    expect(created.trip.fuelSharePerSeat).toBeCloseTo(26.67, 2); // 0.6667L * ₱80 / 2
+
+    const edited = await (await json('PATCH', `/api/trips/${id}`, host.id, { totalSeats: 4 })).json();
+    // Same price (₱80), now split 4 ways instead of 2 — proves the recompute
+    // used the trip's own fuelPricePerLiter, not some other/default value.
+    expect(edited.trip.fuelSharePerSeat).toBeCloseTo(13.33, 2); // 0.6667L * ₱80 / 4
+  });
+});
+
 describe('GET /api/trips/mine', () => {
   test('returns only the caller\'s trips, ignoring a spoofed ?userId', async () => {
     if (guard()) return;

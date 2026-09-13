@@ -11,7 +11,10 @@
 // posting, or a vehicle with no registered efficiency) — callers treat null as
 // "no suggested share" and hide the figure.
 function computeFuelSharePerSeat({ distanceMeters, efficiencyKmL, pricePerLiter, passengerSeats }) {
-  if (!distanceMeters || !efficiencyKmL || !passengerSeats || passengerSeats < 1) return null;
+  // pricePerLiter used to always come from a fixed app-wide config default —
+  // never missing. Now it's host-entered per trip, so treat it the same as
+  // the other three inputs: no price yet means no suggested share, not NaN.
+  if (!distanceMeters || !efficiencyKmL || !pricePerLiter || !passengerSeats || passengerSeats < 1) return null;
   const litres = distanceMeters / 1000 / efficiencyKmL;
   const perSeat = (litres * pricePerLiter) / passengerSeats;
   return Number(perSeat.toFixed(2));

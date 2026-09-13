@@ -21,8 +21,4 @@ module.exports = {
   // loose enough to absorb the ±1-2km Nominatim geocoding drift noted above
   // while still meaning "heading to the same place," not "same city."
   destinationAnchorMeters: 3000,
-  // Retail gas price (PHP/L). Baked into each trip's fuelSharePerSeat at posting
-  // time, so changing it only affects trips posted afterward — existing trips
-  // keep the price they were posted with. Update roughly weekly.
-  fuelPricePerLiter: 62.55,
 };
