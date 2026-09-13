@@ -1,28 +1,9 @@
-const { recurrenceRunsOnDay } = require('./recurrenceMath');
+const { recurrenceRunsOnDay, phDateOnly } = require('./recurrenceMath');
 
 const EARTH_RADIUS_M = 6371000;
-const PH_OFFSET_MS = 8 * 60 * 60 * 1000; // UTC+8, no DST
 
 function toRad(deg) {
   return (deg * Math.PI) / 180;
-}
-
-// Which Philippine-local calendar day a UTC instant falls on, as a
-// UTC-midnight Date usable as a frame-agnostic comparison key (see
-// recurrenceMath.js). PH has a fixed offset, so shifting the instant forward
-// by it and reading the shifted instant's own UTC calendar-day components
-// gives exactly the PH wall-clock day — no Intl/timezone-database lookup
-// needed.
-//
-// This matters more than it looks: a trip departing 7:00 AM PH — the
-// thesis's own stated peak commute time — is stored as 23:00 UTC the
-// PREVIOUS calendar day. Comparing raw UTC calendar days here (the way
-// tripCompletionService's lifecycle check correctly does, for a different,
-// server-clock-relative question) would silently attribute almost every
-// peak-hour morning trip to the wrong day for search purposes.
-function phDateOnly(instant) {
-  const shifted = new Date(instant.getTime() + PH_OFFSET_MS);
-  return new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()));
 }
 
 // Parses the search form's "YYYY-MM-DD" (Philippine-local, from the

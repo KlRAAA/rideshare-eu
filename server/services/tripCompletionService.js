@@ -1,5 +1,5 @@
 const prisma = require('../config/db');
-const { recurrenceRunsOnDay } = require('./recurrenceMath');
+const { recurrenceRunsOnDay, phDateOnly } = require('./recurrenceMath');
 
 const GRACE_BUFFER_MINUTES = 30;
 
@@ -23,12 +23,16 @@ function utcDateOnly(date) {
 // there's no principled point at which they'd stop being "active" on their
 // own; only an explicit host cancellation ends a recurring trip.
 //
-// UTC calendar days throughout — correct for this function's actual job
-// (has today's occurrence, by server clock, already happened), unlike
-// psgaService's search-eligibility version of this same recurrence check,
-// which needs Philippine-local calendar days instead (see recurrenceMath.js).
+// Philippine-local calendar days (phDateOnly), not raw UTC ones — a trip
+// departing 7:00 AM PH is stored as 23:00 UTC the PREVIOUS calendar day, so
+// comparing raw UTC days would misjudge day-of-week/date-equality for almost
+// every peak-hour morning trip during the UTC 16:00-23:59 window (PH
+// midnight-7:59am). This is ONLY about which calendar day a target instant
+// counts as — occurrenceCompletionAt below (has the completion timestamp
+// actually elapsed) is a separate, still-UTC-internal question and is
+// unaffected by this.
 function runsOnDate(trip, date) {
-  return recurrenceRunsOnDay(trip, utcDateOnly(trip.departureTime), utcDateOnly(date));
+  return recurrenceRunsOnDay(trip, phDateOnly(trip.departureTime), phDateOnly(date));
 }
 
 // When today's occurrence is considered complete: departureTime's own UTC
@@ -200,7 +204,13 @@ async function applyLazyCompletion(trips, now = new Date()) {
       }
     } else {
       if (!isRecurringOccurrenceDue(t, now)) continue;
-      const occurrenceDate = utcDateOnly(now);
+      // Philippine-local day, matching runsOnDate's fix above — this is the
+      // dedup key completeRecurringOccurrence uses for its RATING_PROMPT
+      // notifications. Leaving it UTC-anchored while runsOnDate became
+      // PH-anchored would let the same PH-day's occurrence get keyed under two
+      // different UTC-day values across lazy-completion runs straddling the
+      // UTC/PH boundary, defeating the notification dedup.
+      const occurrenceDate = phDateOnly(now);
       const { pendingDeclinedIds } = await completeRecurringOccurrence(t.id, occurrenceDate);
       if (Array.isArray(t.matches)) {
         for (const id of pendingDeclinedIds) {
