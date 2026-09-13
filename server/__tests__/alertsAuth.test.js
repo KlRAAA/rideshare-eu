@@ -61,6 +61,59 @@ describe('GET /api/alerts', () => {
   });
 });
 
+describe('GET /api/alerts pagination', () => {
+  let carol;
+  const startMs = new Date('2026-01-01T00:00:00Z').getTime();
+
+  beforeAll(async () => {
+    if (!dbUp) return;
+    carol = await makeUser(bag, { fullName: 'Carol C' });
+    // 5 notifications, 1 minute apart, so newest-first order is deterministic:
+    // note 4, note 3, note 2, note 1, note 0.
+    for (let i = 0; i < 5; i++) {
+      await makeNotification(bag, carol.id, { message: `note ${i}`, createdAt: new Date(startMs + i * 60000) });
+    }
+  });
+
+  test('first page respects limit and returns a nextCursor', async () => {
+    if (guard()) return;
+    const res = await fetch(`${base}/api/alerts?limit=2`, { headers: bearer(carol.id) });
+    const { notifications, nextCursor } = await res.json();
+    expect(notifications.map((n) => n.message)).toEqual(['note 4', 'note 3']);
+    expect(nextCursor).toBe(notifications[1].id);
+  });
+
+  test('second page continues from the cursor with no repeats or gaps', async () => {
+    if (guard()) return;
+    const first = await (await fetch(`${base}/api/alerts?limit=2`, { headers: bearer(carol.id) })).json();
+    const res = await fetch(`${base}/api/alerts?limit=2&cursor=${first.nextCursor}`, { headers: bearer(carol.id) });
+    const { notifications, nextCursor } = await res.json();
+    expect(notifications.map((n) => n.message)).toEqual(['note 2', 'note 1']);
+    expect(nextCursor).toBe(notifications[1].id);
+  });
+
+  test('last page has no nextCursor', async () => {
+    if (guard()) return;
+    let cursor;
+    let page;
+    do {
+      const url = cursor ? `${base}/api/alerts?limit=2&cursor=${cursor}` : `${base}/api/alerts?limit=2`;
+      page = await (await fetch(url, { headers: bearer(carol.id) })).json();
+      cursor = page.nextCursor;
+    } while (cursor);
+    expect(page.notifications.map((n) => n.message)).toEqual(['note 0']);
+    expect(page.nextCursor).toBeNull();
+  });
+
+  test('default limit still applies with no cursor (no unbounded fetch regression)', async () => {
+    if (guard()) return;
+    const res = await fetch(`${base}/api/alerts`, { headers: bearer(carol.id) });
+    const { notifications, nextCursor } = await res.json();
+    expect(notifications).toHaveLength(5); // fewer than DEFAULT_NOTIFICATION_LIMIT, so all fit on one page
+    expect(nextCursor).toBeNull();
+  });
+});
+
 describe('PATCH /api/alerts/:id/read', () => {
   test("marking someone else's notification read → 403, stays unread", async () => {
     if (guard()) return;

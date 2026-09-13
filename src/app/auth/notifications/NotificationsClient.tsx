@@ -27,8 +27,15 @@ const TYPE_ICON: Record<NotificationItem['type'], React.ComponentType<{ classNam
   TRIP_UPDATED: FaPen,
 };
 
-export default function NotificationsClient({ initialNotifications }: { initialNotifications: NotificationItem[] }) {
+interface NotificationsClientProps {
+  initialNotifications: NotificationItem[];
+  initialNextCursor: string | null;
+}
+
+export default function NotificationsClient({ initialNotifications, initialNextCursor }: NotificationsClientProps) {
   const [notifications, setNotifications] = useState(initialNotifications);
+  const [nextCursor, setNextCursor] = useState(initialNextCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   // formatDateTimeAgo is a function of Date.now(), which genuinely differs
   // between the server-render instant and the client-hydration instant a
@@ -61,6 +68,20 @@ export default function NotificationsClient({ initialNotifications }: { initialN
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } finally {
       setMarkingAll(false);
+    }
+  }
+
+  async function loadMore() {
+    if (!nextCursor) return;
+    setLoadingMore(true);
+    try {
+      const data = await apiFetch<{ notifications: NotificationItem[]; nextCursor: string | null }>(
+        `/api/alerts?cursor=${nextCursor}`
+      );
+      setNotifications((prev) => [...prev, ...data.notifications]);
+      setNextCursor(data.nextCursor);
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -126,6 +147,14 @@ export default function NotificationsClient({ initialNotifications }: { initialN
               </Link>
             );
           })}
+        </div>
+      )}
+
+      {nextCursor && (
+        <div className="max-w-2xl mt-4 flex justify-center">
+          <button type="button" onClick={loadMore} disabled={loadingMore} className="rsu-btn-secondary disabled:opacity-60">
+            {loadingMore ? 'Loading...' : 'Load more'}
+          </button>
         </div>
       )}
     </div>

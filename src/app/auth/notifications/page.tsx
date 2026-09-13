@@ -9,9 +9,13 @@ export default async function NotificationsPage() {
   const user = await getCurrentUser();
 
   let notifications: NotificationItem[] = [];
+  let initialNextCursor: string | null = null;
   if (user) {
-    const data = await apiFetch<{ notifications: NotificationItem[] }>(`/api/alerts?userId=${user.id}`);
+    const data = await apiFetch<{ notifications: NotificationItem[]; nextCursor: string | null }>(
+      `/api/alerts?userId=${user.id}`
+    );
     notifications = data.notifications;
+    initialNextCursor = data.nextCursor;
   }
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
@@ -21,7 +25,7 @@ export default async function NotificationsPage() {
       <Header active="notifications" unreadCount={unreadCount} />
       <main className="app-desktop w-full pt-2 md:pt-4">
         {user ? (
-          <NotificationsClient initialNotifications={notifications} />
+          <NotificationsClient initialNotifications={notifications} initialNextCursor={initialNextCursor} />
         ) : (
           <p className="text-sm text-gray-500">Sign in to view your notifications.</p>
         )}
