@@ -218,6 +218,7 @@ async function updateStatus(req, res) {
   if (existing.trip.hostId !== req.user.id) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
 
   let match;
+  let autoDeclinedMatches = []; // [{ id, passengerId }] — only set when this approval fills the last seat
   if (status === 'DECLINED') {
     match = await prisma.match.update({
       where: { id },
@@ -250,8 +251,26 @@ async function updateStatus(req, res) {
         where: { id: existing.tripId },
         select: { filledSeats: true, totalSeats: true, status: true },
       });
+      let declinedOthers = [];
       if (updatedTrip.status === 'OPEN' && updatedTrip.filledSeats >= updatedTrip.totalSeats) {
         await tx.trip.update({ where: { id: existing.tripId }, data: { status: 'FULL' } });
+
+        // This was the last seat, not just any approval — every other still-
+        // PENDING request on the trip can now never be approved. Declined in
+        // the same transaction as the seat claim (not a follow-up query
+        // after commit), so it can't run against a stale "still pending"
+        // list if another request is approved/declined concurrently.
+        const stillPending = await tx.match.findMany({
+          where: { tripId: existing.tripId, status: 'PENDING', id: { not: id } },
+          select: { id: true, passengerId: true },
+        });
+        if (stillPending.length > 0) {
+          await tx.match.updateMany({
+            where: { id: { in: stillPending.map((m) => m.id) } },
+            data: { status: 'DECLINED', respondedAt: new Date() },
+          });
+          declinedOthers = stillPending;
+        }
       }
 
       const approvedMatch = await tx.match.update({
@@ -259,15 +278,18 @@ async function updateStatus(req, res) {
         data: { status: 'APPROVED', respondedAt: new Date() },
         include: { trip: true, passenger: { select: safeUserSelect } },
       });
-      return { ok: true, match: approvedMatch };
+      return { ok: true, match: approvedMatch, declinedOthers };
     });
 
     if (!result.ok) {
-      // Other PENDING requests on a now-full trip are left as-is for now —
-      // auto-declining them is a separate product decision, not part of this fix.
+      // The trip was already full before this call — whichever earlier
+      // approval actually claimed the last seat already auto-declined every
+      // other PENDING request in its own transaction (below), so there's
+      // nothing left here to clean up.
       return res.status(409).json({ error: 'TRIP_FULL', message: 'This trip is already full.' });
     }
     match = result.match;
+    autoDeclinedMatches = result.declinedOthers;
   }
 
   await prisma.notification.create({
@@ -282,6 +304,23 @@ async function updateStatus(req, res) {
       relatedTripId: match.tripId,
     },
   });
+
+  // Same notification type/shape a manual host decline uses — just distinct
+  // wording, since these passengers weren't reviewed and rejected, the trip
+  // simply filled first. Sent after the transaction commits, same as the
+  // primary notification above (notification creation isn't part of the
+  // atomic seat-claim itself, matching the existing convention here).
+  if (autoDeclinedMatches.length > 0) {
+    await prisma.notification.createMany({
+      data: autoDeclinedMatches.map((m) => ({
+        userId: m.passengerId,
+        type: 'APPROVAL',
+        message: `This trip to ${match.trip.destinationAddress} filled up before your request could be reviewed.`,
+        relatedMatchId: m.id,
+        relatedTripId: match.tripId,
+      })),
+    });
+  }
 
   res.json({ match });
 }

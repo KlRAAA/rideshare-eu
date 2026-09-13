@@ -133,14 +133,18 @@ describe('PATCH /api/matches/:id — seat capacity enforced on approval', () => 
     expect(filledTrip.filledSeats).toBe(1);
     expect(filledTrip.status).toBe('FULL');
 
+    // match2 is already DECLINED at this point — the first approval filled
+    // the last seat, which auto-declines every other still-PENDING request
+    // in the same transaction (see the dedicated describe block below). The
+    // capacity check doesn't care about a match's prior status, only the
+    // trip's capacity, so attempting to approve an already-declined match on
+    // a full trip is still correctly rejected, not silently approved.
     const secondApproval = await req('PATCH', `/api/matches/${match2.id}`, { token: capHost.id, body: { status: 'APPROVED' } });
     expect(secondApproval.status).toBe(409);
     expect((await secondApproval.json()).error).toBe('TRIP_FULL');
 
-    // Rejected, not silently applied: match2 never flips, and the seat count
-    // never overshoots past totalSeats.
     const freshMatch2 = await prisma.match.findUnique({ where: { id: match2.id } });
-    expect(freshMatch2.status).toBe('PENDING');
+    expect(freshMatch2.status).toBe('DECLINED');
     const freshTrip = await prisma.trip.findUnique({ where: { id: trip.id } });
     expect(freshTrip.filledSeats).toBe(1);
   });
@@ -183,6 +187,85 @@ describe('PATCH /api/matches/:id — seat capacity enforced on approval', () => 
     expect(res.status).toBe(200);
     const fresh = await prisma.match.findUnique({ where: { id: stillPending.id } });
     expect(fresh.status).toBe('DECLINED');
+  });
+});
+
+// An approval that claims the LAST seat can never leave other PENDING
+// requests permanently unapprovable — they're auto-declined in the same
+// transaction and told why, reusing the same APPROVAL notification type a
+// manual decline uses (see AGENTS.md for the product decision).
+describe('PATCH /api/matches/:id — auto-decline other pending requests when the last seat fills', () => {
+  test('a 1-seat trip with 3 pending requests: approving one auto-declines the other two, each with the fill-first message and a notification', async () => {
+    if (guard()) return;
+    const autoHost = await makeUser(bag, { fullName: 'Auto Decline Host' });
+    const pax1 = await makeUser(bag, { fullName: 'Auto Pax One' });
+    const pax2 = await makeUser(bag, { fullName: 'Auto Pax Two' });
+    const pax3 = await makeUser(bag, { fullName: 'Auto Pax Three' });
+    const vehicle = await makeVehicle(bag, autoHost.id);
+    const trip = await makeTrip(bag, autoHost.id, vehicle.id, { totalSeats: 1, status: 'OPEN' });
+    const toApprove = await makeMatch(bag, trip.id, pax1.id, { status: 'PENDING' });
+    const other1 = await makeMatch(bag, trip.id, pax2.id, { status: 'PENDING' });
+    const other2 = await makeMatch(bag, trip.id, pax3.id, { status: 'PENDING' });
+
+    const res = await req('PATCH', `/api/matches/${toApprove.id}`, { token: autoHost.id, body: { status: 'APPROVED' } });
+    expect(res.status).toBe(200);
+
+    const [freshApproved, freshOther1, freshOther2] = await Promise.all([
+      prisma.match.findUnique({ where: { id: toApprove.id } }),
+      prisma.match.findUnique({ where: { id: other1.id } }),
+      prisma.match.findUnique({ where: { id: other2.id } }),
+    ]);
+    expect(freshApproved.status).toBe('APPROVED');
+    expect(freshOther1.status).toBe('DECLINED');
+    expect(freshOther2.status).toBe('DECLINED');
+    expect(freshOther1.respondedAt).not.toBeNull();
+
+    const expectedMessage = `This trip to ${trip.destinationAddress} filled up before your request could be reviewed.`;
+    for (const [pax, otherMatch] of [
+      [pax2, other1],
+      [pax3, other2],
+    ]) {
+      const notification = await prisma.notification.findFirst({
+        where: { userId: pax.id, type: 'APPROVAL', relatedMatchId: otherMatch.id },
+      });
+      expect(notification).not.toBeNull();
+      expect(notification.message).toBe(expectedMessage);
+      expect(notification.relatedTripId).toBe(trip.id);
+    }
+
+    // The approved passenger gets the normal approval message, not the
+    // fill-first one — auto-decline only applies to the OTHER requests.
+    const approvalNotification = await prisma.notification.findFirst({
+      where: { userId: pax1.id, type: 'APPROVAL', relatedMatchId: toApprove.id },
+    });
+    expect(approvalNotification.message).toBe(`Your request to join the trip to ${trip.destinationAddress} has been approved.`);
+  });
+
+  test('approving a request on a trip with remaining seats leaves other pending requests untouched', async () => {
+    if (guard()) return;
+    const roomyHost = await makeUser(bag, { fullName: 'Roomy Host' });
+    const pax1 = await makeUser(bag, { fullName: 'Roomy Pax One' });
+    const pax2 = await makeUser(bag, { fullName: 'Roomy Pax Two' });
+    const vehicle = await makeVehicle(bag, roomyHost.id);
+    const trip = await makeTrip(bag, roomyHost.id, vehicle.id, { totalSeats: 3, status: 'OPEN' });
+    const toApprove = await makeMatch(bag, trip.id, pax1.id, { status: 'PENDING' });
+    const other = await makeMatch(bag, trip.id, pax2.id, { status: 'PENDING' });
+
+    const res = await req('PATCH', `/api/matches/${toApprove.id}`, { token: roomyHost.id, body: { status: 'APPROVED' } });
+    expect(res.status).toBe(200);
+
+    const freshOther = await prisma.match.findUnique({ where: { id: other.id } });
+    expect(freshOther.status).toBe('PENDING');
+    expect(freshOther.respondedAt).toBeNull();
+
+    const freshTrip = await prisma.trip.findUnique({ where: { id: trip.id } });
+    expect(freshTrip.status).toBe('OPEN');
+    expect(freshTrip.filledSeats).toBe(1);
+
+    const noNotification = await prisma.notification.findFirst({
+      where: { userId: pax2.id, relatedMatchId: other.id },
+    });
+    expect(noNotification).toBeNull();
   });
 });
 
