@@ -25,3 +25,12 @@ export const FUEL_PRICE_PER_LITER = 62.55;
 // same check).
 export const MIN_FUEL_PRICE_PER_LITER = 20;
 export const MAX_FUEL_PRICE_PER_LITER = 150;
+
+// Live location sharing: short-polling, not websockets — a pickup-timing use
+// case doesn't need sub-30s precision, and this needs no new realtime
+// infrastructure. Used for both the host's broadcast interval and the
+// passenger's read interval. Keep roughly in sync with
+// tripController.js's STALE_LOCATION_MS (~3x this, so one missed tick is
+// absorbed but a passenger never sees a pin frozen long after the host
+// closed the app).
+export const LOCATION_POLL_INTERVAL_MS = 30000;

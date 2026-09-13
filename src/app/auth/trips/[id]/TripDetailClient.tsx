@@ -13,7 +13,8 @@ import TripSummaryCard from '@/components/TripSummaryCard';
 import FuelShareCard from '@/components/FuelShareCard';
 import CoRidersCard from '@/components/CoRidersCard';
 import { apiFetch, ApiError } from '@/lib/api';
-import { checkCampusProximity } from '@/lib/geoProximity';
+import { checkCampusProximity, getCurrentCoords } from '@/lib/geoProximity';
+import { LOCATION_POLL_INTERVAL_MS } from '@/lib/constants';
 
 interface Vehicle {
   make: string;
@@ -144,6 +145,69 @@ export default function TripDetailClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trip.id, isHost, liveLocationSharing, tripIsActive]);
 
+  // Live location sharing — host side: broadcasts the current position every
+  // ~30s while sharing is on and the trip is active. Deliberately its own
+  // interval, not folded into the proximity-check effect above: that one is
+  // correctly one-shot (check once on mount), this one needs to repeat for
+  // the trip's whole active lifetime — sharing one loop would mean either
+  // the proximity check re-firing repeatedly (changing existing behavior) or
+  // this being one-shot (useless for a live pin). Fails soft exactly like
+  // the proximity check: getCurrentCoords resolves null on any failure
+  // (permission denied, unsupported, timeout) and a tick just no-ops.
+  useEffect(() => {
+    if (!isHost || !liveLocationSharing || !tripIsActive) return;
+    let cancelled = false;
+    const broadcast = () => {
+      getCurrentCoords().then((coords) => {
+        if (cancelled || !coords) return;
+        apiFetch(`/api/trips/${trip.id}/location`, {
+          method: 'POST',
+          body: JSON.stringify({ lat: coords.lat, lng: coords.lng }),
+        }).catch(() => {}); // a missed tick just means the next one tries again
+      });
+    };
+    broadcast();
+    const intervalId = setInterval(broadcast, LOCATION_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip.id, isHost, liveLocationSharing, tripIsActive]);
+
+  // Live location sharing — passenger side: polls the host's last-known
+  // position every ~30s while this viewer has a confirmed seat and the trip
+  // is active. The server re-checks the host's sharing preference and point
+  // staleness on every read (never trusted from anything cached here), so
+  // this just renders whatever comes back — no need to know the host's
+  // preference on this side at all.
+  const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    const canWatch = !isHost && myActiveMatch?.status === 'APPROVED' && tripIsActive;
+    if (!canWatch) {
+      setDriverLocation(null);
+      return;
+    }
+    let cancelled = false;
+    const poll = () => {
+      apiFetch<{ location: { lat: number; lng: number; updatedAt: string } | null }>(`/api/trips/${trip.id}/location`)
+        .then((data) => {
+          if (cancelled) return;
+          setDriverLocation(data.location ? { lat: data.location.lat, lng: data.location.lng } : null);
+        })
+        .catch(() => {
+          if (!cancelled) setDriverLocation(null);
+        });
+    };
+    poll();
+    const intervalId = setInterval(poll, LOCATION_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip.id, isHost, myActiveMatch?.status, tripIsActive]);
+
   // Arriving from a "requested to join" notification: bring that row into view.
   useEffect(() => {
     if (!highlightRequestId) return;
@@ -192,6 +256,7 @@ export default function TripDetailClient({
               : null
           }
           routeWaypoints={trip.routeWaypoints}
+          driverLocation={driverLocation}
         />
 
         <DriverIdentityCard

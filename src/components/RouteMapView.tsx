@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Map, { Marker, Source, Layer, type MapRef } from 'react-map-gl/mapbox';
 import type { Feature, FeatureCollection } from 'geojson';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { FaHome, FaUniversity, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaHome, FaUniversity, FaMapMarkerAlt, FaCar } from 'react-icons/fa';
 import { MSEUF_LUCENA } from '@/lib/constants';
 import { fetchRoute, hasMapboxToken, type LatLng } from '@/lib/directions';
 
@@ -28,6 +28,12 @@ export interface RouteMapProps {
   // Passenger straight-line vs host-corridor classification from
   // POST /api/matches/route-overlap. Draws the shared/detour split + legend.
   overlap?: OverlapData | null;
+  // Host's live position (liveLocationSharing), polled by the caller — this
+  // component only renders it. Deliberately excluded from the bounds-fit
+  // calculation below: including a point that moves every ~25-30s would
+  // re-center/re-zoom the map on every update, which is jarring for someone
+  // just watching a pin approach rather than reviewing a static route.
+  driverLocation?: LatLng | null;
   heightClassName?: string;
   className?: string;
 }
@@ -56,6 +62,7 @@ export default function RouteMapView({
   meetingPoint,
   routeWaypoints,
   overlap,
+  driverLocation,
   heightClassName = 'h-56',
   className = '',
 }: RouteMapProps) {
@@ -200,10 +207,17 @@ export default function RouteMapView({
               <Pin icon={<FaMapMarkerAlt />} inverted />
             </Marker>
           )}
+          {driverLocation && (
+            <Marker longitude={driverLocation.lng} latitude={driverLocation.lat} anchor="center">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center shadow-md ring-2 ring-white text-xs bg-blue-600 text-white">
+                <FaCar />
+              </div>
+            </Marker>
+          )}
         </Map>
       </div>
 
-      {(overlap || meetingPoint) && (
+      {(overlap || meetingPoint || driverLocation) && (
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-4 h-0.5 rounded" style={{ background: MAROON }} /> Driver’s route
@@ -221,6 +235,11 @@ export default function RouteMapView({
           {meetingPoint && (
             <span className="flex items-center gap-1.5">
               <FaMapMarkerAlt className="w-3 h-3 text-[#800000]" /> Meeting point
+            </span>
+          )}
+          {driverLocation && (
+            <span className="flex items-center gap-1.5">
+              <FaCar className="w-3 h-3 text-blue-600" /> Driver’s live location
             </span>
           )}
         </div>

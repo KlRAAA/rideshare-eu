@@ -1,5 +1,5 @@
 const prisma = require('../config/db');
-const { geocodeAddress } = require('../services/geocodingService');
+const { geocodeAddress, reverseGeocode } = require('../services/geocodingService');
 const { validateClientRoute } = require('../services/routeSanity');
 const { computeFuelSharePerSeat } = require('../services/fuelShareService');
 const { classifyTripChanges, describeCategories, fuelShareWouldChange } = require('../services/tripUpdateService');
@@ -239,6 +239,103 @@ async function getById(req, res) {
   res.json({ trip });
 }
 
+// A trip only broadcasts location while it's still upcoming/in-progress —
+// once COMPLETED or CANCELLED there's nothing left to track toward. Same
+// pair of statuses markCompleted already treats as "not active."
+const LOCATION_SHAREABLE_STATUSES = ['OPEN', 'FULL'];
+// ~3x the client's ~25-30s poll interval — long enough to absorb one missed
+// tick, short enough that a passenger never sees a pin frozen in place long
+// after the host closed the app or lost signal.
+const STALE_LOCATION_MS = 90 * 1000;
+
+// Same shape as canViewPlate: the host, or a passenger with an APPROVED
+// match on THIS specific trip — never a pending requester, never someone
+// approved on a different trip, never the public.
+function canViewLocation(trip, userId) {
+  if (!userId) return false;
+  if (userId === trip.hostId) return true;
+  return trip.matches.some((m) => m.passengerId === userId && m.status === 'APPROVED');
+}
+
+// Host-only write, called every ~25-30s from the host's own device while
+// liveLocationSharing is on. Re-checks the preference server-side on every
+// call — never trusted from the client — so a host can't keep broadcasting
+// past having turned the toggle off, and a client bug can't fake it on.
+async function updateLocation(req, res) {
+  const { id } = req.params;
+  const { lat, lng } = req.body;
+
+  const trip = await prisma.trip.findUnique({ where: { id }, select: { hostId: true, status: true } });
+  if (!trip) return res.status(404).json({ error: 'TRIP_NOT_FOUND' });
+  if (trip.hostId !== req.user.id) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
+  if (!LOCATION_SHAREABLE_STATUSES.includes(trip.status)) {
+    return res.status(409).json({ error: 'TRIP_NOT_ACTIVE' });
+  }
+
+  const preference = await prisma.preference.findUnique({
+    where: { userId: req.user.id },
+    select: { liveLocationSharing: true },
+  });
+  if (!preference?.liveLocationSharing) {
+    return res.status(403).json({ error: 'LOCATION_SHARING_DISABLED' });
+  }
+
+  // Number(null) is 0, not NaN — checked explicitly rather than relying on
+  // Number.isFinite alone, or a missing lat/lng would silently become a real
+  // (wrong) coordinate instead of being rejected (the same class of bug as
+  // the departureMinutes null-coercion issue elsewhere in this codebase).
+  if (lat == null || lng == null) {
+    return res.status(400).json({ error: 'INVALID_COORDINATES' });
+  }
+  const latNum = Number(lat);
+  const lngNum = Number(lng);
+  if (!Number.isFinite(latNum) || !Number.isFinite(lngNum) || Math.abs(latNum) > 90 || Math.abs(lngNum) > 180) {
+    return res.status(400).json({ error: 'INVALID_COORDINATES' });
+  }
+
+  await prisma.trip.update({
+    where: { id },
+    data: { lastKnownLat: latNum, lastKnownLng: lngNum, lastLocationUpdatedAt: new Date() },
+  });
+  res.json({ ok: true });
+}
+
+// Read side: host + this trip's approved passengers only. Returns a null
+// location (200, not an error) for every "nothing to show right now" case —
+// trip no longer active, host has since turned sharing off, or the last
+// point is stale — so the frontend just hides the pin instead of treating a
+// normal, expected state as a failure.
+async function getLocation(req, res) {
+  const { id } = req.params;
+  const trip = await prisma.trip.findUnique({
+    where: { id },
+    include: { matches: { select: { passengerId: true, status: true } } },
+  });
+  if (!trip) return res.status(404).json({ error: 'TRIP_NOT_FOUND' });
+  if (!canViewLocation(trip, req.user.id)) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
+
+  if (!LOCATION_SHAREABLE_STATUSES.includes(trip.status)) {
+    return res.json({ location: null });
+  }
+
+  // Re-checked here, not just at write time — if the host shared for a while
+  // then flipped the toggle off, the last point already sitting in the row
+  // must stop being served immediately, not just stop being updated.
+  const preference = await prisma.preference.findUnique({
+    where: { userId: trip.hostId },
+    select: { liveLocationSharing: true },
+  });
+  if (!preference?.liveLocationSharing) return res.json({ location: null });
+
+  if (trip.lastKnownLat == null || trip.lastKnownLng == null || !trip.lastLocationUpdatedAt) {
+    return res.json({ location: null });
+  }
+  const ageMs = Date.now() - trip.lastLocationUpdatedAt.getTime();
+  if (ageMs > STALE_LOCATION_MS) return res.json({ location: null });
+
+  res.json({ location: { lat: trip.lastKnownLat, lng: trip.lastKnownLng, updatedAt: trip.lastLocationUpdatedAt } });
+}
+
 // Host-only manual override — same underlying completeTrip() as the lazy
 // auto-detect path, so both trigger identical downstream effects (approved
 // matches complete, pending ones decline, both sides get rating prompts).
@@ -257,8 +354,23 @@ async function markCompleted(req, res) {
   res.json({ trip: updated });
 }
 
+// Forward (?q=) or reverse (?lat=&lng=) — same endpoint, dispatched on which
+// params are present, rather than a second route: it's the one geocoding
+// endpoint either direction goes through.
 async function geocode(req, res) {
-  const { q } = req.query;
+  const { q, lat, lng } = req.query;
+
+  if (lat != null && lng != null) {
+    const latNum = Number(lat);
+    const lngNum = Number(lng);
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum) || Math.abs(latNum) > 90 || Math.abs(lngNum) > 180) {
+      return res.status(400).json({ error: 'INVALID_COORDINATES' });
+    }
+    const reverseResult = await reverseGeocode(latNum, lngNum);
+    if (!reverseResult) return res.status(404).json({ error: 'NOT_FOUND' });
+    return res.json(reverseResult);
+  }
+
   if (!q) return res.status(400).json({ error: 'MISSING_QUERY' });
   const result = await geocodeAddress(q);
   if (!result) return res.status(404).json({ error: 'NOT_FOUND' });
@@ -467,4 +579,4 @@ async function updateTrip(req, res) {
   res.json({ trip: updated, notified: notifyMatches.length });
 }
 
-module.exports = { createTrip, listMine, getById, geocode, cancelTrip, markCompleted, updateTrip };
+module.exports = { createTrip, listMine, getById, geocode, cancelTrip, markCompleted, updateTrip, updateLocation, getLocation };
