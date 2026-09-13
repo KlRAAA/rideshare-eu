@@ -129,6 +129,14 @@ model Trip {
   durationSeconds     Int?             // from the Mapbox Directions call at creation; null if routing failed/implausible — auto-completion skips those, manual override still works
   cancelReason        String?          // host's optional reason, shown in the passenger cancellation notification
   cancelledAt         DateTime?
+  // Host's last-known position while liveLocationSharing is on — one current
+  // value, not a trail, so flat columns on Trip match the rest of this
+  // model's mutable single-value fields (filledSeats, status) rather than a
+  // separate history table nothing here needs. Written by the host's own
+  // device, read by the host + this trip's APPROVED passengers only.
+  lastKnownLat          Float?
+  lastKnownLng          Float?
+  lastLocationUpdatedAt DateTime?
 
   matches             Match[]
 
