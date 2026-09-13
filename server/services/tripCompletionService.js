@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { recurrenceRunsOnDay } = require('./recurrenceMath');
 
 const GRACE_BUFFER_MINUTES = 30;
 
@@ -21,25 +22,13 @@ function utcDateOnly(date) {
 // recur indefinitely from the trip's original departureTime date onward —
 // there's no principled point at which they'd stop being "active" on their
 // own; only an explicit host cancellation ends a recurring trip.
+//
+// UTC calendar days throughout — correct for this function's actual job
+// (has today's occurrence, by server clock, already happened), unlike
+// psgaService's search-eligibility version of this same recurrence check,
+// which needs Philippine-local calendar days instead (see recurrenceMath.js).
 function runsOnDate(trip, date) {
-  const start = utcDateOnly(trip.departureTime);
-  const day = utcDateOnly(date);
-  if (day.getTime() < start.getTime()) return false;
-
-  switch (trip.recurrenceType) {
-    case 'ONE_TIME':
-      return day.getTime() === start.getTime();
-    case 'DAILY':
-      return true;
-    case 'WEEKDAYS': {
-      const dow = day.getUTCDay();
-      return dow >= 1 && dow <= 5;
-    }
-    case 'CUSTOM':
-      return trip.customDays.includes(day.getUTCDay());
-    default:
-      return false;
-  }
+  return recurrenceRunsOnDay(trip, utcDateOnly(trip.departureTime), utcDateOnly(date));
 }
 
 // When today's occurrence is considered complete: departureTime's own UTC

@@ -130,6 +130,10 @@ describe('POST /api/matches/show-all — Find a Ride empty-state fallback', () =
       origin: { lat: 14.5, lng: 121.0 }, // far from every seeded trip's corridor
       destination: SEARCH_DEST,
       departureMinutes: 420,
+      // Every seeded trip departs 2099-01-01T10:00Z, which is still
+      // 2099-01-01 in Philippine-local terms (10:00 UTC + 8h = 18:00 UTC,
+      // no calendar-day rollover) — matches each ONE_TIME trip's own date.
+      date: '2099-01-01',
       flexWindowMinutes: 0,
       genderPreference: 'ANY',
     };

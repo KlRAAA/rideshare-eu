@@ -1,5 +1,5 @@
 const prisma = require('../config/db');
-const { runPSGA, runShowAllFallback, computeRouteOverlapDetail } = require('../services/psgaService');
+const { runPSGA, runShowAllFallback, computeRouteOverlapDetail, tripRunsOnSearchDate } = require('../services/psgaService');
 const { applyLazyCompletion } = require('../services/tripCompletionService');
 const psgaConfig = require('../config/psgaConfig');
 const safeUserSelect = require('../config/safeUserSelect');
@@ -17,6 +17,16 @@ const MINUTES_IN_DAY = 1440;
 // ever appeared.)
 function isValidDepartureMinutes(v) {
   return typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < MINUTES_IN_DAY;
+}
+
+// The search form's DatePicker already collects and validates this
+// (required, min=today) but never sent it — every candidate was matched by
+// time-of-day alone, so a ONE_TIME trip scheduled for an unrelated date (or
+// a WEEKDAYS trip on a Saturday) could still surface. Same reject-at-the-
+// boundary philosophy as isValidDepartureMinutes above, not a silent
+// "skip the date filter if missing" fallback.
+function isValidSearchDate(v) {
+  return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(new Date(`${v}T00:00:00Z`).getTime());
 }
 
 // Shared by `search` (normal PSGA) and `showAll` (empty-state fallback): both
@@ -42,7 +52,15 @@ async function loadSearchCandidates(passengerId, passengerRequest) {
     include: { vehicle: true, host: { select: safeUserSelect } },
   });
   await applyLazyCompletion(candidateTrips);
-  const openTrips = candidateTrips.filter((t) => t.status === 'OPEN');
+  // Date eligibility is a hard gate applied once here, upstream of both
+  // scoring paths (runPSGA and runShowAllFallback both consume openTrips) —
+  // a trip that doesn't run on the searcher's chosen date is never a
+  // candidate at all, not just low-scored. Validated by the caller
+  // (search/showAll) before this function runs, so passengerRequest.date is
+  // already a real "YYYY-MM-DD" here.
+  const openTrips = candidateTrips.filter(
+    (t) => t.status === 'OPEN' && tripRunsOnSearchDate(t, passengerRequest.date)
+  );
 
   // genderMatchesHost/familiarWithHost are per-host facts (see psgaService's
   // checkPreferenceMatch comment) — computed here from real data, not taken
@@ -113,9 +131,12 @@ function enrichMatches(matches, openTrips) {
 }
 
 async function search(req, res) {
-  const passengerRequest = req.body; // { origin: {lat,lng}, destination: {lat,lng}, departureMinutes, flexWindowMinutes, genderPreference }
+  const passengerRequest = req.body; // { origin: {lat,lng}, destination: {lat,lng}, departureMinutes, date, flexWindowMinutes, genderPreference }
   if (!isValidDepartureMinutes(passengerRequest.departureMinutes)) {
     return res.status(400).json({ error: 'INVALID_DEPARTURE_MINUTES' });
+  }
+  if (!isValidSearchDate(passengerRequest.date)) {
+    return res.status(400).json({ error: 'INVALID_DATE' });
   }
 
   const loaded = await loadSearchCandidates(req.user.id, passengerRequest);
@@ -136,6 +157,9 @@ async function showAll(req, res) {
   const passengerRequest = req.body;
   if (!isValidDepartureMinutes(passengerRequest.departureMinutes)) {
     return res.status(400).json({ error: 'INVALID_DEPARTURE_MINUTES' });
+  }
+  if (!isValidSearchDate(passengerRequest.date)) {
+    return res.status(400).json({ error: 'INVALID_DATE' });
   }
 
   const loaded = await loadSearchCandidates(req.user.id, passengerRequest);

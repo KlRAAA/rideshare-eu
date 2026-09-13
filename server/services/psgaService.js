@@ -1,7 +1,53 @@
+const { recurrenceRunsOnDay } = require('./recurrenceMath');
+
 const EARTH_RADIUS_M = 6371000;
+const PH_OFFSET_MS = 8 * 60 * 60 * 1000; // UTC+8, no DST
 
 function toRad(deg) {
   return (deg * Math.PI) / 180;
+}
+
+// Which Philippine-local calendar day a UTC instant falls on, as a
+// UTC-midnight Date usable as a frame-agnostic comparison key (see
+// recurrenceMath.js). PH has a fixed offset, so shifting the instant forward
+// by it and reading the shifted instant's own UTC calendar-day components
+// gives exactly the PH wall-clock day — no Intl/timezone-database lookup
+// needed.
+//
+// This matters more than it looks: a trip departing 7:00 AM PH — the
+// thesis's own stated peak commute time — is stored as 23:00 UTC the
+// PREVIOUS calendar day. Comparing raw UTC calendar days here (the way
+// tripCompletionService's lifecycle check correctly does, for a different,
+// server-clock-relative question) would silently attribute almost every
+// peak-hour morning trip to the wrong day for search purposes.
+function phDateOnly(instant) {
+  const shifted = new Date(instant.getTime() + PH_OFFSET_MS);
+  return new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()));
+}
+
+// Parses the search form's "YYYY-MM-DD" (Philippine-local, from the
+// DatePicker) into the same comparison key phDateOnly produces. A bare
+// date-only ISO string has no instant/offset ambiguity of its own — it
+// parses as UTC midnight of that calendar day, already the correct
+// frame-agnostic key, unlike a stored departureTime (a real UTC instant
+// that needs the +8h conversion above).
+function parseSearchDate(dateStr) {
+  if (typeof dateStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+  const parsed = new Date(`${dateStr}T00:00:00Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+// Does this trip have an occurrence on the passenger's selected (Philippine-
+// local) date at all? Independent of time-of-day — that's still handled
+// separately by departureTimeDiff/computeScheduleAlignment below, exactly as
+// the manuscript's own PSGA formula documents (time-of-day scoring, not
+// date). A ONE_TIME trip must match its own single date exactly (today,
+// nothing checked this at all — see AGENTS.md); a recurring trip must
+// actually run that day.
+function tripRunsOnSearchDate(trip, searchDateStr) {
+  const targetDay = parseSearchDate(searchDateStr);
+  if (!targetDay) return false;
+  return recurrenceRunsOnDay(trip, phDateOnly(trip.departureTime), targetDay);
 }
 
 function haversineMeters(a, b) {
@@ -181,4 +227,7 @@ module.exports = {
   runPSGA,
   runShowAllFallback,
   haversineMeters,
+  phDateOnly,
+  parseSearchDate,
+  tripRunsOnSearchDate,
 };

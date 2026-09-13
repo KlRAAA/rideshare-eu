@@ -5,6 +5,9 @@ const {
   checkPreferenceMatch,
   runPSGA,
   runShowAllFallback,
+  phDateOnly,
+  parseSearchDate,
+  tripRunsOnSearchDate,
 } = require('../psgaService');
 
 describe('computeRouteOverlap', () => {
@@ -202,5 +205,86 @@ describe('runShowAllFallback', () => {
     expect(result.status).toBe('MATCHED');
     expect(result.matches[0].tripId).toBe('near');
     expect(result.matches[0].score).toBeGreaterThanOrEqual(result.matches[1].score);
+  });
+});
+
+describe('parseSearchDate', () => {
+  test('parses a valid "YYYY-MM-DD" string', () => {
+    expect(parseSearchDate('2026-09-20').toISOString()).toBe('2026-09-20T00:00:00.000Z');
+  });
+
+  test('rejects malformed or missing input', () => {
+    expect(parseSearchDate('2026-9-20')).toBeNull(); // not zero-padded
+    expect(parseSearchDate('not-a-date')).toBeNull();
+    expect(parseSearchDate(undefined)).toBeNull();
+    expect(parseSearchDate(null)).toBeNull();
+  });
+});
+
+describe('phDateOnly', () => {
+  test('a departure well within the PH day stays on the same UTC calendar day', () => {
+    const instant = new Date('2026-09-20T10:00:00Z'); // 18:00 PH, same day
+    expect(phDateOnly(instant).toISOString()).toBe('2026-09-20T00:00:00.000Z');
+  });
+
+  // The case this whole fix exists for: the thesis's own stated peak commute
+  // time, 7:00 AM PH, is stored as 23:00 UTC the PREVIOUS calendar day. A
+  // naive UTC-calendar-day comparison would attribute this trip to Sep 19,
+  // not the Sep 20 a host or passenger both mean by "7am on the 20th".
+  test('a 7:00 AM PH departure (23:00 UTC the previous day) is attributed to the PH day, not the UTC day', () => {
+    const instant = new Date('2026-09-19T23:00:00Z'); // 07:00 PH on Sep 20
+    expect(phDateOnly(instant).toISOString()).toBe('2026-09-20T00:00:00.000Z');
+  });
+
+  test('a departure exactly at PH midnight (16:00 UTC the previous day) rolls to the new PH day', () => {
+    const instant = new Date('2026-09-19T16:00:00Z'); // exactly 00:00 PH on Sep 20
+    expect(phDateOnly(instant).toISOString()).toBe('2026-09-20T00:00:00.000Z');
+  });
+
+  test('one minute before PH midnight is still the earlier PH day', () => {
+    const instant = new Date('2026-09-19T15:59:00Z'); // 23:59 PH on Sep 19
+    expect(phDateOnly(instant).toISOString()).toBe('2026-09-19T00:00:00.000Z');
+  });
+});
+
+describe('tripRunsOnSearchDate', () => {
+  // Departs 2026-09-20T23:00Z = 7:00 AM PH on 2026-09-21 (a Monday). Deliberately
+  // straddling the UTC/PH day boundary — the regression case for this fix.
+  const oneTimeTrip = { recurrenceType: 'ONE_TIME', customDays: [], departureTime: new Date('2026-09-20T23:00:00Z') };
+
+  test('ONE_TIME matches only its own PH-local date — today, nothing checked this at all', () => {
+    expect(tripRunsOnSearchDate(oneTimeTrip, '2026-09-21')).toBe(true);
+    expect(tripRunsOnSearchDate(oneTimeTrip, '2026-09-20')).toBe(false); // the raw UTC day — must NOT match
+    expect(tripRunsOnSearchDate(oneTimeTrip, '2026-09-22')).toBe(false);
+  });
+
+  // Departs 2026-09-01T22:00Z = 6:00 AM PH on 2026-09-02 (a Wednesday).
+  const dailyTrip = { recurrenceType: 'DAILY', customDays: [], departureTime: new Date('2026-09-01T22:00:00Z') };
+
+  test('DAILY matches any date on/after the trip\'s own PH-local start date, never before', () => {
+    expect(tripRunsOnSearchDate(dailyTrip, '2026-09-02')).toBe(true);
+    expect(tripRunsOnSearchDate(dailyTrip, '2026-12-25')).toBe(true); // no recurrence-end concept
+    expect(tripRunsOnSearchDate(dailyTrip, '2026-09-01')).toBe(false); // before the PH start date
+  });
+
+  const weekdaysTrip = { recurrenceType: 'WEEKDAYS', customDays: [], departureTime: new Date('2026-09-01T22:00:00Z') };
+
+  test('WEEKDAYS matches Mon-Fri, not Sat/Sun', () => {
+    expect(tripRunsOnSearchDate(weekdaysTrip, '2026-09-08')).toBe(true); // Tuesday
+    expect(tripRunsOnSearchDate(weekdaysTrip, '2026-09-12')).toBe(false); // Saturday
+    expect(tripRunsOnSearchDate(weekdaysTrip, '2026-09-13')).toBe(false); // Sunday
+  });
+
+  const customTrip = { recurrenceType: 'CUSTOM', customDays: [2, 4], departureTime: new Date('2026-09-01T22:00:00Z') }; // Tue, Thu
+
+  test('CUSTOM matches only its configured days', () => {
+    expect(tripRunsOnSearchDate(customTrip, '2026-09-08')).toBe(true); // Tue
+    expect(tripRunsOnSearchDate(customTrip, '2026-09-09')).toBe(false); // Wed
+    expect(tripRunsOnSearchDate(customTrip, '2026-09-10')).toBe(true); // Thu
+  });
+
+  test('rejects a malformed or missing search date rather than matching by default', () => {
+    expect(tripRunsOnSearchDate(dailyTrip, 'not-a-date')).toBe(false);
+    expect(tripRunsOnSearchDate(dailyTrip, undefined)).toBe(false);
   });
 });
