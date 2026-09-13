@@ -90,6 +90,8 @@ model Vehicle {
   plate             String?
   fuelEfficiencyKmL Float
   trips             Trip[]
+
+  @@index([ownerId])
 }
 
 model Trip {
@@ -112,7 +114,8 @@ model Trip {
   totalSeats          Int
   filledSeats         Int              @default(0)
   fuelShareSuggested  Float?           // DEPRECATED — old host-typed guess, no longer read or written; superseded by fuelSharePerSeat. Kept only to avoid a destructive column drop; safe to remove in a later migration.
-  fuelSharePerSeat    Float?           // fixed voluntary contribution per passenger seat, computed once at posting from distance / vehicle efficiency / fuel price ÷ totalSeats (driver excluded); null if distance was unavailable
+  fuelPricePerLiter   Float?           // host-entered retail price (PHP/L) at posting time — no reliable free PH fuel-price API exists, so the host supplies today's price instead of a stale hardcoded default. Frozen alongside fuelSharePerSeat once computed.
+  fuelSharePerSeat    Float?           // fixed voluntary contribution per passenger seat, computed once at posting from distance / vehicle efficiency / fuelPricePerLiter ÷ totalSeats (driver excluded); null if distance or price was unavailable
   driverNotes         String?
   genderPreference    GenderPreference @default(ANY)
   flexibleDeparture   Boolean          @default(false)
@@ -128,6 +131,9 @@ model Trip {
   cancelledAt         DateTime?
 
   matches             Match[]
+
+  @@index([hostId])
+  @@index([status])
 }
 
 model Match {
@@ -147,6 +153,10 @@ model Match {
   respondedAt       DateTime?
 
   ratings           Rating[]
+
+  @@index([tripId])
+  @@index([passengerId])
+  @@index([status])
 }
 
 model Notification {
@@ -157,8 +167,15 @@ model Notification {
   message        String
   relatedMatchId String?          // the specific join request, when the notification is about one
   relatedTripId  String?          // the trip a click on this notification navigates to
+  // Which calendar occurrence this notification is about — only set for
+  // REMINDER and RATING_PROMPT on a recurring trip, where the same trip/match
+  // produces one of these per occurrence rather than once ever. Null for
+  // ONE_TIME trips and every other notification type.
+  occurrenceDate DateTime?
   isRead         Boolean          @default(false)
   createdAt      DateTime         @default(now())
+
+  @@index([userId])
 }
 
 model Preference {
@@ -182,12 +199,18 @@ model Rating {
   score     Int
   comment   String?
   anonymous Boolean  @default(false) // rater chose to hide their name on the ratee's public profile; enforced in GET /api/users/:id/ratings, which then omits every rater-identifying field
+  // The calendar occurrence this rating is for. For a ONE_TIME trip there is
+  // only ever one value, computed once from the trip's departureTime, so
+  // behavior is unchanged. For a recurring trip this is what lets the same
+  // standing match accumulate one rating per ride instead of one ever.
+  occurrenceDate DateTime
   createdAt DateTime @default(now())
 
-  // One rating per direction per match: the passenger rates the host once, the
-  // host rates the passenger once. Enforced here, not just in the UI — the
-  // submitRating controller maps the resulting P2002 to 409 ALREADY_RATED.
-  @@unique([matchId, raterId])
+  // One rating per direction per match PER OCCURRENCE: the passenger rates
+  // the host once per ride, the host rates the passenger once per ride.
+  // Enforced here, not just in the UI — the submitRating controller maps the
+  // resulting P2002 to 409 ALREADY_RATED.
+  @@unique([matchId, raterId, occurrenceDate])
 }
 
 // Registration 2FA: one row per in-progress signup attempt. Not linked to
