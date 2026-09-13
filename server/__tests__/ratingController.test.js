@@ -120,6 +120,11 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (dbUp) {
+    // The recurring-trip tests below create RATING_PROMPT notifications
+    // directly (standing in for what completeRecurringOccurrence would have
+    // sent) — those reference these users via a real FK, so they must go
+    // before the user deleteMany or it fails with a constraint violation.
+    await prisma.notification.deleteMany({ where: { userId: { in: seeded.userIds } } });
     await prisma.rating.deleteMany({ where: { matchId: { in: seeded.matchIds } } });
     await prisma.match.deleteMany({ where: { id: { in: seeded.matchIds } } });
     await prisma.trip.deleteMany({ where: { id: { in: seeded.tripIds } } });
@@ -229,5 +234,130 @@ describe('POST /api/matches/:id/ratings', () => {
     expect((await res.json()).error).toBe('NOT_A_PARTICIPANT');
     const leaked = await prisma.rating.findFirst({ where: { matchId: matchDoneB.id, raterId: pax1.id } });
     expect(leaked).toBeNull();
+  });
+});
+
+// A recurring trip's APPROVED match never reaches COMPLETED — it's a standing
+// rider across every occurrence — so it can't use the same TRIP_NOT_COMPLETED
+// gate. "Ratable" instead means the server actually sent this rater a
+// RATING_PROMPT for this match on the occurrenceDate being submitted.
+describe('POST /api/matches/:id/ratings — recurring trips', () => {
+  let recurringHost;
+  let recurringPax;
+  let recurringMatch; // stays APPROVED throughout — never COMPLETED
+  const occurrenceDate = new Date(Date.UTC(2026, 5, 15));
+  const otherOccurrenceDate = new Date(Date.UTC(2026, 5, 16));
+
+  beforeAll(async () => {
+    if (!dbUp) return;
+    const stamp = Date.now();
+    recurringHost = await makeUser('Recurring Host', `RT-REC-${stamp}-H`);
+    recurringPax = await makeUser('Recurring Pax', `RT-REC-${stamp}-P`);
+    const vehicle = await prisma.vehicle.create({
+      data: { ownerId: recurringHost.id, make: 'Test', model: 'Car', color: 'Red', fuelEfficiencyKmL: 12 },
+    });
+    seeded.vehicleIds.push(vehicle.id);
+    const trip = await prisma.trip.create({
+      data: {
+        hostId: recurringHost.id,
+        vehicleId: vehicle.id,
+        originAddress: 'Origin',
+        originLat: 13.9,
+        originLng: 121.6,
+        destinationAddress: 'Enverga University',
+        destinationLat: 13.95,
+        destinationLng: 121.62,
+        departureTime: new Date('2026-01-01T06:00:00Z'),
+        recurrenceType: 'DAILY',
+        customDays: [],
+        totalSeats: 3,
+        genderPreference: 'ANY',
+        flexibleDeparture: false,
+        flexWindowMinutes: 15,
+        familiarRidersOnly: false,
+        status: 'OPEN',
+      },
+    });
+    seeded.tripIds.push(trip.id);
+    recurringMatch = await makeMatch(trip.id, recurringPax.id, 'APPROVED');
+    // What completeRecurringOccurrence would have created for the first ride.
+    await prisma.notification.create({
+      data: {
+        userId: recurringPax.id,
+        type: 'RATING_PROMPT',
+        message: 'test prompt',
+        relatedMatchId: recurringMatch.id,
+        relatedTripId: trip.id,
+        occurrenceDate,
+      },
+    });
+  });
+
+  test('no occurrenceDate → 400 MISSING_OCCURRENCE_DATE (the match itself is APPROVED, never COMPLETED)', async () => {
+    if (guard()) return;
+    const res = await rate(recurringMatch.id, { raterId: recurringPax.id, rateeId: recurringHost.id, score: 4 });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('MISSING_OCCURRENCE_DATE');
+  });
+
+  test('an occurrenceDate the server never prompted for → 409 OCCURRENCE_NOT_RATABLE', async () => {
+    if (guard()) return;
+    const res = await rate(recurringMatch.id, {
+      raterId: recurringPax.id,
+      rateeId: recurringHost.id,
+      score: 4,
+      occurrenceDate: otherOccurrenceDate.toISOString(),
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe('OCCURRENCE_NOT_RATABLE');
+  });
+
+  test('the actual prompted occurrenceDate → 201, match stays APPROVED (not flipped to COMPLETED)', async () => {
+    if (guard()) return;
+    const res = await rate(recurringMatch.id, {
+      raterId: recurringPax.id,
+      rateeId: recurringHost.id,
+      score: 4,
+      occurrenceDate: occurrenceDate.toISOString(),
+    });
+    expect(res.status).toBe(201);
+    const match = await prisma.match.findUnique({ where: { id: recurringMatch.id } });
+    expect(match.status).toBe('APPROVED');
+  });
+
+  test('the same occurrence again → 409 ALREADY_RATED', async () => {
+    if (guard()) return;
+    const res = await rate(recurringMatch.id, {
+      raterId: recurringPax.id,
+      rateeId: recurringHost.id,
+      score: 2,
+      occurrenceDate: occurrenceDate.toISOString(),
+    });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe('ALREADY_RATED');
+  });
+
+  test('a different, actually-prompted occurrence → 201 (trust score updates again, per ride)', async () => {
+    if (guard()) return;
+    await prisma.notification.create({
+      data: {
+        userId: recurringPax.id,
+        type: 'RATING_PROMPT',
+        message: 'test prompt 2',
+        relatedMatchId: recurringMatch.id,
+        relatedTripId: recurringMatch.tripId,
+        occurrenceDate: otherOccurrenceDate,
+      },
+    });
+    const before = await prisma.user.findUnique({ where: { id: recurringHost.id }, select: { tripCount: true } });
+    const res = await rate(recurringMatch.id, {
+      raterId: recurringPax.id,
+      rateeId: recurringHost.id,
+      score: 5,
+      occurrenceDate: otherOccurrenceDate.toISOString(),
+    });
+    expect(res.status).toBe(201);
+    const after = await prisma.user.findUnique({ where: { id: recurringHost.id }, select: { tripCount: true } });
+    expect(after.tripCount).toBe(before.tripCount + 1);
   });
 });

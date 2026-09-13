@@ -109,9 +109,13 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 .rsu-btn-primary {
 	background: var(--rsu-color-primary);
 	color: #fff;
-	height: var(--rsu-btn-height);
-	line-height: calc(var(--rsu-btn-height) - 2px);
-	padding: 0 18px;
+	/* min-height (not height) + vertical padding: a label that wraps to two
+	   lines at a narrow flex-1 width (e.g. "Save Preferences" next to
+	   "Cancel" on mobile) grows the button to fit instead of overflowing
+	   past a fixed box. */
+	min-height: var(--rsu-btn-height);
+	line-height: 1.2;
+	padding: 10px 18px;
 	border-radius: var(--rsu-btn-radius);
 	display: inline-flex;
 	align-items: center;
@@ -124,9 +128,9 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 .rsu-btn-secondary {
 	background: #fff;
 	color: #374151; /* gray-700 */
-	height: var(--rsu-btn-height);
-	line-height: calc(var(--rsu-btn-height) - 2px);
-	padding: 0 18px;
+	min-height: var(--rsu-btn-height);
+	line-height: 1.2;
+	padding: 10px 18px;
 	border-radius: var(--rsu-btn-radius);
 	border: 1px solid #d1d5db; /* gray-300 */
 	display: inline-flex;
@@ -146,9 +150,9 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 .rsu-btn-danger {
 	background: #fff;
 	color: #dc2626; /* red-600 */
-	height: var(--rsu-btn-height);
-	line-height: calc(var(--rsu-btn-height) - 2px);
-	padding: 0 18px;
+	min-height: var(--rsu-btn-height);
+	line-height: 1.2;
+	padding: 10px 18px;
 	border-radius: var(--rsu-btn-radius);
 	border: 1px solid #fca5a5; /* red-300 */
 	display: inline-flex;
@@ -167,9 +171,9 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 .rsu-btn-danger-solid {
 	background: #dc2626; /* red-600 */
 	color: #fff;
-	height: var(--rsu-btn-height);
-	line-height: calc(var(--rsu-btn-height) - 2px);
-	padding: 0 18px;
+	min-height: var(--rsu-btn-height);
+	line-height: 1.2;
+	padding: 10px 18px;
 	border-radius: var(--rsu-btn-radius);
 	border: none;
 	display: inline-flex;
@@ -181,6 +185,18 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 }
 .rsu-btn-danger-solid:hover {
 	background: #b91c1c; /* red-700 */
+}
+
+/* A manually-typed decimal (fuel price, fuel efficiency) gets nothing useful
+   from click-to-increment arrows — hide them rather than leave the default
+   spinner on a field nobody's meant to spin. */
+.rsu-input-no-spinner::-webkit-inner-spin-button,
+.rsu-input-no-spinner::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+.rsu-input-no-spinner {
+	-moz-appearance: textfield;
 }
 
 /* Badge - small pill used for status/role labels */

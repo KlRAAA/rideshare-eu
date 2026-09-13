@@ -212,27 +212,62 @@ async function updateStatus(req, res) {
 
   const existing = await prisma.match.findUnique({
     where: { id },
-    include: { trip: { select: { hostId: true } } },
+    include: { trip: { select: { hostId: true, totalSeats: true } } },
   });
   if (!existing) return res.status(404).json({ error: 'MATCH_NOT_FOUND' });
   if (existing.trip.hostId !== req.user.id) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
 
-  const match = await prisma.match.update({
-    where: { id },
-    data: { status, respondedAt: new Date() },
-    include: { trip: true, passenger: { select: safeUserSelect } },
-  });
-
-  if (status === 'APPROVED') {
-    const trip = await prisma.trip.update({
-      where: { id: match.tripId },
-      data: { filledSeats: { increment: 1 } },
+  let match;
+  if (status === 'DECLINED') {
+    match = await prisma.match.update({
+      where: { id },
+      data: { status, respondedAt: new Date() },
+      include: { trip: true, passenger: { select: safeUserSelect } },
     });
-    // Take the trip out of search once the last seat is claimed — `search`
-    // surfaces only OPEN trips, so this is what "Ride Full" keys off of.
-    if (trip.status === 'OPEN' && trip.filledSeats >= trip.totalSeats) {
-      await prisma.trip.update({ where: { id: trip.id }, data: { status: 'FULL' } });
+  } else {
+    // Approving used to be a plain read-then-write: increment filledSeats,
+    // then check if that pushed the trip over totalSeats. Nothing stopped two
+    // approvals on the same trip from both reading "still room" before either
+    // write landed — reproducible every time, not just under a race, since
+    // there was no check on the approval path at all (see AGENTS.md). The fix
+    // is a single conditional write: filledSeats only increments if the trip
+    // still has room *at that instant*, and the match only flips to APPROVED
+    // if that write actually happened — both inside one transaction, so a
+    // trip can never end up with an approved match the seat count didn't
+    // actually have room for.
+    const result = await prisma.$transaction(async (tx) => {
+      const seatUpdate = await tx.trip.updateMany({
+        where: { id: existing.tripId, status: { not: 'FULL' }, filledSeats: { lt: existing.trip.totalSeats } },
+        data: { filledSeats: { increment: 1 } },
+      });
+      if (seatUpdate.count === 0) {
+        return { ok: false };
+      }
+
+      // Take the trip out of search once the last seat is claimed — `search`
+      // surfaces only OPEN trips, so this is what "Ride Full" keys off of.
+      const updatedTrip = await tx.trip.findUnique({
+        where: { id: existing.tripId },
+        select: { filledSeats: true, totalSeats: true, status: true },
+      });
+      if (updatedTrip.status === 'OPEN' && updatedTrip.filledSeats >= updatedTrip.totalSeats) {
+        await tx.trip.update({ where: { id: existing.tripId }, data: { status: 'FULL' } });
+      }
+
+      const approvedMatch = await tx.match.update({
+        where: { id },
+        data: { status: 'APPROVED', respondedAt: new Date() },
+        include: { trip: true, passenger: { select: safeUserSelect } },
+      });
+      return { ok: true, match: approvedMatch };
+    });
+
+    if (!result.ok) {
+      // Other PENDING requests on a now-full trip are left as-is for now —
+      // auto-declining them is a separate product decision, not part of this fix.
+      return res.status(409).json({ error: 'TRIP_FULL', message: 'This trip is already full.' });
     }
+    match = result.match;
   }
 
   await prisma.notification.create({

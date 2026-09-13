@@ -4,8 +4,50 @@ const { validateClientRoute } = require('../services/routeSanity');
 const { computeFuelSharePerSeat } = require('../services/fuelShareService');
 const { classifyTripChanges, describeCategories, fuelShareWouldChange } = require('../services/tripUpdateService');
 const { applyLazyCompletion, completeTrip } = require('../services/tripCompletionService');
-const psgaConfig = require('../config/psgaConfig');
 const safeUserSelect = require('../config/safeUserSelect');
+
+// Sanity bounds for the host-entered retail fuel price (PHP/L) — catches an
+// obvious typo (an extra digit, a decimal slip) before it produces a wildly
+// wrong fuel-share figure shown to passengers. Keep in sync with
+// src/lib/constants.ts's MIN/MAX_FUEL_PRICE_PER_LITER (client-side copy for
+// the same check, shown inline before the host even submits).
+const MIN_FUEL_PRICE_PER_LITER = 20;
+const MAX_FUEL_PRICE_PER_LITER = 150;
+
+// For a recurring trip, an APPROVED match never reaches COMPLETED (it's a
+// standing rider across every occurrence), so `ratedByMe` — a lifetime "have
+// I ever rated this match" flag — can't gate the Rate button by itself the
+// way it does for a ONE_TIME trip. This resolves, per match, the most recent
+// occurrence this viewer was actually prompted (via a RATING_PROMPT
+// notification) to rate and hasn't rated yet — null if there's nothing
+// currently ratable, which is also always the case for a ONE_TIME trip
+// (its RATING_PROMPT carries no occurrenceDate).
+async function attachUnratedOccurrence(matches, viewerId) {
+  const matchIds = matches.map((m) => m.id);
+  if (matchIds.length === 0) return matches;
+
+  const prompts = await prisma.notification.findMany({
+    where: { type: 'RATING_PROMPT', userId: viewerId, relatedMatchId: { in: matchIds }, occurrenceDate: { not: null } },
+    orderBy: { occurrenceDate: 'desc' },
+    select: { relatedMatchId: true, occurrenceDate: true },
+  });
+  const latestPromptByMatch = new Map();
+  for (const p of prompts) {
+    if (!latestPromptByMatch.has(p.relatedMatchId)) latestPromptByMatch.set(p.relatedMatchId, p.occurrenceDate);
+  }
+
+  const ratings = await prisma.rating.findMany({
+    where: { raterId: viewerId, matchId: { in: matchIds } },
+    select: { matchId: true, occurrenceDate: true },
+  });
+  const ratedKeys = new Set(ratings.map((r) => `${r.matchId}:${r.occurrenceDate.getTime()}`));
+
+  return matches.map((m) => {
+    const latest = latestPromptByMatch.get(m.id);
+    const isRated = latest && ratedKeys.has(`${m.id}:${latest.getTime()}`);
+    return { ...m, unratedOccurrenceDate: latest && !isRated ? latest.toISOString() : null };
+  });
+}
 
 // Fields a trip's creator may set at creation — mirrors updateTrip's
 // EDITABLE_TRIP_FIELDS allowlist pattern. Everything a client POSTs is filtered
@@ -21,7 +63,7 @@ const CREATABLE_TRIP_FIELDS = [
   'destinationAddress', 'destinationLat', 'destinationLng',
   'departureTime', 'recurrenceType', 'customDays', 'totalSeats',
   'driverNotes', 'genderPreference', 'flexibleDeparture', 'flexWindowMinutes', 'familiarRidersOnly',
-  'meetingPointAddress', 'meetingPointLat', 'meetingPointLng',
+  'meetingPointAddress', 'meetingPointLat', 'meetingPointLng', 'fuelPricePerLiter',
 ];
 
 // The trip's own origin→destination route. Post a Ride fetches it from Mapbox
@@ -39,6 +81,19 @@ async function createTrip(req, res) {
   // client can't POST a trip pre-marked COMPLETED or with filledSeats set.
   const body = {};
   for (const k of CREATABLE_TRIP_FIELDS) if (k in req.body) body[k] = req.body[k];
+
+  // The host's own typed retail price, not a fixed app-wide default (no
+  // reliable free PH fuel-price API exists — see AGENTS.md). Rejected outright
+  // if outside sane bounds, catching an obvious typo before it produces a
+  // wildly wrong fuel-share figure; left unset (no suggested share, same as
+  // missing distance) rather than required, since a host may not know it yet.
+  if (body.fuelPricePerLiter != null) {
+    const price = Number(body.fuelPricePerLiter);
+    if (!Number.isFinite(price) || price < MIN_FUEL_PRICE_PER_LITER || price > MAX_FUEL_PRICE_PER_LITER) {
+      return res.status(400).json({ error: 'INVALID_FUEL_PRICE' });
+    }
+    body.fuelPricePerLiter = price;
+  }
 
   const check = validateClientRoute({
     origin: { lat: originLat, lng: originLng },
@@ -59,17 +114,17 @@ async function createTrip(req, res) {
     : { routeWaypoints: null, distanceMeters: null, durationSeconds: null };
 
   // Fixed voluntary fuel share per passenger seat — computed once here, from the
-  // vehicle's registered efficiency and today's config fuel price, divided by
-  // seats OFFERED (never the driver). Persisted so it stays the same number for
-  // everyone and doesn't move as seats fill. For a recurring trip this is one
-  // Trip row, so this is priced once for the whole series. A future
-  // seats/vehicle-edit endpoint should recompute this ONLY while the trip has
-  // no matches yet — once a passenger has seen the price it's locked.
+  // vehicle's registered efficiency and the host's own entered fuel price,
+  // divided by seats OFFERED (never the driver). Persisted so it stays the
+  // same number for everyone and doesn't move as seats fill. For a recurring
+  // trip this is one Trip row, so this is priced once for the whole series.
+  // A future seats/vehicle-edit endpoint should recompute this ONLY while the
+  // trip has no matches yet — once a passenger has seen the price it's locked.
   const vehicle = await prisma.vehicle.findUnique({ where: { id: body.vehicleId } });
   const fuelSharePerSeat = computeFuelSharePerSeat({
     distanceMeters: routeData.distanceMeters,
     efficiencyKmL: vehicle ? vehicle.fuelEfficiencyKmL : null,
-    pricePerLiter: psgaConfig.fuelPricePerLiter,
+    pricePerLiter: body.fuelPricePerLiter,
     passengerSeats: Number(body.totalSeats),
   });
 
@@ -114,12 +169,20 @@ async function listMine(req, res) {
   const myRatings = await prisma.rating.findMany({ where: { raterId: userId }, select: { matchId: true } });
   const ratedMatchIds = new Set(myRatings.map((r) => r.matchId));
 
+  const hostedMatchesWithOccurrence = await attachUnratedOccurrence(hosted.flatMap((t) => t.matches), userId);
+  const occurrenceByMatchId = new Map(hostedMatchesWithOccurrence.map((m) => [m.id, m.unratedOccurrenceDate]));
+
   const hostedWithRatings = hosted.map((t) => ({
     ...t,
-    matches: t.matches.map((m) => ({ ...m, ratedByMe: ratedMatchIds.has(m.id) })),
+    matches: t.matches.map((m) => ({
+      ...m,
+      ratedByMe: ratedMatchIds.has(m.id),
+      unratedOccurrenceDate: occurrenceByMatchId.get(m.id) ?? null,
+    })),
   }));
 
-  const joined = joinedMatches.map((m) => {
+  const joinedMatchesWithOccurrence = await attachUnratedOccurrence(joinedMatches, userId);
+  const joined = joinedMatchesWithOccurrence.map((m) => {
     const canSeePlate = ['APPROVED', 'COMPLETED'].includes(m.status);
     return {
       ...m.trip,
@@ -128,6 +191,7 @@ async function listMine(req, res) {
       matchId: m.id,
       fuelShareAmount: m.fuelShareAmount,
       ratedByMe: ratedMatchIds.has(m.id),
+      unratedOccurrenceDate: m.unratedOccurrenceDate,
     };
   });
 
@@ -169,7 +233,8 @@ async function getById(req, res) {
     select: { matchId: true },
   });
   const rated = new Set(myRatings.map((r) => r.matchId));
-  trip.matches = trip.matches.map((m) => ({ ...m, ratedByMe: rated.has(m.id) }));
+  const matchesWithOccurrence = await attachUnratedOccurrence(trip.matches, userId);
+  trip.matches = matchesWithOccurrence.map((m) => ({ ...m, ratedByMe: rated.has(m.id) }));
 
   res.json({ trip });
 }
@@ -314,7 +379,9 @@ async function updateTrip(req, res) {
     return res.status(409).json({ error: 'SEAT_COUNT_BELOW_FILLED', filledSeats: trip.filledSeats });
   }
 
-  const fsChange = fuelShareWouldChange({ current: trip, incoming, pricePerLiter: psgaConfig.fuelPricePerLiter });
+  // The trip's own price, not a global default — fuelPricePerLiter isn't
+  // editable, so this is always the same value the host entered at posting.
+  const fsChange = fuelShareWouldChange({ current: trip, incoming, pricePerLiter: trip.fuelPricePerLiter });
 
   if (structural.length > 0 && approvedCount > 0 && !confirmStructural) {
     return res.status(409).json({
@@ -358,7 +425,7 @@ async function updateTrip(req, res) {
     tripData.fuelSharePerSeat = computeFuelSharePerSeat({
       distanceMeters: newDist,
       efficiencyKmL: newEff,
-      pricePerLiter: psgaConfig.fuelPricePerLiter,
+      pricePerLiter: trip.fuelPricePerLiter,
       passengerSeats: newSeats,
     });
   }

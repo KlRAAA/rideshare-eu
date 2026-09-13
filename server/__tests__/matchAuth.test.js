@@ -110,6 +110,82 @@ describe('PATCH /api/matches/:id (approve/decline)', () => {
   });
 });
 
+// Reproduces the exact overbooking gap found during investigation: approving
+// used to be a plain read-then-write with no capacity check at all, so a host
+// could approve more PENDING requests than a trip had seats for — every time,
+// not just under a race. The fix is a single conditional update
+// (filledSeats only increments if still under totalSeats at that instant) —
+// these tests cover both the deterministic case and the actual race.
+describe('PATCH /api/matches/:id — seat capacity enforced on approval', () => {
+  test('a second approval on a now-full 1-seat trip is rejected with 409, not silently approved', async () => {
+    if (guard()) return;
+    const capHost = await makeUser(bag, { fullName: 'Capacity Host' });
+    const capPax1 = await makeUser(bag, { fullName: 'Capacity Pax One' });
+    const capPax2 = await makeUser(bag, { fullName: 'Capacity Pax Two' });
+    const vehicle = await makeVehicle(bag, capHost.id);
+    const trip = await makeTrip(bag, capHost.id, vehicle.id, { totalSeats: 1, status: 'OPEN' });
+    const match1 = await makeMatch(bag, trip.id, capPax1.id, { status: 'PENDING' });
+    const match2 = await makeMatch(bag, trip.id, capPax2.id, { status: 'PENDING' });
+
+    const firstApproval = await req('PATCH', `/api/matches/${match1.id}`, { token: capHost.id, body: { status: 'APPROVED' } });
+    expect(firstApproval.status).toBe(200);
+    const filledTrip = await prisma.trip.findUnique({ where: { id: trip.id } });
+    expect(filledTrip.filledSeats).toBe(1);
+    expect(filledTrip.status).toBe('FULL');
+
+    const secondApproval = await req('PATCH', `/api/matches/${match2.id}`, { token: capHost.id, body: { status: 'APPROVED' } });
+    expect(secondApproval.status).toBe(409);
+    expect((await secondApproval.json()).error).toBe('TRIP_FULL');
+
+    // Rejected, not silently applied: match2 never flips, and the seat count
+    // never overshoots past totalSeats.
+    const freshMatch2 = await prisma.match.findUnique({ where: { id: match2.id } });
+    expect(freshMatch2.status).toBe('PENDING');
+    const freshTrip = await prisma.trip.findUnique({ where: { id: trip.id } });
+    expect(freshTrip.filledSeats).toBe(1);
+  });
+
+  test('two truly simultaneous approvals on a 1-seat trip: exactly one wins, filledSeats never overshoots', async () => {
+    if (guard()) return;
+    const raceHost = await makeUser(bag, { fullName: 'Race Host' });
+    const raceP1 = await makeUser(bag, { fullName: 'Race Pax One' });
+    const raceP2 = await makeUser(bag, { fullName: 'Race Pax Two' });
+    const vehicle = await makeVehicle(bag, raceHost.id);
+    const trip = await makeTrip(bag, raceHost.id, vehicle.id, { totalSeats: 1, status: 'OPEN' });
+    const m1 = await makeMatch(bag, trip.id, raceP1.id, { status: 'PENDING' });
+    const m2 = await makeMatch(bag, trip.id, raceP2.id, { status: 'PENDING' });
+
+    const [res1, res2] = await Promise.all([
+      req('PATCH', `/api/matches/${m1.id}`, { token: raceHost.id, body: { status: 'APPROVED' } }),
+      req('PATCH', `/api/matches/${m2.id}`, { token: raceHost.id, body: { status: 'APPROVED' } }),
+    ]);
+
+    expect([res1.status, res2.status].sort()).toEqual([200, 409]);
+
+    const freshTrip = await prisma.trip.findUnique({ where: { id: trip.id } });
+    expect(freshTrip.filledSeats).toBe(1); // never 2, regardless of which request won
+    expect(freshTrip.status).toBe('FULL');
+  });
+
+  test('decline is unaffected by the capacity check — still succeeds on a full trip', async () => {
+    if (guard()) return;
+    const declineHost = await makeUser(bag, { fullName: 'Decline Host' });
+    const declinePax1 = await makeUser(bag, { fullName: 'Decline Pax One' });
+    const declinePax2 = await makeUser(bag, { fullName: 'Decline Pax Two' });
+    const vehicle = await makeVehicle(bag, declineHost.id);
+    const trip = await makeTrip(bag, declineHost.id, vehicle.id, { totalSeats: 1, status: 'OPEN' });
+    const approved = await makeMatch(bag, trip.id, declinePax1.id, { status: 'PENDING' });
+    const stillPending = await makeMatch(bag, trip.id, declinePax2.id, { status: 'PENDING' });
+
+    await req('PATCH', `/api/matches/${approved.id}`, { token: declineHost.id, body: { status: 'APPROVED' } });
+
+    const res = await req('PATCH', `/api/matches/${stillPending.id}`, { token: declineHost.id, body: { status: 'DECLINED' } });
+    expect(res.status).toBe(200);
+    const fresh = await prisma.match.findUnique({ where: { id: stillPending.id } });
+    expect(fresh.status).toBe('DECLINED');
+  });
+});
+
 describe('POST /api/matches (join request)', () => {
   test('no token → 401', async () => {
     if (guard()) return;

@@ -9,11 +9,15 @@ interface RatingModalProps {
   raterId: string;
   rateeId: string;
   rateeName: string;
+  // Required for a recurring trip's standing match (which occurrence this
+  // rating is for); omitted for a ONE_TIME trip, where the server derives it
+  // from the trip's own departure date instead.
+  occurrenceDate?: string | null;
   onClose: () => void;
   onSubmitted: () => void;
 }
 
-export default function RatingModal({ matchId, raterId, rateeId, rateeName, onClose, onSubmitted }: RatingModalProps) {
+export default function RatingModal({ matchId, raterId, rateeId, rateeName, occurrenceDate, onClose, onSubmitted }: RatingModalProps) {
   const [score, setScore] = useState(0);
   const [hoverScore, setHoverScore] = useState(0);
   const [comment, setComment] = useState('');
@@ -32,7 +36,7 @@ export default function RatingModal({ matchId, raterId, rateeId, rateeName, onCl
     try {
       await apiFetch(`/api/matches/${matchId}/ratings`, {
         method: 'POST',
-        body: JSON.stringify({ raterId, rateeId, score, comment: comment || undefined, anonymous }),
+        body: JSON.stringify({ raterId, rateeId, score, comment: comment || undefined, anonymous, occurrenceDate }),
       });
       onSubmitted();
     } catch {

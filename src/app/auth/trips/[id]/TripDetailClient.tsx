@@ -12,7 +12,7 @@ import DriverIdentityCard from '@/components/DriverIdentityCard';
 import TripSummaryCard from '@/components/TripSummaryCard';
 import FuelShareCard from '@/components/FuelShareCard';
 import CoRidersCard from '@/components/CoRidersCard';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, ApiError } from '@/lib/api';
 import { checkCampusProximity } from '@/lib/geoProximity';
 
 interface Vehicle {
@@ -37,6 +37,12 @@ interface MatchInfo {
   message: string | null;
   fuelShareAmount: number | null;
   ratedByMe?: boolean;
+  // Recurring trips only: an APPROVED match never becomes COMPLETED (it's a
+  // standing rider across every occurrence), so it can't use `ratedByMe` +
+  // status to gate the Rate button the way a ONE_TIME match does. This is the
+  // occurrence the server actually prompted this viewer to rate and hasn't
+  // seen a rating for yet — null when there's nothing currently ratable.
+  unratedOccurrenceDate?: string | null;
   passenger: SafeUser;
 }
 
@@ -85,7 +91,10 @@ export default function TripDetailClient({
 }: TripDetailClientProps) {
   const router = useRouter();
   const [busyMatchId, setBusyMatchId] = useState<string | null>(null);
-  const [rating, setRating] = useState<{ matchId: string; rateeId: string; rateeName: string } | null>(null);
+  const [respondError, setRespondError] = useState<{ matchId: string; message: string } | null>(null);
+  const [rating, setRating] = useState<{ matchId: string; rateeId: string; rateeName: string; occurrenceDate?: string | null } | null>(
+    null
+  );
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [completing, setCompleting] = useState(false);
 
@@ -96,6 +105,11 @@ export default function TripDetailClient({
   // not a declined/cancelled one they also have on this trip (a passenger can
   // re-request after a decline, so `myMatch` alone isn't enough).
   const myCompletedMatch = trip.matches.find((m) => m.passengerId === currentUserId && m.status === 'COMPLETED') ?? null;
+  // Recurring counterpart to myCompletedMatch — myMatch stays APPROVED across
+  // occurrences, so "ratable" comes from the server-computed occurrence field
+  // instead of a status transition.
+  const myRatableRecurringMatch =
+    !myCompletedMatch && myMatch?.unratedOccurrenceDate ? myMatch : null;
   // Host sees every request; a co-rider sees everyone but themselves.
   const coRiderMatches = trip.matches.filter((m) => isHost || m.passengerId !== currentUserId);
 
@@ -139,9 +153,18 @@ export default function TripDetailClient({
 
   async function respond(matchId: string, action: 'APPROVED' | 'DECLINED') {
     setBusyMatchId(matchId);
+    setRespondError(null);
     try {
       await apiFetch(`/api/matches/${matchId}`, { method: 'PATCH', body: JSON.stringify({ status: action }) });
       router.refresh();
+    } catch (err) {
+      // 409 TRIP_FULL (another approval claimed the last seat first) is the
+      // expected case here — the server's own message is already
+      // host-facing ("This trip is already full."), so just surface it.
+      setRespondError({
+        matchId,
+        message: err instanceof ApiError ? err.message : 'Couldn’t update that request. Try again in a moment.',
+      });
     } finally {
       setBusyMatchId(null);
     }
@@ -198,6 +221,23 @@ export default function TripDetailClient({
           </button>
         )}
 
+        {!isHost && myRatableRecurringMatch && !ratedThisSession.has(myRatableRecurringMatch.id) && (
+          <button
+            type="button"
+            onClick={() =>
+              setRating({
+                matchId: myRatableRecurringMatch.id,
+                rateeId: trip.host.id,
+                rateeName: trip.host.fullName,
+                occurrenceDate: myRatableRecurringMatch.unratedOccurrenceDate,
+              })
+            }
+            className="rsu-btn-primary w-full"
+          >
+            Rate {trip.host.fullName} for this ride
+          </button>
+        )}
+
         <CoRidersCard
           matches={coRiderMatches}
           highlightId={highlightRequestId}
@@ -209,29 +249,40 @@ export default function TripDetailClient({
           emptyLabel={isHost ? 'No passengers yet.' : 'No co-riders yet.'}
           renderActions={
             isHost
-              ? (m) => (
-                  <>
-                    {m.status === 'PENDING' && (
+              ? (m) => {
+                  if (m.status === 'PENDING') {
+                    // Real buttons with a full-width row to themselves (see
+                    // CoRidersCard) rather than small adjacent text links —
+                    // Approve/Decline sitting right next to each other at
+                    // thumb-sized targets was an easy mis-tap on mobile.
+                    return (
                       <>
-                        <button
-                          type="button"
-                          disabled={busyMatchId === m.id}
-                          onClick={() => respond(m.id, 'APPROVED')}
-                          className="text-xs font-semibold text-green-700 hover:underline disabled:opacity-50"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          type="button"
-                          disabled={busyMatchId === m.id}
-                          onClick={() => respond(m.id, 'DECLINED')}
-                          className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50"
-                        >
-                          Decline
-                        </button>
+                        <div className="flex gap-2 w-full">
+                          <button
+                            type="button"
+                            disabled={busyMatchId === m.id}
+                            onClick={() => respond(m.id, 'APPROVED')}
+                            className="rsu-btn-primary flex-1 disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busyMatchId === m.id}
+                            onClick={() => respond(m.id, 'DECLINED')}
+                            className="rsu-btn-danger flex-1 disabled:opacity-50"
+                          >
+                            Decline
+                          </button>
+                        </div>
+                        {respondError?.matchId === m.id && (
+                          <p className="text-xs text-red-600">{respondError.message}</p>
+                        )}
                       </>
-                    )}
-                    {m.status === 'COMPLETED' && (
+                    );
+                  }
+                  if (m.status === 'COMPLETED') {
+                    return (
                       <button
                         type="button"
                         disabled={hasRated(m.id)}
@@ -240,9 +291,28 @@ export default function TripDetailClient({
                       >
                         {hasRated(m.id) ? 'Rated' : 'Rate'}
                       </button>
-                    )}
-                  </>
-                )
+                    );
+                  }
+                  if (m.status === 'APPROVED' && m.unratedOccurrenceDate && !ratedThisSession.has(m.id)) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRating({
+                            matchId: m.id,
+                            rateeId: m.passengerId,
+                            rateeName: m.passenger.fullName,
+                            occurrenceDate: m.unratedOccurrenceDate,
+                          })
+                        }
+                        className="text-xs font-semibold text-[color:var(--rsu-color-primary)] hover:underline"
+                      >
+                        Rate
+                      </button>
+                    );
+                  }
+                  return null;
+                }
               : undefined
           }
         />
@@ -308,11 +378,12 @@ export default function TripDetailClient({
           raterId={currentUserId}
           rateeId={rating.rateeId}
           rateeName={rating.rateeName}
+          occurrenceDate={rating.occurrenceDate}
           onClose={() => setRating(null)}
           onSubmitted={() => {
             setRatedThisSession((prev) => new Set(prev).add(rating.matchId));
             setRating(null);
-            router.refresh(); // pull the updated trust score + ratedByMe flags
+            router.refresh(); // pull the updated trust score + ratedByMe / unratedOccurrenceDate flags
           }}
         />
       )}

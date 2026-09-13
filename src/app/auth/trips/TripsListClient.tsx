@@ -30,6 +30,9 @@ interface HostedMatch {
   passengerId: string;
   status: string;
   ratedByMe?: boolean;
+  // Recurring trips only — see TripDetailClient's MatchInfo for why an
+  // APPROVED match needs this instead of status + ratedByMe.
+  unratedOccurrenceDate?: string | null;
   passenger: { id: string; fullName: string; avatarUrl?: string | null };
 }
 
@@ -52,6 +55,7 @@ export interface JoinedTrip extends HostedTrip {
   matchId: string;
   fuelShareAmount: number | null;
   ratedByMe?: boolean;
+  unratedOccurrenceDate?: string | null;
   host: SafeUser;
 }
 
@@ -88,7 +92,9 @@ export default function TripsListClient({
 }: TripsListClientProps) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('upcoming');
-  const [rating, setRating] = useState<{ matchId: string; rateeId: string; rateeName: string } | null>(null);
+  const [rating, setRating] = useState<{ matchId: string; rateeId: string; rateeName: string; occurrenceDate?: string | null } | null>(
+    null
+  );
   // Matches rated in this session, before router.refresh() brings back the
   // server's `ratedByMe`. `hasRated` prefers the server flag when present.
   const [ratedMatchIds, setRatedMatchIds] = useState<Set<string>>(new Set());
@@ -214,6 +220,43 @@ export default function TripsListClient({
                       </div>
                     );
                   })()}
+
+                {tab === 'upcoming' &&
+                  (() => {
+                    // Recurring trips only: an APPROVED match never moves to the
+                    // "past" tab (the trip stays OPEN/FULL forever), so a completed
+                    // ride's rating prompt has to surface here instead.
+                    const ratable = trip.matches.filter((m) => m.unratedOccurrenceDate && !ratedMatchIds.has(m.id));
+                    if (ratable.length === 0) return null;
+                    return (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs font-semibold text-gray-500 mb-2">Rate your passengers for the last ride</p>
+                        <div className="space-y-2">
+                          {ratable.map((m) => (
+                            <div key={m.id} className="flex items-center justify-between">
+                              <Link href={`/auth/users/${m.passengerId}`} className="text-xs text-gray-700 hover:underline truncate">
+                                {m.passenger.fullName}
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRating({
+                                    matchId: m.id,
+                                    rateeId: m.passengerId,
+                                    rateeName: m.passenger.fullName,
+                                    occurrenceDate: m.unratedOccurrenceDate,
+                                  })
+                                }
+                                className="text-xs font-semibold text-[color:var(--rsu-color-primary)] hover:underline"
+                              >
+                                Rate
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
               </Card>
             );
           })}
@@ -263,6 +306,22 @@ export default function TripsListClient({
                       {alreadyRated ? 'Rated' : 'Rate'}
                     </button>
                   )}
+                  {tab === 'upcoming' && trip.unratedOccurrenceDate && !ratedMatchIds.has(trip.matchId) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRating({
+                          matchId: trip.matchId,
+                          rateeId: trip.host.id,
+                          rateeName: trip.host.fullName,
+                          occurrenceDate: trip.unratedOccurrenceDate,
+                        })
+                      }
+                      className="rsu-btn-primary flex-1"
+                    >
+                      Rate
+                    </button>
+                  )}
                   {tab === 'upcoming' && (
                     <button
                       type="button"
@@ -286,6 +345,7 @@ export default function TripsListClient({
           raterId={currentUserId}
           rateeId={rating.rateeId}
           rateeName={rating.rateeName}
+          occurrenceDate={rating.occurrenceDate}
           onClose={() => setRating(null)}
           onSubmitted={() => {
             setRatedMatchIds((prev) => new Set(prev).add(rating.matchId));
