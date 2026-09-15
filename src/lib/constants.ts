@@ -34,3 +34,8 @@ export const MAX_FUEL_PRICE_PER_LITER = 150;
 // absorbed but a passenger never sees a pin frozen long after the host
 // closed the app).
 export const LOCATION_POLL_INTERVAL_MS = 30000;
+
+// Trip group chat: same short-polling approach as live location, but on a
+// tighter interval — a coordination message ("I'm at the gate") is much more
+// time-sensitive to see promptly than a location pin. Still no websockets.
+export const CHAT_POLL_INTERVAL_MS = 7000;

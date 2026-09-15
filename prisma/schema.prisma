@@ -55,6 +55,7 @@ enum NotificationType {
   RATING_PROMPT
   CANCELLATION
   TRIP_UPDATED
+  MESSAGE
 }
 
 model User {
@@ -78,6 +79,7 @@ model User {
   preference      Preference?
   ratingsGiven    Rating[]        @relation("RaterRatings")
   ratingsReceived Rating[]        @relation("RateeRatings")
+  messagesSent    Message[]
 }
 
 model Vehicle {
@@ -139,6 +141,7 @@ model Trip {
   lastLocationUpdatedAt DateTime?
 
   matches             Match[]
+  messages            Message[]
 
   @@index([hostId])
   @@index([status])
@@ -184,6 +187,24 @@ model Notification {
   createdAt      DateTime         @default(now())
 
   @@index([userId])
+}
+
+// One shared thread per trip — the host and every APPROVED passenger, not
+// private 1:1 threads (Task: trip group chat). Access is a hard cutoff, not
+// an archive: once the trip is COMPLETED/CANCELLED, nobody — host included —
+// can read or post to it again (enforced in messageController.js, not here;
+// this model has no lifecycle awareness of its own, same as Rating/Match not
+// knowing their trip's status).
+model Message {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id])
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([tripId])
 }
 
 model Preference {

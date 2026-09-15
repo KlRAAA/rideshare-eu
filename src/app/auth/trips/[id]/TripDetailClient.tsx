@@ -12,6 +12,7 @@ import DriverIdentityCard from '@/components/DriverIdentityCard';
 import TripSummaryCard from '@/components/TripSummaryCard';
 import FuelShareCard from '@/components/FuelShareCard';
 import CoRidersCard from '@/components/CoRidersCard';
+import ChatCard from '@/components/ChatCard';
 import { apiFetch, ApiError } from '@/lib/api';
 import { checkCampusProximity, getCurrentCoords } from '@/lib/geoProximity';
 import { LOCATION_POLL_INTERVAL_MS } from '@/lib/constants';
@@ -122,6 +123,11 @@ export default function TripDetailClient({
 
   const tripIsActive = trip.status === 'OPEN' || trip.status === 'FULL';
   const canCancel = (isHost && tripIsActive) || (!isHost && Boolean(myActiveMatch));
+  // Group chat: host + every APPROVED passenger, only while the trip is
+  // still active — a hard cutoff, so this simply stops rendering once the
+  // trip ends rather than showing a closed/archived state; the server
+  // enforces the identical window independently (messageController.js).
+  const canUseChat = tripIsActive && (isHost || myActiveMatch?.status === 'APPROVED');
 
   // Optional nice-to-have (Task 13, item 3): a single opportunistic
   // proximity check on mount, only for the host (the manual-complete
@@ -381,6 +387,8 @@ export default function TripDetailClient({
               : undefined
           }
         />
+
+        {canUseChat && <ChatCard tripId={trip.id} currentUserId={currentUserId} />}
 
         {isHost && tripIsActive && (
           <Link
