@@ -1,6 +1,6 @@
 # OWASP Top 10 (2021) Security Review — RideShareEU
 
-**Scope:** the actual codebase as of commit `c0dcc4c3` (2026-09-15), Express/Node backend (`server/`) + Next.js frontend (`src/`) + Prisma/PostgreSQL schema (`prisma/schema.prisma`).
+**Scope:** the original review assessed the codebase as of commit `c0dcc4c3` (2026-09-15), Express/Node backend (`server/`) + Next.js frontend (`src/`) + Prisma/PostgreSQL schema (`prisma/schema.prisma`). **Updated 2026-09-16 (commit `59b5de3`)** to reflect five fixes landed from this review's own "priorities" list — see the RESOLVED notes throughout and the summary table below.
 
 **Method:** every verdict below was checked against the current source this session — reading the controller/middleware/service code directly, grepping for the absence of things (raw SQL, rate-limit libraries, logging libraries, `dangerouslySetInnerHTML`), and running `npm audit` for real dependency data. Nothing here is carried over from an earlier audit without being re-verified; where an existing doc (`AGENTS.md`) turned out to be stale relative to the code, that's called out explicitly rather than repeated.
 
@@ -13,17 +13,17 @@
 | # | Category | Verdict |
 |---|---|---|
 | A01 | Broken Access Control | **Mitigated** |
-| A02 | Cryptographic Failures | Partially mitigated |
+| A02 | Cryptographic Failures | **Mitigated** *(upgraded — JWT_SECRET rotated)* |
 | A03 | Injection | **Mitigated** |
 | A04 | Insecure Design | Partially mitigated |
-| A05 | Security Misconfiguration | Partially mitigated |
-| A06 | Vulnerable and Outdated Components | **Gap** |
-| A07 | Identification and Authentication Failures | **Gap** |
+| A05 | Security Misconfiguration | Partially mitigated *(helmet landed; sameSite/deploy items remain)* |
+| A06 | Vulnerable and Outdated Components | Partially mitigated *(downgraded from Gap — critical RCE resolved)* |
+| A07 | Identification and Authentication Failures | **Gap** *(2 of 4 issues fixed; rate limiting + session revocation remain)* |
 | A08 | Software and Data Integrity Failures | Partially mitigated |
-| A09 | Security Logging and Monitoring Failures | **Gap** |
+| A09 | Security Logging and Monitoring Failures | **Gap** *(untouched — separate scope)* |
 | A10 | Server-Side Request Forgery | **Mitigated** |
 
-2 fully mitigated, 5 partially mitigated, 3 real gaps.
+**As of this update (commit `59b5de3`):** 4 fully mitigated, 4 partially mitigated, 2 real gaps — up from 2/5/3 in the original review. Five items from that review's "priorities if there's time" list have since landed: `npm audit fix`, JWT_SECRET rotation, the registration password-length check, the login enumeration fix, and `helmet()`. Items 6-7 (rate limiting, auth-failure logging) are still open, scoped for a separate pass. Each fixed finding below is marked **RESOLVED** in place, with the original finding kept intact underneath it — this document is an audit trail, not a snapshot that gets rewritten as if the gap never existed.
 
 ---
 
@@ -50,7 +50,7 @@ No IDOR was found in this review.
 
 ---
 
-## A02: Cryptographic Failures — Partially mitigated
+## A02: Cryptographic Failures — Mitigated
 
 **Mitigated:**
 
@@ -60,7 +60,8 @@ No IDOR was found in this review.
 - The session cookie is `httpOnly`, `sameSite: 'lax'`, and `secure` is conditioned on `NODE_ENV === 'production'` — [src/app/api/session/route.ts:12-18](../../src/app/api/session/route.ts#L12-L18).
 - Password-reset tickets are JWTs scoped with a `purpose` claim (`complete-registration` vs `reset-password`) so a ticket from one flow can't be replayed against the other, even though both are signed with the same secret — [server/controllers/authController.js:60, 153](../../server/controllers/authController.js#L60), verified in `authFlows.test.js`'s two cross-scope tests.
 
-**Gap:** `JWT_SECRET` is still a placeholder-pattern value in the local `.env` (39 characters, matches a recognizable placeholder prefix) — this is already self-documented as a pre-deploy TODO in `AGENTS.md:82-83` ("`JWT_SECRET` is still the dev placeholder — generate a real random secret"), and this review confirms that TODO is still outstanding. Every session token, every registration/reset ticket, is forgeable by anyone who can guess or brute-force this specific secret. **Severity: High if deployed as-is. Effort: S** — rotate to a real random secret (`openssl rand -hex 32` or equivalent) before any real deployment; the only cost is that every existing session invalidates on rotation, which is fine pre-launch.
+**RESOLVED (commit `59b5de3`):** `JWT_SECRET` was a placeholder-pattern value in the local `.env` (39 characters, matching a recognizable placeholder prefix), self-documented as a pre-deploy TODO in `AGENTS.md:82-83` ("`JWT_SECRET` is still the dev placeholder — generate a real random secret"). Every session token, every registration/reset ticket, was forgeable by anyone who could guess or brute-force that specific secret. Fixed by generating a real 32-byte random secret (`crypto.randomBytes(32).toString('base64')`, equivalent to `openssl rand -base64 32`) and writing it directly into `.env` — the value was never printed to a terminal or committed anywhere; `git ls-files`/`git log --all -- .env` still both return nothing. `.env.example:4-6` now documents `openssl rand -base64 32` as the generation method for anyone setting up a new environment, instead of just a placeholder string with no guidance.
+> Original finding, kept for the record: *"`JWT_SECRET` is still a placeholder-pattern value... Severity: High if deployed as-is. Effort: S — rotate to a real random secret... the only cost is that every existing session invalidates on rotation, which is fine pre-launch."* Verified transparent to the app itself: rotation needed zero test changes, since `test-helpers/auth.js` and every controller both read `process.env.JWT_SECRET` at call time — the full suite (305/305) passed cleanly both before and after the swap.
 
 **Unverifiable, not confirmed either way:** the manuscript's ethics section claims *"Personal data is encrypted at rest using AES-256."* No field-level encryption exists anywhere in `prisma/schema.prisma` or the application code — `email`, `fullName`, `universityId` etc. are all plain `String` columns. If this claim is meant to describe managed-Postgres-provider disk encryption (infrastructure, not app code), that's outside what this repo can confirm or deny. As written, the application layer does not implement it. **Effort to close the gap, if application-level encryption is actually required: M** (selective field-level encryption for PII columns); **Effort to just make the claim accurate: S** (verify and document the hosting provider's at-rest encryption default, or soften the manuscript's wording).
 
@@ -99,15 +100,38 @@ No IDOR was found in this review.
 - Avatar upload has an explicit 5MB size limit, not the library default — [server/routes/userRoutes.js:7](../../server/routes/userRoutes.js#L7).
 - `express.json()` uses Express's own sane default body-size cap (100kb) — not raised or disabled anywhere.
 
-**Gap:** no security-headers middleware (`helmet` or equivalent) is installed anywhere — confirmed absent from `package.json`. There is no `X-Content-Type-Options`, `X-Frame-Options`/`frame-ancestors`, or `Content-Security-Policy` set on any response. **Severity: Medium. Effort: S** — `npm install helmet` + `app.use(helmet())` is close to a one-line fix; the main work is deciding a CSP policy that doesn't break Mapbox GL/Nominatim calls, which is a short, bounded task.
+**RESOLVED (commit `59b5de3`):** no security-headers middleware was installed anywhere — no `X-Content-Type-Options`, `X-Frame-Options`/`frame-ancestors`, or `Content-Security-Policy` on any response. Fixed with `helmet()` applied app-wide before CORS/routes — [server/app.js:3, 22](../../server/app.js#L22). Defaults were used as-is (no custom CSP policy needed): this is a pure JSON API with no inline scripts/styles of its own for a default CSP to conflict with, and Mapbox/Nominatim calls happen client-side or as plain outbound `fetch`, neither of which a response-header CSP on this API affects. Verified live against a controlled instance (`curl`) that `content-security-policy`, `x-content-type-options: nosniff`, `x-frame-options: SAMEORIGIN`, `strict-transport-security`, and the rest of helmet's default set are present, and that CORS credentials still work correctly alongside them (`access-control-allow-credentials: true`, `vary: Origin` unaffected). Locked in by [server/__tests__/securityHeaders.test.js:23, 32](../../server/__tests__/securityHeaders.test.js#L23-L32) — one test asserting the header set on an error response, one confirming CORS is unbroken.
+> Original finding, kept for the record: *"no security-headers middleware (`helmet` or equivalent) is installed anywhere... Severity: Medium. Effort: S."*
 
-**Gap (cross-referenced from A02):** the `JWT_SECRET` placeholder and the not-yet-applied `sameSite: 'none'; secure` cookie change for a split frontend/API domain deployment are both self-documented, still-outstanding pre-deploy items — [AGENTS.md:82-84](../../AGENTS.md#L82-L84).
+**Gap, still open:** the not-yet-applied `sameSite: 'none'; secure` cookie change for a split frontend/API domain deployment is a self-documented, still-outstanding pre-deploy item — [AGENTS.md:82-84](../../AGENTS.md#L82-L84). (The `JWT_SECRET` placeholder AGENTS.md flags in the same note is resolved — see A02 above; this line now refers only to the cookie change, which isn't applicable until frontend and API are actually deployed to different domains.) **Severity: Low for now** (irrelevant on localhost; becomes relevant only at deployment). **Effort: S** — a one-line conditional on `NODE_ENV`/a deployment-topology flag when that day comes.
 
 ---
 
-## A06: Vulnerable and Outdated Components — Gap
+## A06: Vulnerable and Outdated Components — Partially mitigated
 
-`npm audit` was run against the current `package-lock.json` (737 total resolved packages: 318 prod, 335 dev, 111 optional). Real output:
+**RESOLVED (commit `59b5de3`):** `npm audit fix` (no `--force`) was run, dropping the count from 14 to 7 vulnerabilities and, critically, resolving the **critical Next.js RCE** along with every other production-relevant advisory:
+
+| Package | Was | Now | Advisory status |
+|---|---|---|---|
+| `next` | 16.3.0 (vulnerable, critical RCE) | **16.3.5** | Fixed |
+| `multer` | ≤2.2.0 (high, DoS) | **2.4.0** | Fixed |
+| `nodemailer` | ≤9.1.0 (high) | **9.1.1** | Fixed |
+| `sharp` | <0.35.4 (high, transitive via `next`) | **0.35.4** | Fixed |
+| `fast-uri`, `js-yaml`, `qs` | high/moderate, transitive | — | Fixed |
+| `mysql2`, `deepmerge-ts` | high, transitive via `prisma` CLI | ≤3.23.0 / <8.0.0 | **Still open** — needs `--force`, downgrades `prisma` to 6.19.3 (breaking); devDependency, never imported by the running server |
+| `uuid` | moderate, transitive via `autocannon` | <11.1.1 | **Still open** — needs `--force`, bumps `autocannon` to 2.0.1 (breaking); devDependency (this session's own load-test tooling) |
+
+`package.json`'s semver ranges were untouched — only `package-lock.json`'s resolved versions moved, confirmed via `git diff --stat package.json package-lock.json` showing zero changes to the former. The full suite (305/305) was re-run immediately after and passed cleanly, including `matchSearchDate.test.js`'s and `authFlows.test.js`'s live end-to-end HTTP flows — no regression from the `next`/`multer`/`nodemailer`/`prisma` CLI version bumps.
+
+**Downgraded from Gap to Partially mitigated, not fully Mitigated:** 7 real advisories remain. Both remaining groups are transitive dependencies of build/test tooling (the `prisma` CLI devDependency, and `autocannon`, this session's own load-testing devDependency) rather than the running server's own dependency tree (`@prisma/client` + `@prisma/adapter-pg` at runtime) — confirmed via `npm ls mysql2` / `npm ls uuid` dependency-tree tracing in the original review — but they are still unresolved CVEs sitting in `node_modules`, and clearing them properly needs its own regression pass against the breaking `prisma`/`autocannon` version bumps `--force` would pull in. Reasonable to defer past Sept 30; not the same as "clean."
+
+> Original finding, kept for the record, follows below (severity/effort language reflects the pre-fix state):
+
+---
+
+### Original npm audit report (pre-fix, 14 vulnerabilities)
+
+`npm audit` was run against the `package-lock.json` in place at the time of the original review (737 total resolved packages: 318 prod, 335 dev, 111 optional). Real output:
 
 ```
 # npm audit report
@@ -196,13 +220,17 @@ fix available via `npm audit fix --force` (installs autocannon@2.0.1, breaking)
 
 - OTP verification has both an expiry (`OTP_TTL_MINUTES = 10`) and an attempt cap (`MAX_ATTEMPTS = 5`, returning `429 TOO_MANY_ATTEMPTS` once exhausted, checked *before* running the bcrypt compare) — [server/services/otpService.js:4-5](../../server/services/otpService.js#L4-L5), enforced identically for both registration and password-reset OTPs — [server/controllers/authController.js:48-56, 141-149](../../server/controllers/authController.js#L48-L56).
 - `requestPasswordReset` deliberately returns an identical generic response (`OTP_SENT_IF_ACCOUNT_EXISTS`) regardless of whether the email exists, so the forgot-password flow doesn't leak account existence — [server/controllers/authController.js:108-118](../../server/controllers/authController.js#L108-L118), and a test asserts no `EmailVerification` row is even created for an unknown email.
-- Full auth-controller test coverage now exists (`server/__tests__/authFlows.test.js`, 24 tests) covering registration, login, OTP attempt-cap/expiry, and the full forgot/reset-password flow — this closed what was previously a zero-coverage gap on the most security-sensitive part of the app. Full suite: 300/300 passing as of this review.
+- Full auth-controller test coverage now exists (`server/__tests__/authFlows.test.js`, 27 tests as of commit `59b5de3`, up from 24) covering registration, login, OTP attempt-cap/expiry, and the full forgot/reset-password flow — this closed what was previously a zero-coverage gap on the most security-sensitive part of the app.
+- **RESOLVED (commit `59b5de3`) — login's timing side-channel:** not in the original review, added here because fixing the enumeration gap below exposed it. Comparing `password` against `user.passwordHash` only when a user actually exists means an unknown email previously returned near-instantly while a wrong password paid bcrypt's real compute cost — a response-time oracle for account existence even after the status codes matched. Fixed by always running `bcrypt.compare`, against a fixed `DUMMY_PASSWORD_HASH` (computed once at module load, not tied to any real account) when there's no real user — [server/controllers/authController.js:13, 199-203](../../server/controllers/authController.js#L13). Covered by the same identical-response test cited below, which asserts the full response body matches, not just the status code (timing itself isn't asserted in a unit test — that would be flaky — but the code path is now structurally identical either way).
 
 **Gap — no brute-force protection on login at all:** `login` (`server/controllers/authController.js:180-190`) runs a `bcrypt.compare` on every single request with no attempt counter, no lockout, no delay, and — confirmed by grep across the entire `server/` tree — **there is no rate-limiting library or custom throttling logic anywhere in this codebase** (`express-rate-limit` and equivalents are absent from `package.json`; the only `429` responses that exist anywhere are the OTP attempt-cap ones, which protect a specific issued OTP, not the login endpoint or the OTP-request endpoints themselves). An attacker can attempt unlimited password guesses against any account, or spam `/register/start` / `/forgot-password` to trigger unlimited OTP emails, limited only by bcrypt's compute cost. **Severity: High** — this is exactly the "brute-force risk on login/OTP endpoints" the review was asked to confirm, and it's real and unmitigated. **Effort: M** — `express-rate-limit` (or a small custom per-IP+per-account counter) on `/api/auth/verify`, `/api/auth/register/*`, and `/api/auth/forgot-password`/`/verify-reset-otp`; the work is mostly picking sane limits and windows and re-testing `authFlows.test.js` doesn't trip them under normal test load.
 
-**Gap — inconsistent account-enumeration protection:** `login` returns **404 `ACCOUNT_NOT_FOUND`** for an unknown email but **401 `INVALID_CREDENTIALS`** for a wrong password — [server/controllers/authController.js:183, 186](../../server/controllers/authController.js#L183-L186) — a status-code oracle for account existence, sitting right next to `requestPasswordReset`'s deliberately generic response a few functions earlier. **Severity: Low-Medium. Effort: S** — return the same 401/generic response either way, matching the pattern already established elsewhere in this same file.
+**RESOLVED (commit `59b5de3`) — account-enumeration protection:** `login` used to return **404 `ACCOUNT_NOT_FOUND`** for an unknown email but **401 `INVALID_CREDENTIALS`** for a wrong password — a status-code oracle for account existence, sitting right next to `requestPasswordReset`'s deliberately generic response a few functions earlier. Fixed: both cases now return the identical `401 INVALID_CREDENTIALS` — [server/controllers/authController.js:191-203](../../server/controllers/authController.js#L191-L203). Locked in by two tests in `authFlows.test.js`: one asserting the unknown-email case's new status/body, and one posting both an unknown email and a wrong password and asserting the two responses are byte-for-byte identical (`toEqual`, not just matching status codes).
+> This fix rippled into the frontend: `src/app/login/page.tsx` had a UI branch built entirely on the now-retired `ACCOUNT_NOT_FOUND` code — a "no account yet, create one" message shown only on that specific error, which would have become permanently dead code with no way to ever fire again. Replaced with a persistent "Don't have an account? Create one" link shown unconditionally — [src/app/login/page.tsx:118-123](../../src/app/login/page.tsx#L118-L123) — the standard pattern for this exact security/UX tradeoff, rather than silently leaving a new user with no path to registration from this page.
+> Original finding, kept for the record: *"`login` returns 404 `ACCOUNT_NOT_FOUND` for an unknown email but 401 `INVALID_CREDENTIALS` for a wrong password... Severity: Low-Medium. Effort: S."*
 
-**Gap — no minimum password length or complexity is enforced at registration:** `completeRegistration` hashes and stores `password` with zero validation on it — [server/controllers/authController.js:65-89](../../server/controllers/authController.js#L65-L89) — while `resetPassword`, a few functions later in the *same file*, enforces `password.length < 8` → `400 PASSWORD_TOO_SHORT` — [server/controllers/authController.js:170-171](../../server/controllers/authController.js#L170-L171). The only length enforcement for registration is a client-side HTML `minLength={8}` attribute — [src/app/register/page.tsx:279](../../src/app/register/page.tsx#L279) — which is trivially bypassed by calling the API directly. A brand-new account can be created with a 1-character password. **Severity: Medium. Effort: S** — copy the exact check `resetPassword` already has into `completeRegistration`.
+**RESOLVED (commit `59b5de3`) — minimum password length at registration:** `completeRegistration` used to hash and store `password` with zero validation on it, while `resetPassword`, a few functions later in the *same file*, enforced `password.length < 8` → `400 PASSWORD_TOO_SHORT`. The only length enforcement for registration was a client-side HTML `minLength={8}` attribute — [src/app/register/page.tsx:279](../../src/app/register/page.tsx#L279) — trivially bypassed by calling the API directly. Fixed by copying `resetPassword`'s exact check into `completeRegistration`, not inventing a different threshold — [server/controllers/authController.js:92-96](../../server/controllers/authController.js#L92-L96). Covered by two new tests: a `< 8` character password rejected with `PASSWORD_TOO_SHORT`, and an exactly-8-character password accepted (the boundary, not just the failure case).
+> Original finding, kept for the record: *"A brand-new account can be created with a 1-character password. Severity: Medium. Effort: S — copy the exact check `resetPassword` already has into `completeRegistration`."*
 
 **Gap — no server-side session revocation:** sessions are stateless JWTs with a 7-day expiry; there is no blacklist/revocation store, so logging out (`DELETE /api/session`, [src/app/api/session/route.ts:22-26](../../src/app/api/session/route.ts#L22-L26)) only clears the browser's cookie — a copied/stolen token remains valid for up to 7 days regardless. **Severity: Low** (bounded window, and this is a common, accepted tradeoff for stateless-JWT designs at this scale). **Effort: L** if a real fix (revocation list or short-lived-access + refresh-token rotation) is wanted — reasonable to explicitly accept as a known tradeoff rather than fix before Sept 30.
 
@@ -249,14 +277,14 @@ This is a small, low-surface-area app for SSRF purposes — the mitigation here 
 
 ## Priorities if there's time before Sept 30
 
-Roughly in order of impact-per-effort, all individually small (S) except where noted:
+Roughly in order of impact-per-effort, all individually small (S) except where noted. **Items 1-5 landed in commit `59b5de3`** — see the RESOLVED notes in each category above for exactly what changed and how it was verified.
 
-1. **`npm audit fix`** (A06) — one command fixes the critical Next.js RCE plus the other three production-relevant advisories (multer, nodemailer, sharp) with no breaking changes. Re-run the full Jest suite and do a manual smoke test afterward. Highest severity, lowest cost in this entire review.
-2. **Rotate `JWT_SECRET`** to a real random value (A02) before any real deployment — `AGENTS.md` already flags this as outstanding; this review confirms it still is.
-3. **Enforce a minimum password length at registration** (A07) — copy the check `resetPassword` already has, four lines.
-4. **Fix the login enumeration inconsistency** (A07) — make the unknown-email case return the same response shape as the wrong-password case.
-5. **Add `helmet()`** (A05) — near-zero cost, closes the missing-security-headers gap.
-6. **Rate limiting on `/api/auth/*`** (A07, M effort) — the single highest-value remaining item, but genuinely more work than the above (picking limits, retesting); pair with #7 if time allows, since logging is what would tell you the rate limit is actually needed/working.
-7. **Minimal security-event logging** (A09, M effort) — at least log auth failures and exhausted OTP attempts with enough context to reconstruct an incident.
+1. ~~**`npm audit fix`** (A06)~~ — **Done.** 14 → 7 vulnerabilities; the critical Next.js RCE plus multer/nodemailer/sharp are resolved, no breaking changes. Full suite re-run clean.
+2. ~~**Rotate `JWT_SECRET`**~~ (A02) — **Done.** Real 32-byte random secret, never printed or committed; `.env.example` now documents the generation command.
+3. ~~**Enforce a minimum password length at registration**~~ (A07) — **Done.** Exact copy of `resetPassword`'s check.
+4. ~~**Fix the login enumeration inconsistency**~~ (A07) — **Done**, plus the timing side-channel it exposed, plus the frontend ripple (`login/page.tsx`'s dead-code UI branch).
+5. ~~**Add `helmet()`**~~ (A05) — **Done.** Verified live, headers present, CORS unaffected.
+6. **Rate limiting on `/api/auth/*`** (A07, M effort) — still open. The single highest-value remaining item, and genuinely more work than the above (picking limits, retesting); pair with #7 if time allows, since logging is what would tell you the rate limit is actually needed/working.
+7. **Minimal security-event logging** (A09, M effort) — still open. At least log auth failures and exhausted OTP attempts with enough context to reconstruct an incident.
 
-Everything else in this document (server-side score recomputation, CI/CD, session revocation, dev-tooling-only CVEs) is real but lower-severity or larger-effort, and reasonable to explicitly defer past the 30th rather than rush.
+Everything else in this document (server-side score recomputation, CI/CD, session revocation, the 7 remaining dev-tooling-only CVEs) is real but lower-severity or larger-effort, and reasonable to explicitly defer past the 30th rather than rush.
