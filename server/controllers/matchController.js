@@ -32,8 +32,20 @@ function isValidSearchDate(v) {
 // Shared by `search` (normal PSGA) and `showAll` (empty-state fallback): both
 // score the same candidate pool, built from the same real-data-only per-host
 // facts — they differ only in which scoring function runs afterward. Returns
-// `{ error }` for the caller to relay, or `{ openTrips, candidates }`.
+// `{ error }` for the caller to relay, or `{ candidates }`.
 // `passengerId` is the verified req.user.id (phase 2).
+//
+// Lean by design: fetches only the scalar columns Stage 1/2 scoring actually
+// reads (confirmed by inspection — genderPreference/familiarRidersOnly/seats/
+// coordinates all live directly on Trip; nothing here touches vehicle or host
+// beyond hostId). Profiling found the previous `include: { vehicle: true,
+// host: {...} }` on this same query was the actual load-test bottleneck: it
+// joins every open/full trip's full vehicle+host records on every search
+// regardless of whether that trip ever reaches the response, and that join
+// alone measured 889-1273ms average under 50 concurrent requests (vs ~50ms
+// isolated) — see loadTest.js's header. The full vehicle/host data those
+// candidates would need IS still fetched, just deferred to fetchEnrichedTrips
+// below, after scoring has already cut the set down to actual matches.
 async function loadSearchCandidates(passengerId, passengerRequest) {
   const searcher = await prisma.user.findUnique({ where: { id: passengerId }, select: { gender: true } });
   if (!searcher) return { error: { status: 404, body: { error: 'USER_NOT_FOUND' } } };
@@ -49,7 +61,24 @@ async function loadSearchCandidates(passengerId, passengerRequest) {
   // as joinable in the same request that just completed it.
   const candidateTrips = await prisma.trip.findMany({
     where: { status: { in: ['OPEN', 'FULL'] }, hostId: { not: passengerId } },
-    include: { vehicle: true, host: { select: safeUserSelect } },
+    select: {
+      id: true,
+      hostId: true,
+      status: true,
+      recurrenceType: true,
+      customDays: true,
+      departureTime: true,
+      durationSeconds: true,
+      routeWaypoints: true,
+      originLat: true,
+      originLng: true,
+      destinationLat: true,
+      destinationLng: true,
+      genderPreference: true,
+      familiarRidersOnly: true,
+      filledSeats: true,
+      totalSeats: true,
+    },
   });
   await applyLazyCompletion(candidateTrips);
   // Date eligibility is a hard gate applied once here, upstream of both
@@ -114,7 +143,19 @@ async function loadSearchCandidates(passengerId, passengerRequest) {
     };
   });
 
-  return { openTrips, candidates };
+  return { candidates };
+}
+
+// The full trip (+ vehicle + host) records scoring's lean query above
+// deliberately doesn't fetch — looked up only for the trips actually being
+// returned to the client (typically a handful, not every open trip), keyed
+// by id for enrichMatches below.
+async function fetchEnrichedTrips(tripIds) {
+  const trips = await prisma.trip.findMany({
+    where: { id: { in: tripIds } },
+    include: { vehicle: true, host: { select: safeUserSelect } },
+  });
+  return new Map(trips.map((t) => [t.id, t]));
 }
 
 // The fixed per-seat fuel share was computed and frozen at posting time —
@@ -122,9 +163,9 @@ async function loadSearchCandidates(passengerId, passengerRequest) {
 // or as seats fill). Public search must never expose plate numbers — riders
 // see the plate only once matched and approved on a specific trip (RA 10173
 // masking, see tripController.getById).
-function enrichMatches(matches, openTrips) {
+function enrichMatches(matches, tripsById) {
   return matches.map((m) => {
-    const trip = openTrips.find((t) => t.id === m.tripId);
+    const trip = tripsById.get(m.tripId);
     const { plate: _plate, ...vehicleWithoutPlate } = trip.vehicle;
     return { ...m, trip: { ...trip, vehicle: vehicleWithoutPlate }, fuelShare: trip.fuelSharePerSeat };
   });
@@ -145,7 +186,8 @@ async function search(req, res) {
   const result = runPSGA(passengerRequest, loaded.candidates, psgaConfig);
   if (result.status === 'NO_MATCH') return res.json({ status: 'NO_MATCH', matches: [] });
 
-  res.json({ status: 'MATCHED', matches: enrichMatches(result.matches, loaded.openTrips) });
+  const tripsById = await fetchEnrichedTrips(result.matches.map((m) => m.tripId));
+  res.json({ status: 'MATCHED', matches: enrichMatches(result.matches, tripsById) });
 }
 
 // Empty-state fallback: only the Find a Ride "Show all trips to <destination>"
@@ -168,7 +210,8 @@ async function showAll(req, res) {
   const result = runShowAllFallback(passengerRequest, loaded.candidates, psgaConfig);
   if (result.status === 'NO_MATCH') return res.json({ status: 'NO_MATCH', matches: [] });
 
-  res.json({ status: 'MATCHED', matches: enrichMatches(result.matches, loaded.openTrips) });
+  const tripsById = await fetchEnrichedTrips(result.matches.map((m) => m.tripId));
+  res.json({ status: 'MATCHED', matches: enrichMatches(result.matches, tripsById) });
 }
 
 // "Request to Join" action from Find a Ride / the Ride Details page — creates a
