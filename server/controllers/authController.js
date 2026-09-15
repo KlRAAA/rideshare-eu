@@ -7,6 +7,11 @@ const { sendOtpEmail } = require('../services/emailService');
 const STUDENT_DOMAIN = '@student.mseuf.edu.ph';
 const STAFF_DOMAIN = '@mseuf.edu.ph';
 
+// A fixed-cost stand-in for login's bcrypt.compare when no real user exists,
+// so an unknown email takes the same time to reject as a wrong password —
+// not tied to any real account, just an anchor for the compare's own cost.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('rsu-timing-safe-placeholder', 12);
+
 function inferRole(email) {
   if (email.endsWith(STUDENT_DOMAIN)) return 'STUDENT';
   // Base domain covers both Faculty and Staff; the email alone can't tell
@@ -83,6 +88,12 @@ async function completeRegistration(req, res) {
   if (trimmedFullName.length < 3) return res.status(400).json({ error: 'FULL_NAME_TOO_SHORT' });
   if (trimmedFullName.toLowerCase() === trimmedUniversityId.toLowerCase()) {
     return res.status(400).json({ error: 'FULL_NAME_MATCHES_ID' });
+  }
+  // Same check resetPassword already enforces (below) — this path had none at
+  // all, so a brand-new account could be created with a 1-character password
+  // (only a client-side minLength=8 on the register form stood in the way).
+  if (!password || password.length < 8) {
+    return res.status(400).json({ error: 'PASSWORD_TOO_SHORT' });
   }
 
   const role = inferRole(email);
@@ -180,10 +191,16 @@ async function resetPassword(req, res) {
 async function login(req, res) {
   const { email, password } = req.body;
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return res.status(404).json({ error: 'ACCOUNT_NOT_FOUND' });
 
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) return res.status(401).json({ error: 'INVALID_CREDENTIALS' });
+  // Same generic response whether the email doesn't exist or the password is
+  // wrong — previously an unknown email got 404 ACCOUNT_NOT_FOUND while a
+  // wrong password got 401, letting a client fingerprint which emails are
+  // registered (requestPasswordReset already avoids exactly this). Comparing
+  // against DUMMY_PASSWORD_HASH when there's no real user keeps the response
+  // timing consistent too, not just the status code — bcrypt.compare's cost
+  // is what a timing check would actually measure.
+  const valid = await bcrypt.compare(password || '', user ? user.passwordHash : DUMMY_PASSWORD_HASH);
+  if (!user || !valid) return res.status(401).json({ error: 'INVALID_CREDENTIALS' });
 
   const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
   return res.json({ token, user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role } });

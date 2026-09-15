@@ -17,13 +17,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [accountNotFound, setAccountNotFound] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setAccountNotFound(false);
 
     try {
       const { token } = await apiFetch<LoginResponse>('/api/auth/verify', {
@@ -33,9 +31,14 @@ export default function LoginPage() {
       await setSessionCookie(token);
       router.push('/auth/dashboard');
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'ACCOUNT_NOT_FOUND') {
-        setAccountNotFound(true);
-      } else if (err instanceof ApiError && err.code === 'INVALID_CREDENTIALS') {
+      // The server deliberately returns the same INVALID_CREDENTIALS for an
+      // unknown email as for a wrong password (see authController.js's
+      // login) — a status-code oracle for account existence was fixed there,
+      // so this can no longer distinguish the two cases to show a tailored
+      // "no account yet" message either. The persistent "Create one" link
+      // below the form (not conditional on this error, unlike before) covers
+      // a new user who mistyped their email or never registered.
+      if (err instanceof ApiError && err.code === 'INVALID_CREDENTIALS') {
         setError('That email and password don’t match. Check your password and try again.');
       } else {
         setError('Something went wrong reaching the server. Try again in a moment.');
@@ -99,15 +102,6 @@ export default function LoginPage() {
             <p className="text-xs text-gray-500">Your role will be automatically detected from your school credentials.</p>
 
             {error && <p className="text-xs text-red-600">{error}</p>}
-            {accountNotFound && (
-              <p className="text-xs text-gray-600">
-                We don&apos;t have an account for that email yet.{' '}
-                <Link href="/register" className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline">
-                  Create one
-                </Link>
-                .
-              </p>
-            )}
 
             <button type="submit" disabled={loading} className="rsu-btn-primary w-full disabled:opacity-60">
               {loading ? 'Verifying...' : 'Verify with School Credentials'}
@@ -117,6 +111,12 @@ export default function LoginPage() {
           <p className="text-center mt-4">
             <Link href="/forgot-password" className="text-xs text-[color:var(--rsu-color-primary)] font-semibold hover:underline">
               Forgot password?
+            </Link>
+          </p>
+          <p className="text-center mt-2 text-xs text-gray-500">
+            Don&apos;t have an account?{' '}
+            <Link href="/register" className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline">
+              Create one
             </Link>
           </p>
         </div>

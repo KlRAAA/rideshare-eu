@@ -343,6 +343,38 @@ describe('Full registration flow: start → verify-otp → complete', () => {
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('FULL_NAME_MATCHES_ID');
   });
+
+  test('complete validation: password shorter than 8 characters → 400 PASSWORD_TOO_SHORT', async () => {
+    if (guard()) return;
+    const email = studentEmail();
+    const { otp } = await startRegistrationAndGetOtp(email);
+    const { verificationTicket } = await (await post('/api/auth/register/verify-otp', { email, otp })).json();
+    const res = await post('/api/auth/register/complete', {
+      verificationTicket,
+      password: 'short1',
+      fullName: 'Short Password Person',
+      universityId: `X-${uniqueSuffix()}`,
+      gender: 'MALE',
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('PASSWORD_TOO_SHORT');
+  });
+
+  test('complete validation: an 8-character password is accepted (the boundary, not rejected)', async () => {
+    if (guard()) return;
+    const email = studentEmail();
+    const { otp } = await startRegistrationAndGetOtp(email);
+    const { verificationTicket } = await (await post('/api/auth/register/verify-otp', { email, otp })).json();
+    const res = await post('/api/auth/register/complete', {
+      verificationTicket,
+      password: 'exactly8',
+      fullName: 'Boundary Password Person',
+      universityId: `X-${uniqueSuffix()}`,
+      gender: 'MALE',
+    });
+    expect(res.status).toBe(201);
+    createdUserIds.push((await res.json()).user.id);
+  });
 });
 
 describe('POST /api/auth/verify (login)', () => {
@@ -364,11 +396,26 @@ describe('POST /api/auth/verify (login)', () => {
     expect((await res.json()).error).toBe('INVALID_CREDENTIALS');
   });
 
-  test('unknown email → 404 ACCOUNT_NOT_FOUND', async () => {
+  test('unknown email → 401 INVALID_CREDENTIALS, the same response as a wrong password', async () => {
     if (guard()) return;
+    // Previously 404 ACCOUNT_NOT_FOUND — a status-code oracle for account
+    // existence, inconsistent with requestPasswordReset's deliberately
+    // generic response a few functions away. Fixed to match.
     const res = await post('/api/auth/verify', { email: studentEmail(), password: 'whatever' });
-    expect(res.status).toBe(404);
-    expect((await res.json()).error).toBe('ACCOUNT_NOT_FOUND');
+    expect(res.status).toBe(401);
+    expect((await res.json()).error).toBe('INVALID_CREDENTIALS');
+  });
+
+  test('an unknown email and a wrong password are indistinguishable: identical status and body', async () => {
+    if (guard()) return;
+    const email = studentEmail();
+    await createVerifiedUser({ email, password: 'CorrectPass123!' });
+
+    const wrongPassword = await post('/api/auth/verify', { email, password: 'WrongPass999!' });
+    const unknownEmail = await post('/api/auth/verify', { email: studentEmail(), password: 'WrongPass999!' });
+
+    expect(wrongPassword.status).toBe(unknownEmail.status);
+    expect(await wrongPassword.json()).toEqual(await unknownEmail.json());
   });
 });
 

@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const authRoutes = require('./routes/authRoutes');
 const tripRoutes = require('./routes/tripRoutes');
 const matchRoutes = require('./routes/matchRoutes');
@@ -11,6 +12,14 @@ const { geocode } = require('./controllers/tripController');
 const { authenticate } = require('./middleware/authenticate');
 
 const app = express();
+
+// Baseline security headers (X-Content-Type-Options, X-Frame-Options,
+// Content-Security-Policy, etc.) — this is a pure JSON API, never renders
+// HTML, so helmet's defaults are safe here with nothing to configure around
+// (no inline scripts/styles of our own for a CSP to break). Avatar images are
+// served from the Next.js app's own public/ dir, not from this server, so
+// that's unaffected too.
+app.use(helmet());
 
 // Credentialed CORS: the browser sends the httpOnly `rsu_session` cookie on
 // cross-origin apiFetch calls only when the response echoes a specific origin
