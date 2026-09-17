@@ -1,0 +1,52 @@
+IP Infringement / Intellectual Property
+
+No proprietary or copyrighted source code belonging to another party was copied into or adapted for RideShareEU without a license authorizing that use. All application logic — the Priority-Scored Greedy Matching Algorithm, the registration and authentication flow, trip and match management, and the supporting services — was written specifically for this thesis. Where the system depends on external software, that software is used strictly under the terms of its own published license, as documented below. No functionality was licensed, purchased, or reused from a competing ridesharing platform, and no dataset, image asset, or content owned by a third party is redistributed by the application beyond the limited, licensed use described in this section.
+
+Third-Party Software Dependencies
+
+RideShareEU is built on the following open-source packages, declared in package.json. Each is used under its own published license and is unmodified except where noted; none requires source disclosure of this thesis's original code (no copyleft license, such as GPL, appears in this list):
+
+Production dependencies:
+- @prisma/adapter-pg 7.9.1 — Apache-2.0
+- @prisma/client 7.9.1 — Apache-2.0
+- @tailwindcss/postcss 4.3.3 — MIT
+- bcrypt 6.0.0 — MIT
+- cors 2.8.6 — MIT
+- dotenv 17.4.2 — BSD-2-Clause
+- express 5.2.1 — MIT
+- helmet 8.3.0 — MIT
+- jsonwebtoken 9.0.3 — MIT
+- mapbox-gl 3.29.0 — Mapbox TOS (proprietary; see "Map Data and Routing" below)
+- multer 2.4.0 — MIT
+- next 16.3.5 — MIT
+- node-cron 4.6.0 — ISC
+- nodemailer 9.1.1 — MIT-0
+- pg 8.23.0 — MIT
+- react 19.2.8 — MIT
+- react-dom 19.2.8 — MIT
+- react-icons 5.7.0 — MIT
+- react-map-gl 8.1.2 — MIT
+- server-only 0.0.1 — MIT
+
+Development dependencies (build tooling and tests; not shipped in the running application):
+- @types/geojson 7946.0.16 — MIT
+- @types/node 26.2.0 — MIT
+- @types/react 19.2.18 — MIT
+- @types/react-dom 19.2.4 — MIT
+- autocannon 8.0.0 — MIT
+- autoprefixer 10.5.4 — MIT
+- jest 30.4.2 — MIT
+- postcss 8.5.26 — MIT
+- prisma 7.10.0 — Apache-2.0
+- tailwindcss 4.3.3 — MIT
+- typescript 7.0.2 — Apache-2.0
+
+Map Data and Routing
+
+Map rendering and route geometry are provided by Mapbox GL JS and the Mapbox Directions API, used under Mapbox's commercial free tier, which permits this volume of usage without a paid subscription while remaining bound by the Mapbox Terms of Service. Mapbox GL JS is distributed under Mapbox's own proprietary license (not an open-source license — see mapbox-gl's LICENSE.txt), which authorizes use only in conjunction with an active Mapbox account and only through Mapbox's own services; the underlying map data displayed through Mapbox is itself sourced in part from OpenStreetMap contributors.
+
+Forward and reverse geocoding (converting a typed address to coordinates and back) is provided by OpenStreetMap's Nominatim service, whose data is licensed under the Open Database License (ODbL) and whose usage policy requires a descriptive, non-generic User-Agent header identifying the requesting application and prohibits unbounded automated bulk queries. RideShareEU complies with this by sending the literal header value "RideShareEU-MSEUF-Thesis-Prototype/1.0" on every Nominatim request (server/services/geocodingService.js) and by issuing geocoding calls only in direct response to a single user action (typing an address, confirming a pin), never as a batch job.
+
+Original Work
+
+The application's visual design — its layout, component styling, and the Figma mockups it was implemented from — is original work produced for this thesis and is not copied from another application, template marketplace, or design system beyond the open-source UI libraries already credited above.
