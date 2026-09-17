@@ -3,6 +3,7 @@ const app = require('../app');
 const prisma = require('../config/db');
 const { computeFuelSharePerSeat } = require('../services/fuelShareService');
 const { bearer } = require('../test-helpers/auth'); // API now requires a session token
+const { encryptField } = require('../services/encryptionService');
 
 // Regression for: "trip shows in My Trips list but View Details 404s."
 // Root cause was a flaky dev DB connection surfacing as a 500 that the frontend
@@ -44,10 +45,10 @@ describe('edit a trip, then open its detail page', () => {
       data: {
         hostId: host.id,
         vehicleId: vehicle.id,
-        originAddress: 'Origin',
+        originAddress: encryptField('Origin'),
         originLat: 13.9,
         originLng: 121.5,
-        destinationAddress: 'MSEUF',
+        destinationAddress: encryptField('MSEUF'),
         destinationLat: 13.95,
         destinationLng: 121.62,
         distanceMeters: 20000,

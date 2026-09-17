@@ -4,16 +4,18 @@ const { randomUUID } = require('crypto');
 const prisma = require('../config/db');
 const safeUserSelect = require('../config/safeUserSelect');
 const { sniffImageType } = require('../services/imageType');
+const { decryptUserFields } = require('../services/encryptionService');
 
 const AVATAR_DIR = path.join(__dirname, '..', '..', 'public', 'uploads', 'avatars');
 const AVATAR_URL_PREFIX = '/uploads/avatars';
 
 async function getById(req, res) {
-  const user = await prisma.user.findUnique({
+  const userRaw = await prisma.user.findUnique({
     where: { id: req.params.id },
     select: safeUserSelect,
   });
-  if (!user) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+  if (!userRaw) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+  const user = decryptUserFields(userRaw);
 
   const [tripsHosted, tripsJoined] = await Promise.all([
     prisma.trip.count({ where: { hostId: user.id } }),
@@ -66,7 +68,7 @@ async function getRatings(req, res) {
     score: r.score,
     comment: r.comment,
     createdAt: r.createdAt,
-    raterDisplayName: r.anonymous ? null : shortRaterName(r.rater.fullName),
+    raterDisplayName: r.anonymous ? null : shortRaterName(decryptUserFields(r.rater).fullName),
   }));
 
   res.json({ trustScore: user.trustScore, count: ratings.length, ratings });
@@ -94,11 +96,12 @@ async function uploadAvatar(req, res) {
   fs.writeFileSync(path.join(AVATAR_DIR, filename), req.file.buffer);
   const avatarUrl = `${AVATAR_URL_PREFIX}/${filename}`;
 
-  const updated = await prisma.user.update({
+  const updatedRaw = await prisma.user.update({
     where: { id: userId },
     data: { avatarUrl },
     select: safeUserSelect,
   });
+  const updated = decryptUserFields(updatedRaw);
 
   // Remove the file the previous avatar pointed at. A lingering old file is
   // harmless, so a failure here never fails the request.

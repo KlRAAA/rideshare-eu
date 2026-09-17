@@ -5,6 +5,7 @@ const { computeFuelSharePerSeat } = require('../services/fuelShareService');
 const { classifyTripChanges, describeCategories, fuelShareWouldChange } = require('../services/tripUpdateService');
 const { applyLazyCompletion, completeTrip } = require('../services/tripCompletionService');
 const safeUserSelect = require('../config/safeUserSelect');
+const { encryptField, decryptUserFields, decryptTripFields } = require('../services/encryptionService');
 
 // Sanity bounds for the host-entered retail fuel price (PHP/L) — catches an
 // obvious typo (an extra digit, a decimal slip) before it produces a wildly
@@ -128,10 +129,15 @@ async function createTrip(req, res) {
     passengerSeats: Number(body.totalSeats),
   });
 
+  const encryptedBody = { ...body };
+  if ('originAddress' in encryptedBody) encryptedBody.originAddress = encryptField(encryptedBody.originAddress);
+  if ('destinationAddress' in encryptedBody) encryptedBody.destinationAddress = encryptField(encryptedBody.destinationAddress);
+  if ('meetingPointAddress' in encryptedBody) encryptedBody.meetingPointAddress = encryptField(encryptedBody.meetingPointAddress);
+
   const trip = await prisma.trip.create({
-    data: { ...body, hostId: req.user.id, ...routeData, fuelSharePerSeat },
+    data: { ...encryptedBody, hostId: req.user.id, ...routeData, fuelSharePerSeat },
   });
-  res.status(201).json({ trip });
+  res.status(201).json({ trip: decryptTripFields(trip) });
 }
 
 async function listMine(req, res) {
@@ -173,9 +179,10 @@ async function listMine(req, res) {
   const occurrenceByMatchId = new Map(hostedMatchesWithOccurrence.map((m) => [m.id, m.unratedOccurrenceDate]));
 
   const hostedWithRatings = hosted.map((t) => ({
-    ...t,
+    ...decryptTripFields(t),
     matches: t.matches.map((m) => ({
       ...m,
+      passenger: decryptUserFields(m.passenger),
       ratedByMe: ratedMatchIds.has(m.id),
       unratedOccurrenceDate: occurrenceByMatchId.get(m.id) ?? null,
     })),
@@ -184,9 +191,10 @@ async function listMine(req, res) {
   const joinedMatchesWithOccurrence = await attachUnratedOccurrence(joinedMatches, userId);
   const joined = joinedMatchesWithOccurrence.map((m) => {
     const canSeePlate = ['APPROVED', 'COMPLETED'].includes(m.status);
+    const trip = { ...decryptTripFields(m.trip), host: decryptUserFields(m.trip.host) };
     return {
-      ...m.trip,
-      vehicle: canSeePlate ? m.trip.vehicle : { ...m.trip.vehicle, plate: null },
+      ...trip,
+      vehicle: canSeePlate ? trip.vehicle : { ...trip.vehicle, plate: null },
       matchStatus: m.status,
       matchId: m.id,
       fuelShareAmount: m.fuelShareAmount,
@@ -210,7 +218,7 @@ function canViewPlate(trip, userId) {
 
 async function getById(req, res) {
   const userId = req.user.id;
-  const trip = await prisma.trip.findUnique({
+  const tripRaw = await prisma.trip.findUnique({
     where: { id: req.params.id },
     include: {
       host: { select: safeUserSelect },
@@ -218,8 +226,14 @@ async function getById(req, res) {
       matches: { include: { passenger: { select: safeUserSelect } } },
     },
   });
-  if (!trip) return res.status(404).json({ error: 'Trip not found' });
-  await applyLazyCompletion([trip]);
+  if (!tripRaw) return res.status(404).json({ error: 'Trip not found' });
+  await applyLazyCompletion([tripRaw]);
+
+  const trip = {
+    ...decryptTripFields(tripRaw),
+    host: decryptUserFields(tripRaw.host),
+    matches: tripRaw.matches.map((m) => ({ ...m, passenger: decryptUserFields(m.passenger) })),
+  };
 
   if (!canViewPlate(trip, userId)) {
     trip.vehicle = { ...trip.vehicle, plate: null };
@@ -386,11 +400,12 @@ async function cancelTrip(req, res) {
   const { reason } = req.body;
   const userId = req.user.id;
 
-  const trip = await prisma.trip.findUnique({
+  const tripRaw = await prisma.trip.findUnique({
     where: { id },
     include: { matches: true },
   });
-  if (!trip) return res.status(404).json({ error: 'TRIP_NOT_FOUND' });
+  if (!tripRaw) return res.status(404).json({ error: 'TRIP_NOT_FOUND' });
+  const trip = decryptTripFields(tripRaw);
   if (trip.status === 'CANCELLED' || trip.status === 'COMPLETED') {
     return res.status(409).json({ error: 'TRIP_NOT_CANCELLABLE' });
   }
@@ -430,7 +445,8 @@ async function cancelTrip(req, res) {
   const myMatch = trip.matches.find((m) => m.passengerId === userId && ACTIVE_MATCH_STATUSES.includes(m.status));
   if (!myMatch) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
 
-  const passenger = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
+  const passengerRaw = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
+  const passenger = decryptUserFields(passengerRaw);
 
   await prisma.$transaction([
     prisma.match.update({ where: { id: myMatch.id }, data: { status: 'CANCELLED' } }),
@@ -470,10 +486,15 @@ async function updateTrip(req, res) {
   const { userId: _clientUserId, confirmStructural, vehicle: vehiclePatch, ...bodyFields } = req.body;
   const userId = req.user.id;
 
-  const trip = await prisma.trip.findUnique({ where: { id }, include: { matches: true, vehicle: true } });
-  if (!trip) return res.status(404).json({ error: 'TRIP_NOT_FOUND' });
-  if (trip.hostId !== userId) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
-  if (trip.status !== 'OPEN' && trip.status !== 'FULL') return res.status(409).json({ error: 'TRIP_NOT_EDITABLE' });
+  const tripRaw = await prisma.trip.findUnique({ where: { id }, include: { matches: true, vehicle: true } });
+  if (!tripRaw) return res.status(404).json({ error: 'TRIP_NOT_FOUND' });
+  if (tripRaw.hostId !== userId) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
+  if (tripRaw.status !== 'OPEN' && tripRaw.status !== 'FULL') return res.status(409).json({ error: 'TRIP_NOT_EDITABLE' });
+  // Decrypted BEFORE classifyTripChanges — it does plain string equality
+  // against incoming.originAddress/destinationAddress/meetingPointAddress
+  // (plaintext from the client), which would otherwise always register as
+  // "changed" when compared against still-encrypted ciphertext.
+  const trip = decryptTripFields(tripRaw);
 
   const incoming = {};
   for (const k of EDITABLE_TRIP_FIELDS) if (k in bodyFields) incoming[k] = bodyFields[k];
@@ -513,6 +534,7 @@ async function updateTrip(req, res) {
     else if (k === 'distanceMeters' || k === 'durationSeconds') tripData[k] = v == null ? null : Math.round(Number(v));
     else if (k === 'totalSeats' || k === 'flexWindowMinutes') tripData[k] = Number(v);
     else if (LATLNG_FIELDS.has(k)) tripData[k] = v == null ? null : Number(v);
+    else if (k === 'originAddress' || k === 'destinationAddress' || k === 'meetingPointAddress') tripData[k] = encryptField(v);
     else tripData[k] = v;
   }
 
@@ -559,7 +581,8 @@ async function updateTrip(req, res) {
 
   let notifMessage = '';
   if (notifyMatches.length) {
-    const host = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
+    const hostRaw = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
+    const host = decryptUserFields(hostRaw);
     const fuelLine = fsChange ? ` Your fuel share stays ₱${fsChange.from.toFixed(2)} as agreed.` : '';
     notifMessage = `${host.fullName} changed ${describeCategories(structural)} on the trip to ${trip.destinationAddress}.${fuelLine}`;
   }
@@ -576,7 +599,7 @@ async function updateTrip(req, res) {
   await prisma.$transaction(ops);
 
   const updated = await prisma.trip.findUnique({ where: { id }, include: { vehicle: true } });
-  res.json({ trip: updated, notified: notifyMatches.length });
+  res.json({ trip: decryptTripFields(updated), notified: notifyMatches.length });
 }
 
 module.exports = { createTrip, listMine, getById, geocode, cancelTrip, markCompleted, updateTrip, updateLocation, getLocation };

@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const app = require('../app');
 const prisma = require('../config/db');
 const { MAX_ATTEMPTS } = require('../services/otpService');
+const { encryptField } = require('../services/encryptionService');
 
 // authController.js (registration, login, forgot/reset-password) is the most
 // security-sensitive surface in the app and had zero test coverage before this
@@ -102,10 +103,10 @@ async function createVerifiedUser({ email, password = 'OriginalPass123!', role =
     data: {
       email,
       passwordHash,
-      fullName: 'Existing User',
+      fullName: encryptField('Existing User'),
       universityId: `AUTHFLOW-${uniqueSuffix()}`,
       role,
-      gender: 'UNSPECIFIED',
+      gender: encryptField('UNSPECIFIED'),
       verified: true,
     },
   });
@@ -197,12 +198,20 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       fullName: 'Student Person',
       universityId: `SID-${uniqueSuffix()}`,
       gender: 'MALE',
+      termsAccepted: true,
     });
     expect(completeRes.status).toBe(201);
     const body = await completeRes.json();
     expect(body.token).toEqual(expect.any(String));
     expect(body.user.role).toBe('STUDENT');
     createdUserIds.push(body.user.id);
+
+    // Consent is actually persisted, not just accepted-and-forgotten.
+    const stored = await prisma.user.findUnique({ where: { id: body.user.id } });
+    expect(stored.termsAcceptedAt).toBeInstanceOf(Date);
+    expect(Date.now() - stored.termsAcceptedAt.getTime()).toBeLessThan(10000);
+    expect(stored.termsVersion).toEqual(expect.any(String));
+    expect(stored.termsVersion.length).toBeGreaterThan(0);
   });
 
   test('happy path with a staff-domain email infers FACULTY role', async () => {
@@ -216,6 +225,7 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       fullName: 'Staff Person',
       universityId: `FID-${uniqueSuffix()}`,
       gender: 'FEMALE',
+      termsAccepted: true,
     });
     expect(completeRes.status).toBe(201);
     const body = await completeRes.json();
@@ -371,9 +381,65 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       fullName: 'Boundary Password Person',
       universityId: `X-${uniqueSuffix()}`,
       gender: 'MALE',
+      termsAccepted: true,
     });
     expect(res.status).toBe(201);
     createdUserIds.push((await res.json()).user.id);
+  });
+
+  test('complete validation: omitting termsAccepted → 400 TERMS_NOT_ACCEPTED, no user created', async () => {
+    if (guard()) return;
+    const email = studentEmail();
+    const { otp } = await startRegistrationAndGetOtp(email);
+    const { verificationTicket } = await (await post('/api/auth/register/verify-otp', { email, otp })).json();
+    const res = await post('/api/auth/register/complete', {
+      verificationTicket,
+      password: 'NewPass123!',
+      fullName: 'No Consent Person',
+      universityId: `X-${uniqueSuffix()}`,
+      gender: 'MALE',
+      // termsAccepted deliberately omitted — this is the case a direct API
+      // call (bypassing the frontend checkbox entirely) would send.
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('TERMS_NOT_ACCEPTED');
+
+    const created = await prisma.user.findUnique({ where: { email } });
+    expect(created).toBeNull();
+  });
+
+  test('complete validation: termsAccepted: false → 400 TERMS_NOT_ACCEPTED', async () => {
+    if (guard()) return;
+    const email = studentEmail();
+    const { otp } = await startRegistrationAndGetOtp(email);
+    const { verificationTicket } = await (await post('/api/auth/register/verify-otp', { email, otp })).json();
+    const res = await post('/api/auth/register/complete', {
+      verificationTicket,
+      password: 'NewPass123!',
+      fullName: 'Unchecked Box Person',
+      universityId: `X-${uniqueSuffix()}`,
+      gender: 'MALE',
+      termsAccepted: false,
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('TERMS_NOT_ACCEPTED');
+  });
+
+  test('complete validation: a truthy-but-not-boolean-true termsAccepted (e.g. the string "true") is still rejected', async () => {
+    if (guard()) return;
+    const email = studentEmail();
+    const { otp } = await startRegistrationAndGetOtp(email);
+    const { verificationTicket } = await (await post('/api/auth/register/verify-otp', { email, otp })).json();
+    const res = await post('/api/auth/register/complete', {
+      verificationTicket,
+      password: 'NewPass123!',
+      fullName: 'String True Person',
+      universityId: `X-${uniqueSuffix()}`,
+      gender: 'MALE',
+      termsAccepted: 'true',
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('TERMS_NOT_ACCEPTED');
   });
 });
 

@@ -17,15 +17,6 @@ enum GenderPreference {
   SAME_GENDER
 }
 
-// UNSPECIFIED is the safe default for the SAME_GENDER hard constraint to
-// fail closed on: a user who hasn't stated a gender should never be silently
-// treated as a match for a same-gender-only trip.
-enum Gender {
-  MALE
-  FEMALE
-  UNSPECIFIED
-}
-
 enum RecurrenceType {
   ONE_TIME
   DAILY
@@ -63,14 +54,28 @@ model User {
   universityId String   @unique // self-reported (e.g. "2023-12345"); no live ICTD record to verify it against
   email        String   @unique
   passwordHash String   // bcrypt — there is no ICTD/Workspace SSO to hand off to
+  // fullName and gender are AES-256-GCM ciphertext at rest (iv:authTag:data,
+  // base64 — server/services/encryptionService.js), encrypted/decrypted in
+  // application code, never filtered or sorted on at the DB level. gender was
+  // a native Postgres enum (MALE/FEMALE/UNSPECIFIED) before this — now a
+  // String holding ciphertext of one of those same three plaintext values;
+  // UNSPECIFIED is the safe default for the SAME_GENDER hard constraint to
+  // fail closed on, unchanged from before.
   fullName     String
   role         Role
-  gender       Gender   @default(UNSPECIFIED) // drives the SAME_GENDER hard constraint (Task 10)
+  gender       String   // drives the SAME_GENDER hard constraint (Task 10)
   verified     Boolean  @default(false) // true once registration's OTP + domain whitelist checks pass
   avatarUrl    String?  // /uploads/avatars/<uuid>.<ext>, served from Next's public/; null = show initials
   trustScore   Float    @default(5.0)
   tripCount    Int      @default(0)
   createdAt    DateTime @default(now())
+  // Terms-of-use / privacy-policy consent, captured at registration
+  // (authController.completeRegistration) — both null for any account that
+  // predates this column. termsVersion records WHICH version was agreed to,
+  // since re-prompting on a future terms change means comparing against a
+  // stored version, not just checking "is this non-null".
+  termsAcceptedAt DateTime?
+  termsVersion    String?
 
   vehicles        Vehicle[]
   hostedTrips     Trip[]          @relation("HostTrips")
@@ -102,6 +107,12 @@ model Trip {
   host                User             @relation("HostTrips", fields: [hostId], references: [id])
   vehicleId           String
   vehicle             Vehicle          @relation(fields: [vehicleId], references: [id])
+  // originAddress/destinationAddress/meetingPointAddress are AES-256-GCM
+  // ciphertext at rest (same scheme as User.fullName/gender) — the
+  // human-readable text is what reveals a home/work location by name, unlike
+  // the bare lat/lng pair; those stay plaintext since the PSGA does real
+  // arithmetic on them (haversine, route-overlap sampling) that ciphertext
+  // can't support without decrypting on every single computation.
   originAddress       String
   originLat           Float
   originLng           Float

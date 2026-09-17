@@ -24,6 +24,7 @@ function ErrorMessage({ code }: { code: string | undefined }) {
     EMPTY_FULL_NAME: 'Enter your full name.',
     FULL_NAME_TOO_SHORT: 'Full name must be at least 3 characters.',
     FULL_NAME_MATCHES_ID: "Full name can't be the same as your University ID.",
+    TERMS_NOT_ACCEPTED: 'You must agree to the Terms of Use and Privacy Policy to continue.',
   };
   return <p className="text-xs text-red-600">{messages[code ?? ''] ?? 'Something went wrong reaching the server. Try again in a moment.'}</p>;
 }
@@ -53,6 +54,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorCode, setErrorCode] = useState<string | undefined>();
   const [cooldown, setCooldown] = useState(0);
@@ -116,12 +118,16 @@ export default function RegisterPage() {
       setErrorCode('PASSWORD_MISMATCH');
       return;
     }
+    if (!termsAccepted) {
+      setErrorCode('TERMS_NOT_ACCEPTED');
+      return;
+    }
     setLoading(true);
     setErrorCode(undefined);
     try {
       const { token } = await apiFetch<{ token: string }>('/api/auth/register/complete', {
         method: 'POST',
-        body: JSON.stringify({ verificationTicket, password, fullName, universityId, gender }),
+        body: JSON.stringify({ verificationTicket, password, fullName, universityId, gender, termsAccepted }),
       });
       await setSessionCookie(token);
       router.push('/auth/dashboard');
@@ -318,13 +324,34 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
+                <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    required
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-[color:var(--rsu-color-primary)]"
+                  />
+                  <span>
+                    I agree to the{' '}
+                    <Link href="/terms" target="_blank" className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline">
+                      Terms of Use
+                    </Link>{' '}
+                    and{' '}
+                    <Link href="/privacy" target="_blank" className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline">
+                      Privacy Policy
+                    </Link>
+                    .
+                  </span>
+                </label>
+
                 {errorCode === 'PASSWORD_MISMATCH' ? (
                   <p className="text-xs text-red-600">Passwords don&apos;t match.</p>
                 ) : (
                   errorCode && <ErrorMessage code={errorCode} />
                 )}
 
-                <button type="submit" disabled={loading} className="rsu-btn-primary w-full disabled:opacity-60">
+                <button type="submit" disabled={loading || !termsAccepted} className="rsu-btn-primary w-full disabled:opacity-60">
                   {loading ? 'Completing registration...' : 'Complete Registration'}
                 </button>
               </form>

@@ -3,9 +3,16 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../config/db');
 const { generateOtp, hashOtp, verifyOtp, otpExpiryDate, MAX_ATTEMPTS } = require('../services/otpService');
 const { sendOtpEmail } = require('../services/emailService');
+const { encryptField, decryptField } = require('../services/encryptionService');
 
 const STUDENT_DOMAIN = '@student.mseuf.edu.ph';
 const STAFF_DOMAIN = '@mseuf.edu.ph';
+
+// Bumped whenever the Terms of Use / Privacy Policy text changes materially —
+// lets a future "you agreed to an older version, please re-accept" flow
+// compare against this instead of just checking termsAcceptedAt is non-null.
+// No such re-prompt flow exists yet; this is just the value stamped today.
+const CURRENT_TERMS_VERSION = '2026-09-17';
 
 // A fixed-cost stand-in for login's bcrypt.compare when no real user exists,
 // so an unknown email takes the same time to reject as a wrong password —
@@ -68,7 +75,7 @@ async function verifyRegistrationOtp(req, res) {
 
 // Step 3 of 3: set password + name, create the User, issue a session token.
 async function completeRegistration(req, res) {
-  const { verificationTicket, password, fullName, universityId, gender } = req.body;
+  const { verificationTicket, password, fullName, universityId, gender, termsAccepted } = req.body;
 
   let payload;
   try {
@@ -95,6 +102,12 @@ async function completeRegistration(req, res) {
   if (!password || password.length < 8) {
     return res.status(400).json({ error: 'PASSWORD_TOO_SHORT' });
   }
+  // The client sends a real boolean for a checked box; anything else (missing
+  // field, string "false", omitted entirely from a direct API call bypassing
+  // the frontend) fails this strict check rather than being coerced truthy.
+  if (termsAccepted !== true) {
+    return res.status(400).json({ error: 'TERMS_NOT_ACCEPTED' });
+  }
 
   const role = inferRole(email);
   const passwordHash = await bcrypt.hash(password, 12);
@@ -104,16 +117,18 @@ async function completeRegistration(req, res) {
     data: {
       email,
       passwordHash,
-      fullName: trimmedFullName,
+      fullName: encryptField(trimmedFullName),
       universityId: trimmedUniversityId || emailPrefix,
       role,
-      gender: gender === 'MALE' || gender === 'FEMALE' ? gender : 'UNSPECIFIED',
+      gender: encryptField(gender === 'MALE' || gender === 'FEMALE' ? gender : 'UNSPECIFIED'),
       verified: true,
+      termsAcceptedAt: new Date(),
+      termsVersion: CURRENT_TERMS_VERSION,
     },
   });
 
   const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-  return res.status(201).json({ token, user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role } });
+  return res.status(201).json({ token, user: { id: user.id, email: user.email, fullName: trimmedFullName, role: user.role } });
 }
 
 // Forgot-password step 1: always respond the same way regardless of whether
@@ -203,7 +218,7 @@ async function login(req, res) {
   if (!user || !valid) return res.status(401).json({ error: 'INVALID_CREDENTIALS' });
 
   const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-  return res.json({ token, user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role } });
+  return res.json({ token, user: { id: user.id, email: user.email, fullName: decryptField(user.fullName), role: user.role } });
 }
 
 module.exports = {

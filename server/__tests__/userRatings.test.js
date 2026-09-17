@@ -2,6 +2,7 @@ require('dotenv').config({ quiet: true }); // jest doesn't load .env the way ser
 const app = require('../app');
 const prisma = require('../config/db');
 const { bearer } = require('../test-helpers/auth'); // API now requires a session token
+const { encryptField } = require('../services/encryptionService');
 
 // GET /api/users/:id/ratings — the public rating summary + reviews behind the
 // profile page — plus the `anonymous` field on submitRating. Anonymity must be
@@ -24,17 +25,17 @@ let raterInvalid; // "Ivy Nolan"       -> "Ivy N." (anonymous:'yes' is not true 
 async function makeUser(fullName, universityId) {
   const u = await prisma.user.create({
     data: {
-      fullName,
+      fullName: encryptField(fullName),
       universityId,
       email: `${universityId}@test.local`,
       passwordHash: 'x',
       role: 'STUDENT',
-      gender: 'MALE',
+      gender: encryptField('MALE'),
       verified: true,
     },
   });
   seeded.userIds.push(u.id);
-  return u;
+  return { ...u, fullName };
 }
 
 async function makeCompletedMatch(hostId, vehicleId, passengerId) {
@@ -42,10 +43,10 @@ async function makeCompletedMatch(hostId, vehicleId, passengerId) {
     data: {
       hostId,
       vehicleId,
-      originAddress: 'Origin',
+      originAddress: encryptField('Origin'),
       originLat: 13.9,
       originLng: 121.6,
-      destinationAddress: 'Enverga University',
+      destinationAddress: encryptField('Enverga University'),
       destinationLat: 13.95,
       destinationLng: 121.62,
       departureTime: new Date('2026-08-20T00:00:00Z'),

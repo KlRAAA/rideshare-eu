@@ -4,6 +4,7 @@ const { applyLazyCompletion } = require('../services/tripCompletionService');
 const psgaConfig = require('../config/psgaConfig');
 const safeUserSelect = require('../config/safeUserSelect');
 const { checkJoinEligibility } = require('../services/joinRequestService');
+const { decryptUserFields, decryptTripFields } = require('../services/encryptionService');
 
 const MINUTES_IN_DAY = 1440;
 
@@ -47,8 +48,9 @@ function isValidSearchDate(v) {
 // candidates would need IS still fetched, just deferred to fetchEnrichedTrips
 // below, after scoring has already cut the set down to actual matches.
 async function loadSearchCandidates(passengerId, passengerRequest) {
-  const searcher = await prisma.user.findUnique({ where: { id: passengerId }, select: { gender: true } });
-  if (!searcher) return { error: { status: 404, body: { error: 'USER_NOT_FOUND' } } };
+  const searcherRaw = await prisma.user.findUnique({ where: { id: passengerId }, select: { gender: true } });
+  if (!searcherRaw) return { error: { status: 404, body: { error: 'USER_NOT_FOUND' } } };
+  const searcher = decryptUserFields(searcherRaw);
 
   // Exclude the searcher's own hosted trips — a host joining their own trip
   // as a passenger isn't a real scenario the UI (or the Join button) should
@@ -98,7 +100,7 @@ async function loadSearchCandidates(passengerId, passengerRequest) {
   // filters the thesis frames as protecting female commuters specifically.
   const hostIds = [...new Set(openTrips.map((t) => t.hostId))];
   const hosts = await prisma.user.findMany({ where: { id: { in: hostIds } }, select: { id: true, gender: true } });
-  const hostGenderById = new Map(hosts.map((h) => [h.id, h.gender]));
+  const hostGenderById = new Map(hosts.map((h) => [h.id, decryptUserFields(h).gender]));
 
   const priorCompletedMatches = await prisma.match.findMany({
     where: { passengerId, status: 'COMPLETED', trip: { hostId: { in: hostIds } } },
@@ -155,7 +157,9 @@ async function fetchEnrichedTrips(tripIds) {
     where: { id: { in: tripIds } },
     include: { vehicle: true, host: { select: safeUserSelect } },
   });
-  return new Map(trips.map((t) => [t.id, t]));
+  return new Map(
+    trips.map((t) => [t.id, { ...decryptTripFields(t), host: decryptUserFields(t.host) }])
+  );
 }
 
 // The fixed per-seat fuel share was computed and frozen at posting time —
@@ -231,7 +235,7 @@ async function create(req, res) {
   const eligibility = checkJoinEligibility({ trip, passengerId, existingMatches: trip ? trip.matches : [] });
   if (!eligibility.ok) return res.status(eligibility.status).json({ error: eligibility.error });
 
-  const match = await prisma.match.create({
+  const matchRaw = await prisma.match.create({
     data: {
       tripId,
       passengerId,
@@ -248,6 +252,11 @@ async function create(req, res) {
     },
     include: { trip: true, passenger: { select: safeUserSelect } },
   });
+  const match = {
+    ...matchRaw,
+    trip: decryptTripFields(matchRaw.trip),
+    passenger: decryptUserFields(matchRaw.passenger),
+  };
 
   await prisma.notification.create({
     data: {
@@ -287,11 +296,16 @@ async function updateStatus(req, res) {
   let match;
   let autoDeclinedMatches = []; // [{ id, passengerId }] — only set when this approval fills the last seat
   if (status === 'DECLINED') {
-    match = await prisma.match.update({
+    const declinedRaw = await prisma.match.update({
       where: { id },
       data: { status, respondedAt: new Date() },
       include: { trip: true, passenger: { select: safeUserSelect } },
     });
+    match = {
+      ...declinedRaw,
+      trip: decryptTripFields(declinedRaw.trip),
+      passenger: decryptUserFields(declinedRaw.passenger),
+    };
   } else {
     // Approving used to be a plain read-then-write: increment filledSeats,
     // then check if that pushed the trip over totalSeats. Nothing stopped two
@@ -355,7 +369,11 @@ async function updateStatus(req, res) {
       // nothing left here to clean up.
       return res.status(409).json({ error: 'TRIP_FULL', message: 'This trip is already full.' });
     }
-    match = result.match;
+    match = {
+      ...result.match,
+      trip: decryptTripFields(result.match.trip),
+      passenger: decryptUserFields(result.match.passenger),
+    };
     autoDeclinedMatches = result.declinedOthers;
   }
 

@@ -2,6 +2,7 @@ require('dotenv').config({ quiet: true }); // jest doesn't load .env the way ser
 const app = require('../app');
 const prisma = require('../config/db');
 const { bearer } = require('../test-helpers/auth'); // API now requires a session token
+const { encryptField } = require('../services/encryptionService');
 
 // Integration coverage for the Find a Ride empty-state fallback
 // (POST /api/matches/show-all). Proves that the fallback:
@@ -24,17 +25,17 @@ const seeded = { userIds: [], vehicleIds: [], tripIds: [] };
 async function makeUser(fullName, universityId, gender) {
   const u = await prisma.user.create({
     data: {
-      fullName,
+      fullName: encryptField(fullName),
       universityId,
       email: `${universityId}@test.local`,
       passwordHash: 'x',
-      gender,
+      gender: encryptField(gender),
       role: 'STUDENT',
       verified: true,
     },
   });
   seeded.userIds.push(u.id);
-  return u;
+  return { ...u, fullName, gender };
 }
 
 async function makeVehicle(ownerId) {
@@ -50,10 +51,10 @@ async function makeTrip(hostId, vehicleId, overrides = {}) {
     data: {
       hostId,
       vehicleId,
-      originAddress: 'Far Origin',
+      originAddress: encryptField('Far Origin'),
       originLat: 13.9,
       originLng: 121.61,
-      destinationAddress: 'Dest',
+      destinationAddress: encryptField('Dest'),
       destinationLat: SEARCH_DEST.lat,
       destinationLng: SEARCH_DEST.lng,
       // 10:00 UTC → departureMinutes 600; passenger searches for 07:00 (420) with

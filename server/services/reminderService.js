@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { decryptTripFields } = require('./encryptionService');
 
 // No per-trip/per-user configurability exists yet (mirrors GRACE_BUFFER_MINUTES
 // in tripCompletionService.js) — a fixed lead time until a real requirement for
@@ -24,13 +25,14 @@ function reminderRecipients(trip) {
 // that same limitation rather than building occurrence-expansion logic on top
 // of a data model that doesn't otherwise support it.
 async function sendDueReminders(now = new Date()) {
-  const dueTrips = await prisma.trip.findMany({
+  const dueTripsRaw = await prisma.trip.findMany({
     where: {
       status: { in: ['OPEN', 'FULL'] },
       departureTime: { gt: now, lte: reminderWindowEnd(now) },
     },
     include: { matches: { where: { status: 'APPROVED' } } },
   });
+  const dueTrips = dueTripsRaw.map((t) => decryptTripFields(t));
 
   for (const trip of dueTrips) {
     const recipients = reminderRecipients(trip);

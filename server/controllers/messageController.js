@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { decryptUserFields, decryptTripFields } = require('../services/encryptionService');
 
 const ACTIVE_STATUSES = ['OPEN', 'FULL'];
 const DEFAULT_MESSAGE_LIMIT = 50;
@@ -10,8 +11,8 @@ const MAX_MESSAGE_LENGTH = 2000;
 // recognize what the message was about before opening the trip.
 const NOTIFICATION_PREVIEW_LENGTH = 80;
 
-function loadTripForChat(tripId) {
-  return prisma.trip.findUnique({
+async function loadTripForChat(tripId) {
+  const trip = await prisma.trip.findUnique({
     where: { id: tripId },
     select: {
       id: true,
@@ -21,6 +22,7 @@ function loadTripForChat(tripId) {
       matches: { select: { passengerId: true, status: true } },
     },
   });
+  return trip ? decryptTripFields(trip) : trip;
 }
 
 // The chat's participant set: host + every APPROVED passenger — same
@@ -63,10 +65,11 @@ async function postMessage(req, res) {
   if (!body) return res.status(400).json({ error: 'EMPTY_MESSAGE' });
   if (body.length > MAX_MESSAGE_LENGTH) return res.status(400).json({ error: 'MESSAGE_TOO_LONG' });
 
-  const message = await prisma.message.create({
+  const messageRaw = await prisma.message.create({
     data: { tripId, senderId: userId, body },
     include: { sender: { select: { id: true, fullName: true, avatarUrl: true } } },
   });
+  const message = { ...messageRaw, sender: decryptUserFields(messageRaw.sender) };
 
   // Every other chat participant gets notified — the sender doesn't need a
   // notification about their own message.
@@ -110,7 +113,7 @@ async function listMessages(req, res) {
   });
 
   const hasMore = rows.length > take;
-  const messages = hasMore ? rows.slice(0, take) : rows;
+  const messages = (hasMore ? rows.slice(0, take) : rows).map((m) => ({ ...m, sender: decryptUserFields(m.sender) }));
   const nextCursor = hasMore ? messages[messages.length - 1].id : null;
 
   res.json({ messages, nextCursor });

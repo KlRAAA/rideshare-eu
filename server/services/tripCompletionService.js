@@ -1,5 +1,6 @@
 const prisma = require('../config/db');
 const { recurrenceRunsOnDay, phDateOnly } = require('./recurrenceMath');
+const { decryptTripFields } = require('./encryptionService');
 
 const GRACE_BUFFER_MINUTES = 30;
 
@@ -79,11 +80,12 @@ function isRecurringOccurrenceDue(trip, now) {
 // caller's original query used (e.g. a `safeUserSelect`-scoped passenger),
 // so the caller patches its own array by id instead of trusting a fresh read.
 async function completeTrip(tripId) {
-  const trip = await prisma.trip.findUnique({
+  const tripRaw = await prisma.trip.findUnique({
     where: { id: tripId },
     include: { matches: true },
   });
-  if (!trip) return null;
+  if (!tripRaw) return null;
+  const trip = decryptTripFields(tripRaw);
   if (trip.status === 'COMPLETED' || trip.status === 'CANCELLED') return { trip, matchChanges: [] };
 
   const approvedMatches = trip.matches.filter((m) => m.status === 'APPROVED');
@@ -131,11 +133,12 @@ async function completeTrip(tripId) {
 // ever, deduped by (user, match, occurrenceDate) exactly like reminderService
 // dedupes REMINDERs by (user, trip).
 async function completeRecurringOccurrence(tripId, occurrenceDate) {
-  const trip = await prisma.trip.findUnique({
+  const tripRaw = await prisma.trip.findUnique({
     where: { id: tripId },
     include: { matches: true },
   });
-  if (!trip) return null;
+  if (!tripRaw) return null;
+  const trip = decryptTripFields(tripRaw);
 
   const approvedMatches = trip.matches.filter((m) => m.status === 'APPROVED');
   const pendingMatches = trip.matches.filter((m) => m.status === 'PENDING');
