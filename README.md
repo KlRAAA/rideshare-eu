@@ -32,11 +32,23 @@ npm install
 # create the database
 createdb -U postgres rideshare_dev            # or: psql -U postgres -c "CREATE DATABASE rideshare_dev"
 
-# .env — copy from .env.example and set at least:
-#   DATABASE_URL="postgres://postgres:postgres@localhost:5432/rideshare_dev"
-#   JWT_SECRET=<any string, must match between server and .env.local>
+# Two separate env files are needed — one per process:
+#   cp .env.example .env              # Express API (server/): DATABASE_URL, JWT_SECRET, CORS_ORIGIN, SMTP_*
+#   cp .env.local.example .env.local  # Next.js app (src/): JWT_SECRET, NEXT_PUBLIC_API_URL, NEXT_PUBLIC_MAPBOX_TOKEN
+#
+# JWT_SECRET must be the EXACT SAME value in both files — generate one and
+# copy it into both, don't generate two different ones:
+#   openssl rand -base64 32
+# If they don't match, the API still works, but every server-rendered
+# /auth/* page will silently treat every logged-in user as logged-out
+# (src/lib/session.ts's own verification fails independently of the API's).
+#
+# SMTP_* can stay blank for local dev — emailService.js falls back to
+# logging the OTP to the server console instead of sending a real email.
+# NEXT_PUBLIC_MAPBOX_TOKEN needs a real Mapbox token for maps/routes to work
+# (a free "pk." publishable token from https://account.mapbox.com/access-tokens/).
 
-npx prisma db push        # deploy the schema
+npx prisma migrate deploy # apply the tracked migrations in prisma/migrations/
 npx prisma generate
 ```
 
