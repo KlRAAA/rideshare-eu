@@ -7,6 +7,7 @@ import BackButton from '@/components/BackButton';
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import Avatar from '@/components/Avatar';
+import ReportUserButton from '@/components/ReportUserButton';
 import { apiFetch } from '@/lib/api-server';
 import { ApiError } from '@/lib/api';
 import { formatDate, roleLabel } from '@/lib/format';
@@ -20,6 +21,10 @@ interface PublicUser {
   trustScore: number;
   tripsHosted: number;
   tripsJoined: number;
+  // Only true post-match (a Match row links the viewer and this user, in
+  // either host/passenger direction) — same gate the create-report endpoint
+  // itself enforces, computed server-side in userController.getById.
+  canReport: boolean;
 }
 
 interface Review {
@@ -81,6 +86,11 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
               {user.verified && (
                 <div className="mt-3 flex justify-center">
                   <Badge tone="success">Verified University Member</Badge>
+                </div>
+              )}
+              {user.canReport && (
+                <div className="mt-4 flex justify-center">
+                  <ReportUserButton userId={user.id} userName={user.fullName} />
                 </div>
               )}
             </Card>

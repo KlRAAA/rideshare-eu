@@ -13,6 +13,7 @@ import TripSummaryCard from '@/components/TripSummaryCard';
 import FuelShareCard from '@/components/FuelShareCard';
 import CoRidersCard from '@/components/CoRidersCard';
 import ChatCard from '@/components/ChatCard';
+import ReportModal from '@/components/ReportModal';
 import { apiFetch, ApiError } from '@/lib/api';
 import { checkCampusProximity, getCurrentCoords } from '@/lib/geoProximity';
 import { LOCATION_POLL_INTERVAL_MS } from '@/lib/constants';
@@ -99,6 +100,7 @@ export default function TripDetailClient({
   );
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ matchId: string; name: string } | null>(null);
 
   const isHost = trip.host.id === currentUserId;
   const myMatch = trip.matches.find((m) => m.passengerId === currentUserId);
@@ -321,6 +323,21 @@ export default function TripDetailClient({
           renderActions={
             isHost
               ? (m) => {
+                  // A report is possible regardless of match status (a PENDING
+                  // request's message could itself be the problem) — a matched
+                  // relationship already exists the moment the row is a real
+                  // Match, so this renders for every status, not just the
+                  // ones with a status-specific action below it.
+                  const reportLink = (
+                    <button
+                      type="button"
+                      onClick={() => setReportTarget({ matchId: m.id, name: m.passenger.fullName })}
+                      className="text-xs font-semibold text-red-600 hover:underline"
+                    >
+                      Report
+                    </button>
+                  );
+
                   if (m.status === 'PENDING') {
                     // Real buttons with a full-width row to themselves (see
                     // CoRidersCard) rather than small adjacent text links —
@@ -349,40 +366,47 @@ export default function TripDetailClient({
                         {respondError?.matchId === m.id && (
                           <p className="text-xs text-red-600">{respondError.message}</p>
                         )}
+                        {reportLink}
                       </>
                     );
                   }
                   if (m.status === 'COMPLETED') {
                     return (
-                      <button
-                        type="button"
-                        disabled={hasRated(m.id)}
-                        onClick={() => setRating({ matchId: m.id, rateeId: m.passengerId, rateeName: m.passenger.fullName })}
-                        className="text-xs font-semibold text-[color:var(--rsu-color-primary)] hover:underline disabled:opacity-50 disabled:no-underline"
-                      >
-                        {hasRated(m.id) ? 'Rated' : 'Rate'}
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          disabled={hasRated(m.id)}
+                          onClick={() => setRating({ matchId: m.id, rateeId: m.passengerId, rateeName: m.passenger.fullName })}
+                          className="text-xs font-semibold text-[color:var(--rsu-color-primary)] hover:underline disabled:opacity-50 disabled:no-underline"
+                        >
+                          {hasRated(m.id) ? 'Rated' : 'Rate'}
+                        </button>
+                        {reportLink}
+                      </>
                     );
                   }
                   if (m.status === 'APPROVED' && m.unratedOccurrenceDate && !ratedThisSession.has(m.id)) {
                     return (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setRating({
-                            matchId: m.id,
-                            rateeId: m.passengerId,
-                            rateeName: m.passenger.fullName,
-                            occurrenceDate: m.unratedOccurrenceDate,
-                          })
-                        }
-                        className="text-xs font-semibold text-[color:var(--rsu-color-primary)] hover:underline"
-                      >
-                        Rate
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setRating({
+                              matchId: m.id,
+                              rateeId: m.passengerId,
+                              rateeName: m.passenger.fullName,
+                              occurrenceDate: m.unratedOccurrenceDate,
+                            })
+                          }
+                          className="text-xs font-semibold text-[color:var(--rsu-color-primary)] hover:underline"
+                        >
+                          Rate
+                        </button>
+                        {reportLink}
+                      </>
                     );
                   }
-                  return null;
+                  return reportLink;
                 }
               : undefined
           }
@@ -435,15 +459,25 @@ export default function TripDetailClient({
           </dl>
         </Card>
 
-        <button
-          type="button"
-          title="Reporting isn't available yet"
-          className="flex items-center gap-2 text-xs text-gray-400 cursor-not-allowed"
-        >
-          <FaFlag className="w-3 h-3" />
-          Report Issue
-        </button>
+        {!isHost && myMatch && (
+          <button
+            type="button"
+            onClick={() => setReportTarget({ matchId: myMatch.id, name: trip.host.fullName })}
+            className="flex items-center gap-2 text-xs font-semibold text-red-600 hover:underline"
+          >
+            <FaFlag className="w-3 h-3" />
+            Report an issue
+          </button>
+        )}
       </div>
+
+      {reportTarget && (
+        <ReportModal
+          reportedUserName={reportTarget.name}
+          matchId={reportTarget.matchId}
+          onClose={() => setReportTarget(null)}
+        />
+      )}
 
       {rating && (
         <RatingModal

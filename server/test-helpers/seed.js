@@ -99,6 +99,17 @@ function newBag() {
 }
 
 async function cleanup(bag) {
+  // Must run before matches/users are deleted below — Report.reporterId,
+  // reportedUserId and reportedMatchId all FK into rows this bag owns.
+  await prisma.report.deleteMany({
+    where: {
+      OR: [
+        { reporterId: { in: bag.userIds } },
+        { reportedUserId: { in: bag.userIds } },
+        { reportedMatchId: { in: bag.matchIds } },
+      ],
+    },
+  });
   await prisma.rating.deleteMany({ where: { matchId: { in: bag.matchIds } } });
   await prisma.notification.deleteMany({
     where: { OR: [{ id: { in: bag.notificationIds } }, { relatedTripId: { in: bag.tripIds } }] },

@@ -96,6 +96,22 @@ export function phInputTime(date: Date | string): string {
   }).format(new Date(date));
 }
 
+// Mirrors server/services/reportEnforcementService.js's CATEGORY_LABELS — the
+// banned screen shows this instead of the raw enum value.
+const REPORT_CATEGORY_LABELS: Record<string, string> = {
+  SPAM: 'Spam',
+  NO_SHOW: 'No-show',
+  INAPPROPRIATE_BEHAVIOR: 'Inappropriate behavior',
+  HARASSMENT: 'Harassment',
+  SAFETY: 'Safety concern',
+  OTHER: 'Other',
+};
+
+export function reportCategoryLabel(category: string | null): string {
+  if (!category) return 'Multiple reports';
+  return REPORT_CATEGORY_LABELS[category] || category;
+}
+
 export function recurrenceLabel(type: string): string {
   switch (type) {
     case 'DAILY':

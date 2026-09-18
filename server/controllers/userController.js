@@ -26,9 +26,27 @@ async function getById(req, res) {
   // this endpoint for any user and only needs name/avatar/role/trustScore.
   // Every other safeUserSelect field stays visible to any authenticated caller.
   const { email, ...rest } = user;
-  const visible = req.user.id === req.params.id ? user : rest;
+  const isOwnProfile = req.user.id === req.params.id;
+  const visible = isOwnProfile ? user : rest;
 
-  res.json({ user: { ...visible, tripsHosted, tripsJoined } });
+  // "Report user" is only offered post-match — same visibility rule the app
+  // already applies to sensitive matched-context info (canViewPlate/
+  // canViewLocation in tripController.js) — computed here rather than left to
+  // the frontend, since the create-report endpoint enforces this same check
+  // server-side regardless of what this flag says.
+  const canReport =
+    !isOwnProfile &&
+    (await prisma.match.findFirst({
+      where: {
+        OR: [
+          { passengerId: req.user.id, trip: { hostId: user.id } },
+          { passengerId: user.id, trip: { hostId: req.user.id } },
+        ],
+      },
+      select: { id: true },
+    })) != null;
+
+  res.json({ user: { ...visible, tripsHosted, tripsJoined, canReport } });
 }
 
 // "First L." from a full name, for showing who left a (non-anonymous) review

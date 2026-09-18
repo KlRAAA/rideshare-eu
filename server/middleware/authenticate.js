@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const prisma = require('../config/db');
+const { isPermanent } = require('../services/reportEnforcementService');
 
 const SESSION_COOKIE = 'rsu_session';
 
@@ -28,26 +30,55 @@ function extractToken(req) {
 // controller — they still read the client-supplied userId/passengerId/etc.
 // Swapping those for `req.user.id` is a deliberate phase 2.
 //
-// This middleware does no database lookup on purpose: a valid signature from
-// our own JWT_SECRET is enough to say "this is a real session we issued", and
-// keeping it DB-free makes it fast and unit-testable without a database.
-function authenticate(req, res, next) {
+// This middleware originally did no database lookup on purpose (a valid
+// signature was enough). The automated ban ladder breaks that: a suspended
+// user's token is still perfectly valid, so enforcing a ban requires one
+// lookup here — otherwise a banned session would keep working until it
+// naturally expired. Kept to a single indexed findUnique on the primary key,
+// so the cost is one small query per request, not a bigger one.
+async function authenticate(req, res, next) {
   const token = extractToken(req);
   if (!token) {
     return res.status(401).json({ error: 'UNAUTHENTICATED' });
   }
 
+  let userId;
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     if (!payload || !payload.userId) {
       return res.status(401).json({ error: 'UNAUTHENTICATED' });
     }
-    req.user = { id: payload.userId };
-    return next();
+    userId = payload.userId;
   } catch {
     // TokenExpiredError, JsonWebTokenError (bad signature / malformed), etc.
     return res.status(401).json({ error: 'UNAUTHENTICATED' });
   }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { bannedUntil: true, banReason: true, banSeverity: true },
+  });
+  // A signature-valid token for a row that doesn't exist (or predates the ban
+  // columns) has nothing to enforce — fall through the same as "not banned"
+  // rather than 401, matching this middleware's existing signature-only trust
+  // model and the test suite's convention of using arbitrary ids that were
+  // never meant to resolve to a real row.
+  //
+  // A time-served ban (24h/7d/30d) self-clears here too: once `bannedUntil` is
+  // in the past this comparison is simply false, no cron job or separate
+  // "lift the ban" step needed.
+  if (user?.bannedUntil && user.bannedUntil > new Date()) {
+    return res.status(403).json({
+      error: 'ACCOUNT_SUSPENDED',
+      bannedUntil: user.bannedUntil,
+      banReason: user.banReason,
+      banSeverity: user.banSeverity,
+      permanent: isPermanent(user.bannedUntil),
+    });
+  }
+
+  req.user = { id: userId };
+  return next();
 }
 
 module.exports = { authenticate, extractToken, SESSION_COOKIE };

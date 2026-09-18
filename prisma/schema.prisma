@@ -49,6 +49,15 @@ enum NotificationType {
   MESSAGE
 }
 
+enum ReportCategory {
+  SPAM
+  NO_SHOW
+  INAPPROPRIATE_BEHAVIOR
+  HARASSMENT
+  SAFETY
+  OTHER
+}
+
 model User {
   id           String   @id @default(cuid())
   universityId String   @unique // self-reported (e.g. "2023-12345"); no live ICTD record to verify it against
@@ -76,6 +85,17 @@ model User {
   // stored version, not just checking "is this non-null".
   termsAcceptedAt DateTime?
   termsVersion    String?
+  // Automated moderation state (server/services/reportEnforcementService.js) —
+  // set only by the flat strike-ladder in code, never by a human reviewer:
+  // there's no admin role in this app, deliberately (see the thesis's IP/
+  // compliance notes on authorization). A far-future bannedUntil (year 9999)
+  // IS how "permanent" is represented — no separate boolean — so the
+  // authenticate middleware's ban check stays one timestamp comparison
+  // instead of needing a second branch. banReason stores the ReportCategory
+  // that triggered this specific ban action.
+  bannedUntil DateTime?
+  banReason   String?
+  banSeverity String? // "STANDARD" | "HIGH_ALERT"
 
   vehicles        Vehicle[]
   hostedTrips     Trip[]          @relation("HostTrips")
@@ -85,6 +105,8 @@ model User {
   ratingsGiven    Rating[]        @relation("RaterRatings")
   ratingsReceived Rating[]        @relation("RateeRatings")
   messagesSent    Message[]
+  reportsFiled    Report[]        @relation("ReportsFiled")
+  reportsReceived Report[]        @relation("ReportsReceived")
 }
 
 model Vehicle {
@@ -175,6 +197,7 @@ model Match {
   respondedAt       DateTime?
 
   ratings           Rating[]
+  reports           Report[]
 
   @@index([tripId])
   @@index([passengerId])
@@ -251,6 +274,34 @@ model Rating {
   // Enforced here, not just in the UI — the submitRating controller maps the
   // resulting P2002 to 409 ALREADY_RATED.
   @@unique([matchId, raterId, occurrenceDate])
+}
+
+// A user or ride-issue report — deliberately its own model, separate from
+// Rating: a harassment report and a 1-star "was late" rating must never mix,
+// since only Report feeds the automated ban ladder
+// (server/services/reportEnforcementService.js). reportedUserId is set in
+// both submission flows (report-a-user sets it directly; report-a-trip/match
+// derives it server-side as the other party on that match) but is kept
+// nullable per spec for a possible future non-user report. category maps to
+// a severity tier in code (HARASSMENT/SAFETY = high-alert) — that mapping is
+// a constant, never a per-report human judgment call, since no admin role
+// reviews these.
+model Report {
+  id              String         @id @default(cuid())
+  reporterId      String
+  reporter        User           @relation("ReportsFiled", fields: [reporterId], references: [id])
+  reportedUserId  String?
+  reportedUser    User?          @relation("ReportsReceived", fields: [reportedUserId], references: [id])
+  reportedMatchId String?
+  reportedMatch   Match?         @relation(fields: [reportedMatchId], references: [id])
+  category        ReportCategory
+  description     String?        // optional free text, capped at 500 chars (server-enforced, not just UI)
+  createdAt       DateTime       @default(now())
+
+  // Powers the enforcement window query (distinct qualifying reporters against
+  // a user within the last 90 days) and the per-reporter abuse-guard count.
+  @@index([reportedUserId, createdAt])
+  @@index([reporterId, createdAt])
 }
 
 // Registration 2FA: one row per in-progress signup attempt. Not linked to
