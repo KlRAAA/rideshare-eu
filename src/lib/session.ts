@@ -18,6 +18,7 @@ export interface CurrentUser {
   verified: boolean;
   tripsHosted: number;
   tripsJoined: number;
+  hasSeenOnboarding: boolean;
 }
 
 export async function getSessionUserId(): Promise<string | null> {

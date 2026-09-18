@@ -119,3 +119,44 @@ describe('POST /api/users/me/avatar — targets the verified caller', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('PATCH /api/users/me/onboarding — targets the verified caller', () => {
+  test('marks the caller (not a body field) as having seen onboarding', async () => {
+    if (guard()) return;
+    const carol = await makeUser(bag, { fullName: 'Carol Danvers' });
+    const before = await prisma.user.findUnique({ where: { id: carol.id }, select: { hasSeenOnboarding: true } });
+    expect(before.hasSeenOnboarding).toBe(false);
+
+    const res = await fetch(`${base}/api/users/me/onboarding`, {
+      method: 'PATCH',
+      headers: bearer(carol.id),
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).hasSeenOnboarding).toBe(true);
+
+    const after = await prisma.user.findUnique({ where: { id: carol.id }, select: { hasSeenOnboarding: true } });
+    expect(after.hasSeenOnboarding).toBe(true);
+  });
+
+  test('is idempotent — calling it again on an already-seen account stays true', async () => {
+    if (guard()) return;
+    const res = await fetch(`${base}/api/users/me/onboarding`, { method: 'PATCH', headers: bearer(alice.id) });
+    expect(res.status).toBe(200);
+    const fresh = await prisma.user.findUnique({ where: { id: alice.id }, select: { hasSeenOnboarding: true } });
+    expect(fresh.hasSeenOnboarding).toBe(true);
+  });
+
+  test("a spoofed target (there is no body field to spoof) never touches anyone but the caller", async () => {
+    if (guard()) return;
+    // No id-bearing field exists on this endpoint at all — bob's own state
+    // must be completely unaffected by alice's or carol's calls above.
+    const bobBefore = await prisma.user.findUnique({ where: { id: bob.id }, select: { hasSeenOnboarding: true } });
+    expect(bobBefore.hasSeenOnboarding).toBe(false);
+  });
+
+  test('no token → 401', async () => {
+    if (guard()) return;
+    const res = await fetch(`${base}/api/users/me/onboarding`, { method: 'PATCH' });
+    expect(res.status).toBe(401);
+  });
+});

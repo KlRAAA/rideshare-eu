@@ -20,4 +20,5 @@ module.exports = {
   tripCount: true,
   verified: true,
   avatarUrl: true,
+  hasSeenOnboarding: true,
 };

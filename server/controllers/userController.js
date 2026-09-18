@@ -134,4 +134,18 @@ async function uploadAvatar(req, res) {
   res.json({ user: updated });
 }
 
-module.exports = { getById, getRatings, uploadAvatar };
+// PATCH /api/users/me/onboarding — marks the onboarding tour seen for the
+// caller (req.user.id), never a client-supplied id. Called on Skip or on
+// finishing the last step — both mean "don't auto-show again," so there's
+// only one outcome here, not a separate "completed" vs "skipped" state.
+// Idempotent: calling it again (e.g. from a "Show tutorial again" replay)
+// just writes the same true value.
+async function completeOnboarding(req, res) {
+  await prisma.user.update({
+    where: { id: req.user.id },
+    data: { hasSeenOnboarding: true },
+  });
+  res.json({ hasSeenOnboarding: true });
+}
+
+module.exports = { getById, getRatings, uploadAvatar, completeOnboarding };

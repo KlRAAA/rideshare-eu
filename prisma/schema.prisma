@@ -96,6 +96,11 @@ model User {
   bannedUntil DateTime?
   banReason   String?
   banSeverity String? // "STANDARD" | "HIGH_ALERT"
+  // Flips true the first time this user finishes or skips the onboarding
+  // tour (PATCH /api/users/me/onboarding) — either one means "don't auto-show
+  // again," not just a completed run. "Show tutorial again" replays the tour
+  // client-side without touching this column.
+  hasSeenOnboarding Boolean @default(false)
 
   vehicles        Vehicle[]
   hostedTrips     Trip[]          @relation("HostTrips")

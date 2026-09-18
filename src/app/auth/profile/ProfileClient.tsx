@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FaFlag, FaSignOutAlt, FaSpinner } from 'react-icons/fa';
+import { FaFlag, FaSignOutAlt, FaSpinner, FaCompass } from 'react-icons/fa';
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import Select from '@/components/Select';
@@ -281,6 +281,18 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
               />
               <p className="text-[11px] text-gray-400 mt-1">Contact admin to update verified credentials</p>
             </div>
+            <button
+              type="button"
+              // Re-runs the tour client-side via OnboardingTour's ?tour=1
+              // check on the dashboard — the DB's hasSeenOnboarding flag is
+              // left untouched, so this is a manual replay, not a reset of
+              // "don't auto-show again."
+              onClick={() => router.push('/auth/dashboard?tour=1')}
+              className="flex items-center gap-2 text-sm font-semibold text-[color:var(--rsu-color-primary)] hover:underline"
+            >
+              <FaCompass className="w-4 h-4" />
+              Show tutorial again
+            </button>
           </div>
         </Card>
 

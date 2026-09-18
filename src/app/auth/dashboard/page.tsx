@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { FaCar, FaSearch, FaClock } from 'react-icons/fa';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
+import OnboardingTour from '@/components/OnboardingTour';
 import { getCurrentUser } from '@/lib/session';
 import { apiFetch } from '@/lib/api-server';
 import { formatDate, formatTime, formatDateTimeAgo, recurrenceLabel, roleLabel } from '@/lib/format';
@@ -61,6 +62,11 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-between pb-24">
+      {user && (
+        <Suspense fallback={null}>
+          <OnboardingTour hasSeenOnboarding={user.hasSeenOnboarding} />
+        </Suspense>
+      )}
       <Header active="dashboard" unreadCount={unreadCount} />
 
       <main className="app-desktop w-full p-0 pt-2 md:pt-4 space-y-6 flex-grow">
@@ -76,7 +82,7 @@ export default async function DashboardPage() {
           </div>
 
           <div className="dashboard-top-grid mt-6">
-            <Card className="border-2 border-[color:var(--rsu-color-primary)/0.18]">
+            <Card data-tour="post-ride" className="border-2 border-[color:var(--rsu-color-primary)/0.18]">
               <div className="flex items-start gap-4">
                 <div className="p-2 bg-white rounded-md">
                   <FaCar className="w-5 h-5 text-[color:var(--rsu-color-primary)]" />
@@ -91,7 +97,7 @@ export default async function DashboardPage() {
               </div>
             </Card>
 
-            <Card>
+            <Card data-tour="find-ride">
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
                   <FaSearch className="w-5 h-5 text-gray-500" />
@@ -109,7 +115,7 @@ export default async function DashboardPage() {
         </section>
 
         <section className="dashboard-main-grid mt-6">
-          <div>
+          <div data-tour="upcoming-trips">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold text-gray-900">Upcoming Trips</h3>
               <Link href="/auth/trips" className="text-sm text-gray-600 hover:underline">

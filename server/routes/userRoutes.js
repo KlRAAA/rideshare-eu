@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const router = express.Router();
-const { getById, getRatings, uploadAvatar } = require('../controllers/userController');
+const { getById, getRatings, uploadAvatar, completeOnboarding } = require('../controllers/userController');
 
 // In-memory so the bytes can be inspected before anything is written to disk.
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -19,5 +19,6 @@ function acceptAvatar(req, res, next) {
 router.get('/:id', getById);
 router.get('/:id/ratings', getRatings); // public rating summary + reviews for the profile page
 router.post('/me/avatar', acceptAvatar, uploadAvatar);
+router.patch('/me/onboarding', completeOnboarding);
 
 module.exports = router;

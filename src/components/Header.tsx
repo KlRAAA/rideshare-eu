@@ -20,7 +20,10 @@ const NAV_ITEMS: { key: ActiveRoute; href: string; label: string }[] = [
 
 export default function Header({ active, unreadCount = 0 }: HeaderProps) {
   return (
-    <header className="rsu-header-bar bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
+    <header
+      data-tour="main-nav"
+      className="rsu-header-bar bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm"
+    >
       <div className="app-desktop h-14 md:h-16 flex items-center justify-between gap-4">
         <Link href="/auth/dashboard" className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 bg-[color:var(--rsu-color-primary)] text-white rounded-lg flex items-center justify-center shadow header-logo-only">
