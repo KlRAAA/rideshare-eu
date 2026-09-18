@@ -1,7 +1,31 @@
 import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  // ZAP flagged Next.js's default `X-Powered-By: Next.js` response header
+  // (Server Leaks Information) — this is the documented one-line way to
+  // drop it, no headers() entry needed for this specific one.
+  poweredByHeader: false,
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          // Modern + legacy anti-clickjacking together — frame-ancestors
+          // (set in src/proxy.ts, alongside the rest of the CSP) is what
+          // actually matters in current browsers; X-Frame-Options covers the
+          // couple of scanners/older clients that still key off it.
+          // Content-Security-Policy itself lives in src/proxy.ts instead of
+          // here — it needs a fresh nonce per request, which only a proxy
+          // (this Next.js version's renamed middleware) can generate; a
+          // static next.config header can't.
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+        ],
+      },
+    ];
+  },
+};
 
 export default withSentryConfig(nextConfig, {
   // For all available options, see:

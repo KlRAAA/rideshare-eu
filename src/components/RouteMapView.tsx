@@ -175,7 +175,6 @@ export default function RouteMapView({
           initialViewState={{ ...center, zoom: 12 }}
           onLoad={fitToBounds}
           attributionControl={false}
-          style={{ width: '100%', height: '100%' }}
         >
           {roadFC && (
             <Source id="road" type="geojson" data={roadFC}>
@@ -220,15 +219,15 @@ export default function RouteMapView({
       {(overlap || meetingPoint || driverLocation) && (
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5 rounded" style={{ background: MAROON }} /> Driver’s route
+            <span className="inline-block w-4 h-0.5 rounded bg-[#800000]" /> Driver’s route
           </span>
           {overlap && (
             <>
               <span className="flex items-center gap-1.5">
-                <span className="inline-block w-4 h-0.5 rounded" style={{ background: SHARED }} /> Shared with your route
+                <span className="inline-block w-4 h-0.5 rounded bg-[#059669]" /> Shared with your route
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="inline-block w-4 h-0.5 rounded" style={{ background: DETOUR }} /> Your detour
+                <span className="inline-block w-4 h-0.5 rounded bg-[#d97706]" /> Your detour
               </span>
             </>
           )}

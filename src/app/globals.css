@@ -381,3 +381,15 @@ header .app-desktop { gap: 12px; }
 header .app-desktop > div:first-child { min-width: 0; }
 .rsu-topnav { gap: 10px; }
 .rsu-topnav a { padding: 6px 10px; }
+
+/* react-map-gl's <Map> needs an explicit size — mapbox-gl.css's own
+   .mapboxgl-map rule has no width/height default. This used to be an inline
+   style={{width:'100%',height:'100%'}} prop (the library doesn't support a
+   className prop to do this instead); moved here so style-src doesn't need
+   'unsafe-inline' just for the map. Its parent already has a real size via
+   Tailwind (w-full + a height class — see RouteMapView.tsx), so 100%/100%
+   fills it exactly like the inline style did. */
+.mapboxgl-map {
+	width: 100%;
+	height: 100%;
+}
