@@ -453,3 +453,112 @@ describe('A banned user is actually locked out via the auth middleware', () => {
     }
   });
 });
+
+describe('GET /api/reports/mine — the filer\'s own report history', () => {
+  async function getMine(callerId) {
+    return fetch(`${base}/api/reports/mine`, { headers: bearer(callerId) });
+  }
+
+  test('a user with zero filed reports gets an empty array, not an error', async () => {
+    if (!dbUp) return;
+    const bag = newBag();
+    const nobody = await makeUser(bag);
+    try {
+      const res = await getMine(nobody.id);
+      expect(res.status).toBe(200);
+      expect((await res.json()).reports).toEqual([]);
+    } finally {
+      await cleanup(bag);
+    }
+  });
+
+  test('shows a filed user-report with category, date, and the reported name — never a status/outcome field', async () => {
+    if (!dbUp) return;
+    const bag = newBag();
+    const host = await makeUser(bag, { fullName: 'Reported Host' });
+    const passenger = await makeUser(bag);
+    const vehicle = await makeVehicle(bag, host.id);
+    const trip = await makeTrip(bag, host.id, vehicle.id);
+    await makeMatch(bag, trip.id, passenger.id);
+    try {
+      const postRes = await postReport(passenger.id, { reportedUserId: host.id, category: 'SPAM', description: 'x' });
+      expect(postRes.status).toBe(201);
+
+      const res = await getMine(passenger.id);
+      expect(res.status).toBe(200);
+      const { reports } = await res.json();
+      expect(reports).toHaveLength(1);
+      const [entry] = reports;
+      expect(entry.category).toBe('SPAM');
+      expect(entry.type).toBe('user');
+      expect(entry.reportedUserName).toBe('Reported Host');
+      expect(entry.createdAt).toBeTruthy();
+      expect(entry.trip).toBeNull();
+      // Never any enforcement/outcome field — the filer has no legitimate
+      // reason to see whether their report "worked."
+      expect(entry).not.toHaveProperty('status');
+      expect(entry).not.toHaveProperty('banned');
+      expect(entry).not.toHaveProperty('enforced');
+      expect(entry).not.toHaveProperty('outcome');
+      expect(entry).not.toHaveProperty('description'); // not asked for, keep the response minimal
+    } finally {
+      await cleanup(bag);
+    }
+  });
+
+  test('shows a filed trip/match-issue report with the trip route attached', async () => {
+    if (!dbUp) return;
+    const bag = newBag();
+    const host = await makeUser(bag);
+    const passenger = await makeUser(bag);
+    const vehicle = await makeVehicle(bag, host.id);
+    const trip = await makeTrip(bag, host.id, vehicle.id, {
+      originAddress: 'Sariaya',
+      destinationAddress: 'Enverga University',
+    });
+    const match = await makeMatch(bag, trip.id, passenger.id);
+    try {
+      const postRes = await postReport(passenger.id, { matchId: match.id, category: 'NO_SHOW' });
+      expect(postRes.status).toBe(201);
+
+      const { reports } = await (await getMine(passenger.id)).json();
+      expect(reports).toHaveLength(1);
+      expect(reports[0].type).toBe('trip');
+      expect(reports[0].trip).toEqual({ originAddress: 'Sariaya', destinationAddress: 'Enverga University' });
+      expect(reports[0].reportedUserName).toBeTruthy(); // host's name, same convention the modal uses
+    } finally {
+      await cleanup(bag);
+    }
+  });
+
+  test("is scoped per-reporter — a different account's history never shows someone else's report, verified via a direct API call", async () => {
+    if (!dbUp) return;
+    const bag = newBag();
+    const host = await makeUser(bag);
+    const passenger = await makeUser(bag);
+    const stranger = await makeUser(bag);
+    const vehicle = await makeVehicle(bag, host.id);
+    const trip = await makeTrip(bag, host.id, vehicle.id);
+    await makeMatch(bag, trip.id, passenger.id);
+    try {
+      await postReport(passenger.id, { reportedUserId: host.id, category: 'OTHER' });
+
+      const strangerRes = await getMine(stranger.id);
+      expect(strangerRes.status).toBe(200);
+      expect((await strangerRes.json()).reports).toEqual([]);
+
+      // The reported party (host) filed nothing themselves — their own
+      // history must also stay empty, not show reports made against them.
+      const hostRes = await getMine(host.id);
+      expect((await hostRes.json()).reports).toEqual([]);
+    } finally {
+      await cleanup(bag);
+    }
+  });
+
+  test('no token → 401', async () => {
+    if (!dbUp) return;
+    const res = await fetch(`${base}/api/reports/mine`);
+    expect(res.status).toBe(401);
+  });
+});

@@ -7,6 +7,7 @@ import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import Select from '@/components/Select';
 import Avatar from '@/components/Avatar';
+import ReportHistoryModal from '@/components/ReportHistoryModal';
 import { apiFetch, clearSessionCookie, API_BASE } from '@/lib/api';
 import { roleLabel } from '@/lib/format';
 import type { CurrentUser } from '@/lib/session';
@@ -34,6 +35,7 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
   const [preference, setPreference] = useState(initialPreference);
   const [saving, setSaving] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showReportHistory, setShowReportHistory] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatarUrl);
@@ -300,8 +302,8 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
           <h3 className="text-sm font-bold text-gray-900 mb-1">Privacy &amp; Safety</h3>
           <button
             type="button"
-            title="Report history isn't available yet"
-            className="flex items-center gap-2 text-sm text-gray-400 cursor-not-allowed mt-2"
+            onClick={() => setShowReportHistory(true)}
+            className="flex items-center gap-2 text-sm font-semibold text-[color:var(--rsu-color-primary)] hover:underline mt-2"
           >
             <FaFlag className="w-3.5 h-3.5" />
             View Report History
@@ -319,6 +321,8 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
           {loggingOut ? 'Logging out...' : 'Log Out'}
         </button>
       </div>
+
+      {showReportHistory && <ReportHistoryModal onClose={() => setShowReportHistory(false)} />}
     </div>
   );
 }

@@ -1,8 +1,10 @@
 const prisma = require('../config/db');
 const { applyBanIfWarranted } = require('../services/reportEnforcementService');
+const { decryptUserFields, decryptTripFields } = require('../services/encryptionService');
 
 const REPORT_CATEGORIES = new Set(['SPAM', 'NO_SHOW', 'INAPPROPRIATE_BEHAVIOR', 'HARASSMENT', 'SAFETY', 'OTHER']);
 const DESCRIPTION_MAX_LENGTH = 500;
+const HISTORY_LIMIT = 50;
 
 // Flag, don't block — full anti-spam is out of scope. A legitimate reporter
 // filing several real reports in a short window is rare enough that this just
@@ -85,4 +87,46 @@ async function createReport(req, res) {
   return res.status(201).json({ status: 'REPORT_SUBMITTED' });
 }
 
-module.exports = { createReport };
+// GET /api/reports/mine — a self-service history of reports THIS user has
+// filed, scoped to req.user.id as reporterId (never a query param). This is
+// the filer looking back at their own submissions, not anything about
+// enforcement: no `status`, no ban outcome. Since nothing here is
+// human-reviewed, telling a reporter whether their report "worked" would
+// let them infer enforcement details we deliberately don't surface anywhere
+// else either — same reasoning the ban email and suspended screen already
+// follow for the other direction (never naming the reporter to the banned
+// user).
+async function getMyReports(req, res) {
+  const reports = await prisma.report.findMany({
+    where: { reporterId: req.user.id },
+    orderBy: { createdAt: 'desc' },
+    take: HISTORY_LIMIT,
+    select: {
+      id: true,
+      category: true,
+      createdAt: true,
+      reportedMatchId: true,
+      reportedUser: { select: { fullName: true } },
+      reportedMatch: {
+        select: { trip: { select: { originAddress: true, destinationAddress: true } } },
+      },
+    },
+  });
+
+  const history = reports.map((r) => ({
+    id: r.id,
+    category: r.category,
+    createdAt: r.createdAt,
+    type: r.reportedMatchId ? 'trip' : 'user',
+    // Same convention the report-submission modal itself already uses
+    // (ReportModal's "Report {reportedUserName}" title, for both flows) —
+    // the filer picked this person when they filed, so naming them back is
+    // not a new disclosure, just recalling what they already know.
+    reportedUserName: r.reportedUser ? decryptUserFields(r.reportedUser).fullName : null,
+    trip: r.reportedMatch ? decryptTripFields(r.reportedMatch.trip) : null,
+  }));
+
+  res.json({ reports: history });
+}
+
+module.exports = { createReport, getMyReports };
