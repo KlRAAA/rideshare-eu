@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const Sentry = require('@sentry/node');
 const authRoutes = require('./routes/authRoutes');
 const tripRoutes = require('./routes/tripRoutes');
 const matchRoutes = require('./routes/matchRoutes');
@@ -52,6 +53,11 @@ app.use('/api/preferences', preferenceRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api', matchRoutes); // exposes POST /api/matches/search and POST /api/matches
 app.use('/api/alerts', notificationRoutes); // POST/GET notification endpoints per traceability matrix
+
+// Reports the error to Sentry, then calls next(err) itself so the existing
+// handler below still runs unchanged — same response shape for clients,
+// errors just also show up in the Sentry dashboard now.
+Sentry.setupExpressErrorHandler(app);
 
 // Catch-all error handler. Without this, an async controller rejection (e.g. a
 // transient DB connection drop) falls through to Express's default handler,
