@@ -120,6 +120,33 @@ h1,h2,h3,h4,h5,h6 {
 	color-scheme: dark;
 }
 
+/* ---------------------------------------------------------------------
+   Motion polish. One coherent transition style applied broadly (color/
+   background/border/shadow + a very slight lift on solid buttons) rather
+   than a different animation per component. prefers-reduced-motion wins
+   over all of it, including any Tailwind transition-* utility used anywhere
+   else in the app, since it targets every element unconditionally.
+   ------------------------------------------------------------------- */
+a,
+button,
+input,
+select,
+textarea,
+.rsu-card,
+[class*="rsu-btn-"],
+[class*="rsu-badge"] {
+	transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 180ms ease, opacity 180ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}
+
 /* Headings sizes to mimic Figma */
 h1 {
 	font-weight: 800;
