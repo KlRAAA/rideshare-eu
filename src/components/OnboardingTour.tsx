@@ -46,18 +46,39 @@ interface OnboardingTourProps {
   hasSeenOnboarding: boolean;
 }
 
-// Same maroon "Create New Trip" and every other primary button uses
-// (globals.css's --rsu-color-primary) — this fallback is that variable's own
-// literal value, used only for the brief window before the effect below can
-// read the live CSS custom property (document isn't available during this
-// client component's server-side render pass, so it can't be read inline).
-const FALLBACK_PRIMARY_COLOR = '#800000';
+// react-joyride renders its tooltip via inline JS-driven styles (its own
+// `options` object), not CSS classes — so unlike the rest of the app, it is
+// NOT covered by globals.css's class-based dark-mode overrides at all. Found
+// by actually inspecting the rendered tooltip's computed background (still
+// pure white in dark mode) rather than assuming the CSS layer reached it.
+// These fallbacks are globals.css's own light-mode token values, used only
+// for the brief window before the effect below can read the live CSS custom
+// properties (document isn't available during this client component's
+// server-side render pass, so they can't be read inline).
+const FALLBACK_COLORS = {
+  primaryColor: '#800000',
+  backgroundColor: '#ffffff',
+  textColor: '#111827',
+  arrowColor: '#ffffff',
+};
+
+function readThemeColors() {
+  const style = getComputedStyle(document.documentElement);
+  const read = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
+  const backgroundColor = read('--color-surface-alt', FALLBACK_COLORS.backgroundColor);
+  return {
+    primaryColor: read('--rsu-color-primary', FALLBACK_COLORS.primaryColor),
+    backgroundColor,
+    textColor: read('--color-text', FALLBACK_COLORS.textColor),
+    arrowColor: backgroundColor,
+  };
+}
 
 export default function OnboardingTour({ hasSeenOnboarding }: OnboardingTourProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [run, setRun] = useState(false);
-  const [primaryColor, setPrimaryColor] = useState(FALLBACK_PRIMARY_COLOR);
+  const [themeColors, setThemeColors] = useState(FALLBACK_COLORS);
 
   // Fires once per mount: either this is a genuinely first-time user, or
   // "Show tutorial again" navigated here with ?tour=1 to force a replay
@@ -66,8 +87,15 @@ export default function OnboardingTour({ hasSeenOnboarding }: OnboardingTourProp
     const forcedReplay = searchParams.get('tour') === '1';
     if (!hasSeenOnboarding || forcedReplay) setRun(true);
 
-    const themeColor = getComputedStyle(document.documentElement).getPropertyValue('--rsu-color-primary').trim();
-    if (themeColor) setPrimaryColor(themeColor);
+    setThemeColors(readThemeColors());
+
+    // Re-reads if the theme changes while the tour happens to be open (the
+    // toggle lives in the header the tour itself is pointing at in step 1) —
+    // cheap enough to just always watch rather than special-case that one
+    // step.
+    const observer = new MutationObserver(() => setThemeColors(readThemeColors()));
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -103,8 +131,8 @@ export default function OnboardingTour({ hasSeenOnboarding }: OnboardingTourProp
         buttons: ['back', 'skip', 'primary'],
         showProgress: true,
         skipBeacon: true,
-        primaryColor,
         zIndex: 10000,
+        ...themeColors,
       }}
     />
   );

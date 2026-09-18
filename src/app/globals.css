@@ -2,6 +2,14 @@
 
 @import "tailwindcss";
 
+/* Tailwind v4 is CSS-first — dark mode has no darkMode option in
+   tailwind.config.js anymore. This redefines the `dark:` variant (unused by
+   existing components today, but available for anything new) to key off a
+   data attribute we control via JS/localStorage, instead of the v4 default
+   of `prefers-color-scheme` — the manual toggle needs to be able to override
+   the OS preference, which a pure media-query variant can't do. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @layer base {
 	html {
 		-webkit-font-smoothing: antialiased;
@@ -11,8 +19,9 @@
 		/* Matches the sticky header's own background so iOS rubber-band
 		   overscroll (which paints html's background, not body's, in the area
 		   revealed above the document) doesn't flash a mismatched white bar
-		   above the header near the notch/status bar. */
-		background-color: #fff;
+		   above the header near the notch/status bar. Routed through the
+		   token so dark mode gets the same treatment automatically. */
+		background-color: var(--color-surface);
 	}
 	body {
 		margin: 0;
@@ -60,13 +69,55 @@ h1,h2,h3,h4,h5,h6 {
   }
 }
 
-/* Design tokens and component utilities to match Figma */
+/* ---------------------------------------------------------------------
+   Design tokens (light mode). --rsu-color-primary is the school's official
+   maroon — unchanged in hue, still the single source every existing
+   `var(--rsu-color-primary)` usage across ~30 components already reads
+   from. The rest are new: a real semantic layer (surface/text/border) that
+   both the .rsu-* utility classes below AND the dark-theme override block
+   further down route through, instead of every component hardcoding hex or
+   Tailwind gray-scale classes directly.
+   --color-mix-base is the neutral that color-mix() blends land on (e.g.
+   .rsu-badge-primary's tint) — swapping just this one value under
+   [data-theme="dark"] re-points every existing color-mix() formula at the
+   dark surface instead of white, without redefining each derived color.
+   ------------------------------------------------------------------- */
 :root {
 	--rsu-color-primary: #800000;
+	--color-primary-hover: color-mix(in srgb, var(--rsu-color-primary) 82%, black);
+	--color-mix-base: #ffffff;
+	--color-surface: #f9fafb;       /* page background — was bg-gray-50 */
+	--color-surface-alt: #ffffff;   /* card / raised surface — was bg-white */
+	--color-surface-inset: #f9fafb; /* inputs, subtle insets */
+	--color-text: #111827;          /* primary text — was text-gray-900/800 */
+	--color-text-muted: #6b7280;    /* secondary text — was text-gray-500/600 */
+	--color-text-faint: #9ca3af;    /* placeholder/disabled — was text-gray-400/300 */
+	--color-border: #e5e7eb;        /* was border-gray-200/300 */
 	--rsu-radius-lg: 12px;
 	--rsu-card-padding: 16px; /* slightly tighter to match Figma */
 	--rsu-btn-radius: 10px;
 	--rsu-btn-height: 44px;
+}
+
+/* Dark theme — a real dark palette, not an inverted/desaturated maroon. The
+   accent is lifted in lightness/saturation from the literal school hex
+   (#800000 reads as near-black on a dark surface) while staying in the same
+   maroon/wine hue family, per the brief's own guidance: recognizably
+   maroon-branded, not the identical hex in both modes. */
+[data-theme="dark"] {
+	--rsu-color-primary: #c2455a;
+	--color-primary-hover: color-mix(in srgb, var(--rsu-color-primary) 82%, white);
+	--color-mix-base: #000000;
+	--color-surface: #0d0d0f;
+	--color-surface-alt: #1a1a1d;
+	--color-surface-inset: #232327;
+	--color-text: #f3f4f6;
+	--color-text-muted: #9ca3af;
+	--color-text-faint: #6b7280;
+	--color-border: #33333a;
+	/* Lets native form controls, scrollbars, and the date/time pickers
+	   adopt a dark UI on their own instead of staying light-chrome. */
+	color-scheme: dark;
 }
 
 /* Headings sizes to mimic Figma */
@@ -74,6 +125,7 @@ h1 {
 	font-weight: 800;
 	font-size: 1.625rem; /* 26px mobile for improved readability */
 	line-height: 1.12;
+	color: var(--color-text);
 }
 @media (min-width: 640px) {
 	h1 { font-size: 1.875rem; /* 30px */ }
@@ -82,15 +134,16 @@ h1 {
 	h1 { font-size: 2rem; /* 32px */ }
 }
 
-h2 { font-size: 1.125rem; font-weight: 700; }
+h2 { font-size: 1.125rem; font-weight: 700; color: var(--color-text); }
 
 /* Card utility */
 .rsu-card {
-	background: #fff;
+	background: var(--color-surface-alt);
 	border-radius: var(--rsu-radius-lg);
 	padding: calc(var(--rsu-card-padding) + 4px);
 	box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-	border: 1px solid rgba(0,0,0,0.04);
+	border: 1px solid var(--color-border);
+	color: var(--color-text);
 }
 
 /* Smaller heading for card titles */
@@ -102,7 +155,7 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 .rsu-empty-icon {
 	width: 64px;
 	height: 64px;
-	color: #94a3b8; /* slate-400 */
+	color: var(--color-text-faint);
 }
 
 /* Primary button */
@@ -123,16 +176,21 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 	text-align: center;
 	font-weight: 600;
 }
+.rsu-btn-primary:hover {
+	background: var(--color-primary-hover);
+	transform: translateY(-1px);
+	box-shadow: 0 4px 10px color-mix(in srgb, var(--rsu-color-primary) 30%, transparent);
+}
 
 /* Secondary button - outline style, pairs with .rsu-btn-primary */
 .rsu-btn-secondary {
-	background: #fff;
-	color: #374151; /* gray-700 */
+	background: var(--color-surface-alt);
+	color: var(--color-text-muted);
 	min-height: var(--rsu-btn-height);
 	line-height: 1.2;
 	padding: 10px 18px;
 	border-radius: var(--rsu-btn-radius);
-	border: 1px solid #d1d5db; /* gray-300 */
+	border: 1px solid var(--color-border);
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -140,7 +198,8 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 	font-weight: 600;
 }
 .rsu-btn-secondary:hover {
-	background: #f9fafb; /* gray-50 */
+	background: var(--color-surface-inset);
+	transform: translateY(-1px);
 }
 
 /* Danger button - outline red, used for destructive actions gated behind a
@@ -148,7 +207,7 @@ h2 { font-size: 1.125rem; font-weight: 700; }
    this button always opens a confirmation rather than acting immediately,
    so it shouldn't read as more alarming than the actual risk at this click. */
 .rsu-btn-danger {
-	background: #fff;
+	background: var(--color-surface-alt);
 	color: #dc2626; /* red-600 */
 	min-height: var(--rsu-btn-height);
 	line-height: 1.2;
@@ -163,7 +222,8 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 	font-weight: 600;
 }
 .rsu-btn-danger:hover {
-	background: #fef2f2; /* red-50 */
+	background: color-mix(in srgb, #dc2626 8%, var(--color-mix-base));
+	transform: translateY(-1px);
 }
 
 /* Solid variant, used inside the confirm modal itself for the final
@@ -185,6 +245,7 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 }
 .rsu-btn-danger-solid:hover {
 	background: #b91c1c; /* red-700 */
+	transform: translateY(-1px);
 }
 
 /* A manually-typed decimal (fuel price, fuel efficiency) gets nothing useful
@@ -222,19 +283,37 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 	border-color: #fde68a; /* amber-200 */
 }
 .rsu-badge-neutral {
-	background: #f3f4f6; /* gray-100 */
-	color: #374151; /* gray-700 */
-	border-color: #e5e7eb; /* gray-200 */
+	background: var(--color-surface-inset);
+	color: var(--color-text-muted);
+	border-color: var(--color-border);
 }
 .rsu-badge-primary {
-	background: color-mix(in srgb, var(--rsu-color-primary) 10%, white);
+	background: color-mix(in srgb, var(--rsu-color-primary) 10%, var(--color-mix-base));
 	color: var(--rsu-color-primary);
-	border-color: color-mix(in srgb, var(--rsu-color-primary) 20%, white);
+	border-color: color-mix(in srgb, var(--rsu-color-primary) 20%, var(--color-mix-base));
 }
 .rsu-badge-info {
 	background: #eff6ff; /* blue-50 */
 	color: #1d4ed8; /* blue-700 */
 	border-color: #bfdbfe; /* blue-200 */
+}
+/* Tinted status badges keep their hue but swap the light-mode pastel
+   background for a dark-appropriate tint — a pale green-50 chip on a
+   near-black page has almost no contrast with its own text. */
+[data-theme="dark"] .rsu-badge-success {
+	background: color-mix(in srgb, #22c55e 18%, var(--color-surface-alt));
+	color: #4ade80;
+	border-color: color-mix(in srgb, #22c55e 35%, var(--color-surface-alt));
+}
+[data-theme="dark"] .rsu-badge-warning {
+	background: color-mix(in srgb, #f59e0b 18%, var(--color-surface-alt));
+	color: #fbbf24;
+	border-color: color-mix(in srgb, #f59e0b 35%, var(--color-surface-alt));
+}
+[data-theme="dark"] .rsu-badge-info {
+	background: color-mix(in srgb, #3b82f6 18%, var(--color-surface-alt));
+	color: #60a5fa;
+	border-color: color-mix(in srgb, #3b82f6 35%, var(--color-surface-alt));
 }
 
 /* Bottom nav safe area */
@@ -259,8 +338,8 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 		justify-content: space-between;
 		align-items: center;
 		padding: 8px 8px;
-		background: #fff;
-		border-top: 1px solid rgba(0,0,0,0.06);
+		background: var(--color-surface-alt);
+		border-top: 1px solid var(--color-border);
 		z-index: 60;
 	}
 
@@ -282,7 +361,7 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 	}
 }
 
-/* Extends the sticky header's own white background up under the notch/status
+/* Extends the sticky header's own background up under the notch/status
    bar (padding, not margin, so the box's background paints there too) — the
    inset is 0 on non-notched devices/desktop so this is a no-op there. The
    header's visible content height is a separate, explicit h-14/md:h-16 on
@@ -354,7 +433,7 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 	min-width: 0; /* allow shrinking inside flex container */
 }
 .rsu-topnav a {
-	color: #334155; /* slate-700 */
+	color: var(--color-text-muted);
 	font-size: 0.9rem;
 	padding: 6px 8px;
 	border-radius: 8px;
@@ -364,8 +443,13 @@ h2 { font-size: 1.125rem; font-weight: 700; }
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+.rsu-topnav a:hover {
+	background: var(--color-surface-inset);
+	color: var(--color-text);
+}
 .rsu-topnav a.active {
-	background: rgba(0,0,0,0.03);
+	background: color-mix(in srgb, var(--rsu-color-primary) 10%, var(--color-mix-base));
+	color: var(--rsu-color-primary);
 }
 @media (min-width: 768px) {
 	.rsu-topnav { display: flex; }
@@ -382,6 +466,11 @@ header .app-desktop > div:first-child { min-width: 0; }
 .rsu-topnav { gap: 10px; }
 .rsu-topnav a { padding: 6px 10px; }
 
+.rsu-header-bar {
+	background: var(--color-surface-alt);
+	border-color: var(--color-border);
+}
+
 /* react-map-gl's <Map> needs an explicit size — mapbox-gl.css's own
    .mapboxgl-map rule has no width/height default. This used to be an inline
    style={{width:'100%',height:'100%'}} prop (the library doesn't support a
@@ -392,4 +481,70 @@ header .app-desktop > div:first-child { min-width: 0; }
 .mapboxgl-map {
 	width: 100%;
 	height: 100%;
+}
+
+/* ---------------------------------------------------------------------
+   Dark-mode retrofit for existing Tailwind utility classes.
+   Rather than hand-edit `dark:` variants into every one of the ~550 spots
+   across 47 components that already use bg-gray-50/text-gray-900/etc., this
+   overrides Tailwind's OWN generated classes under [data-theme="dark"] —
+   every existing (and future) use of these utilities anywhere in the app
+   gets corrected for free, with zero risk of a mis-edited className string.
+   A plain class selector prefixed with an attribute selector outweighs
+   Tailwind's own same-specificity utility rule, so no !important is needed.
+   Frequencies noted are what the codebase actually uses (checked via grep),
+   not a speculative full Tailwind palette.
+   ------------------------------------------------------------------- */
+[data-theme="dark"] {
+	/* Surfaces */
+	.bg-white { background-color: var(--color-surface-alt); }
+	.bg-gray-50 { background-color: var(--color-surface); }
+	.bg-gray-100 { background-color: var(--color-surface-inset); }
+	.bg-gray-200 { background-color: color-mix(in srgb, var(--color-surface-inset) 70%, white 10%); }
+	/* Tailwind's opacity-modifier syntax (bg-gray-200/70) compiles to its own
+	   distinct class, not a variant of .bg-gray-200 — found by actually
+	   clicking through My Trips and seeing a light pill on a dark page
+	   (TripsListClient.tsx's tab bar), not assumed from the bulk rule above. */
+	.bg-gray-200\/70 { background-color: color-mix(in srgb, var(--color-surface-inset) 70%, white 10%); }
+
+	/* Text */
+	.text-gray-900, .text-gray-800 { color: var(--color-text); }
+	.text-gray-700, .text-gray-600 { color: color-mix(in srgb, var(--color-text) 70%, var(--color-text-muted)); }
+	.text-gray-500 { color: var(--color-text-muted); }
+	.text-gray-400 { color: var(--color-text-faint); }
+	.text-gray-300, .text-gray-200 { color: color-mix(in srgb, var(--color-text-faint) 70%, var(--color-surface)); }
+
+	/* Borders */
+	.border-gray-300, .border-gray-200, .border-gray-100 { border-color: var(--color-border); }
+
+	/* Status colors keep their hue, brightened for legibility on a dark
+	   surface — the same reasoning as the maroon accent above. */
+	.text-red-600, .text-red-500 { color: #f87171; }
+	.text-emerald-600, .text-emerald-700 { color: #34d399; }
+	.text-amber-400, .text-amber-500, .text-amber-700, .text-amber-800 { color: #fbbf24; }
+	.text-blue-600 { color: #60a5fa; }
+	.border-red-200 { border-color: color-mix(in srgb, #dc2626 40%, var(--color-surface-alt)); }
+	.border-amber-200 { border-color: color-mix(in srgb, #f59e0b 40%, var(--color-surface-alt)); }
+	.bg-red-50 { background-color: color-mix(in srgb, #dc2626 15%, var(--color-surface-alt)); }
+	.bg-amber-50 { background-color: color-mix(in srgb, #f59e0b 15%, var(--color-surface-alt)); }
+
+	/* Hover variants — same target classes, :hover state */
+	.hover\:bg-gray-50:hover { background-color: var(--color-surface-inset); }
+	.hover\:bg-gray-100:hover { background-color: color-mix(in srgb, var(--color-surface-inset) 70%, white 10%); }
+	.hover\:bg-gray-200:hover { background-color: color-mix(in srgb, var(--color-surface-inset) 55%, white 15%); }
+	.hover\:bg-red-50:hover { background-color: color-mix(in srgb, #dc2626 15%, var(--color-surface-alt)); }
+	.hover\:text-gray-600:hover, .hover\:text-gray-800:hover, .hover\:text-gray-900:hover { color: var(--color-text); }
+
+	/* Disabled-state text */
+	.disabled\:text-gray-400:disabled, .disabled\:text-gray-500:disabled { color: var(--color-text-faint); }
+
+	/* Native form control chrome (dropdown arrows, date/time pickers) reads
+	   its own background as a light box unless told otherwise. */
+	input, select, textarea {
+		color-scheme: dark;
+	}
+	::placeholder {
+		color: var(--color-text-faint);
+		opacity: 1;
+	}
 }

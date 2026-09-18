@@ -24,9 +24,28 @@ export default async function RootLayout({
   // separate `await connection()` needed, headers() already does that.
   const nonce = (await headers()).get('x-nonce');
 
+  // Kept in one place and mirrored exactly by ThemeToggle.tsx's own
+  // getCurrentTheme() — same storage key, same fallback order.
+  const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('rsu-theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased bg-gray-50 text-gray-900">
+        {/* Sets data-theme on <html> synchronously, before Next hydrates or
+            paints anything else — this is what prevents a flash of the
+            wrong theme on load. strategy="beforeInteractive" is next/script's
+            purpose-built mechanism for this: a raw <script> tag here (even
+            via dangerouslySetInnerHTML) works for the initial HTML but then
+            crashes the moment React tries to reconcile it client-side
+            ("Scripts inside React components are never executed when
+            rendering on the client") — caught by actually reloading the page
+            and reading the console, not assumed from the code. Needs the
+            same nonce as every other script under the nonce-strict CSP in
+            src/proxy.ts; without it the browser would silently refuse to run
+            it and the app would just fall back to always-light with no error. */}
+        <Script id="theme-init" strategy="beforeInteractive" nonce={nonce ?? undefined}>
+          {THEME_SCRIPT}
+        </Script>
         {/* Umami page-view analytics. A website id is a public identifier
             meant to be embedded in client code, same as a Sentry DSN, so
             hardcoding it here matches this repo's existing convention rather

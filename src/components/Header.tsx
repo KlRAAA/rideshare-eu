@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { FaCar, FaBell } from 'react-icons/fa';
+import ThemeToggle from './ThemeToggle';
 
 export type ActiveRoute = 'dashboard' | 'trips' | 'search' | 'post' | 'notifications' | 'profile';
 
@@ -45,18 +46,21 @@ export default function Header({ active, unreadCount = 0 }: HeaderProps) {
           ))}
         </nav>
 
-        <Link
-          href="/auth/notifications"
-          className="md:hidden relative flex items-center justify-center w-9 h-9 text-gray-600 hover:text-gray-800"
-          aria-label="Notifications"
-        >
-          <FaBell className="w-5 h-5" />
-          {unreadCount > 0 && (
-            <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-              {unreadCount}
-            </span>
-          )}
-        </Link>
+        <div className="flex items-center gap-1 shrink-0">
+          <ThemeToggle />
+          <Link
+            href="/auth/notifications"
+            className="md:hidden relative flex items-center justify-center w-9 h-9 text-gray-600 hover:text-gray-800"
+            aria-label="Notifications"
+          >
+            <FaBell className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                {unreadCount}
+              </span>
+            )}
+          </Link>
+        </div>
       </div>
     </header>
   );
