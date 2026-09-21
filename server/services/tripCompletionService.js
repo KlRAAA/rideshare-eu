@@ -79,22 +79,57 @@ function isRecurringOccurrenceDue(trip, now) {
 // own `include`/`select` shape would risk not matching whatever shape the
 // caller's original query used (e.g. a `safeUserSelect`-scoped passenger),
 // so the caller patches its own array by id instead of trusting a fresh read.
-async function completeTrip(tripId) {
-  const tripRaw = await prisma.trip.findUnique({
-    where: { id: tripId },
-    include: { matches: true },
-  });
+//
+// `tripOrId` is either a tripId (string) — the original API, used by
+// markCompleted's manual override and by applyLazyCompletion's search/joined-
+// trips paths, which don't have `matches` loaded — or an already-fetched raw
+// trip row with `matches` included, passed by applyLazyCompletion's My Trips
+// and trip-detail paths to skip a redundant re-fetch of data the caller is
+// already holding (confirmed via real query-count instrumentation: this was
+// 1 avoidable SELECT per overdue trip in a list, on top of this function's
+// own transaction).
+async function completeTrip(tripOrId) {
+  const tripRaw =
+    typeof tripOrId === 'string'
+      ? await prisma.trip.findUnique({ where: { id: tripOrId }, include: { matches: true } })
+      : tripOrId;
   if (!tripRaw) return null;
+  const tripId = tripRaw.id;
   const trip = decryptTripFields(tripRaw);
   if (trip.status === 'COMPLETED' || trip.status === 'CANCELLED') return { trip, matchChanges: [] };
 
   const approvedMatches = trip.matches.filter((m) => m.status === 'APPROVED');
   const pendingMatches = trip.matches.filter((m) => m.status === 'PENDING');
 
-  await prisma.$transaction([
-    prisma.trip.update({ where: { id: tripId }, data: { status: 'COMPLETED' } }),
-    ...approvedMatches.map((m) => prisma.match.update({ where: { id: m.id }, data: { status: 'COMPLETED' } })),
-    ...pendingMatches.map((m) => prisma.match.update({ where: { id: m.id }, data: { status: 'DECLINED' } })),
+  // Same-status match updates collapse into one updateMany per status instead
+  // of one update per match — every approved match gets the identical
+  // {status: 'COMPLETED'} write, so there's nothing per-row to vary. Likewise
+  // every RATING_PROMPT for an approved passenger shares the same shape
+  // (only userId/relatedMatchId differ), so createMany replaces one insert
+  // per passenger with a single multi-row insert. Real effect confirmed by
+  // query-count instrumentation, not assumed: a trip with M approved + P
+  // pending matches used to fire M+P separate match.update statements plus
+  // 1+M separate notification.create statements inside the transaction; this
+  // fires at most 2 match writes and 2 notification writes total, regardless
+  // of M/P.
+  const ops = [prisma.trip.update({ where: { id: tripId }, data: { status: 'COMPLETED' } })];
+  if (approvedMatches.length > 0) {
+    ops.push(
+      prisma.match.updateMany({
+        where: { id: { in: approvedMatches.map((m) => m.id) } },
+        data: { status: 'COMPLETED' },
+      })
+    );
+  }
+  if (pendingMatches.length > 0) {
+    ops.push(
+      prisma.match.updateMany({
+        where: { id: { in: pendingMatches.map((m) => m.id) } },
+        data: { status: 'DECLINED' },
+      })
+    );
+  }
+  ops.push(
     prisma.notification.create({
       data: {
         userId: trip.hostId,
@@ -102,19 +137,22 @@ async function completeTrip(tripId) {
         message: `Your trip to ${trip.destinationAddress} is complete. Please rate your passengers.`,
         relatedTripId: tripId,
       },
-    }),
-    ...approvedMatches.map((m) =>
-      prisma.notification.create({
-        data: {
+    })
+  );
+  if (approvedMatches.length > 0) {
+    ops.push(
+      prisma.notification.createMany({
+        data: approvedMatches.map((m) => ({
           userId: m.passengerId,
           type: 'RATING_PROMPT',
           message: `Your trip to ${trip.destinationAddress} is complete. Please rate your host.`,
           relatedMatchId: m.id,
           relatedTripId: tripId,
-        },
+        })),
       })
-    ),
-  ]);
+    );
+  }
+  await prisma.$transaction(ops);
 
   const matchChanges = [
     ...approvedMatches.map((m) => ({ id: m.id, status: 'COMPLETED' })),
@@ -132,12 +170,13 @@ async function completeTrip(tripId) {
 // for a ONE_TIME trip. A RATING_PROMPT fires per occurrence instead of once
 // ever, deduped by (user, match, occurrenceDate) exactly like reminderService
 // dedupes REMINDERs by (user, trip).
-async function completeRecurringOccurrence(tripId, occurrenceDate) {
-  const tripRaw = await prisma.trip.findUnique({
-    where: { id: tripId },
-    include: { matches: true },
-  });
+async function completeRecurringOccurrence(tripOrId, occurrenceDate) {
+  const tripRaw =
+    typeof tripOrId === 'string'
+      ? await prisma.trip.findUnique({ where: { id: tripOrId }, include: { matches: true } })
+      : tripOrId;
   if (!tripRaw) return null;
+  const tripId = tripRaw.id;
   const trip = decryptTripFields(tripRaw);
 
   const approvedMatches = trip.matches.filter((m) => m.status === 'APPROVED');
@@ -160,21 +199,33 @@ async function completeRecurringOccurrence(tripId, occurrenceDate) {
   const alreadyPromptedIds = new Set(alreadyPrompted.map((n) => n.userId));
   const toPrompt = recipients.filter((r) => !alreadyPromptedIds.has(r.userId));
 
-  await prisma.$transaction([
-    ...pendingMatches.map((m) => prisma.match.update({ where: { id: m.id }, data: { status: 'DECLINED' } })),
-    ...toPrompt.map((r) =>
-      prisma.notification.create({
-        data: {
+  // Same collapse as completeTrip: every pending match gets the identical
+  // DECLINED write, and every prompt is one row in a single multi-row insert,
+  // instead of one match.update / notification.create per row.
+  const ops = [];
+  if (pendingMatches.length > 0) {
+    ops.push(
+      prisma.match.updateMany({
+        where: { id: { in: pendingMatches.map((m) => m.id) } },
+        data: { status: 'DECLINED' },
+      })
+    );
+  }
+  if (toPrompt.length > 0) {
+    ops.push(
+      prisma.notification.createMany({
+        data: toPrompt.map((r) => ({
           userId: r.userId,
           type: 'RATING_PROMPT',
           message: `Your trip to ${trip.destinationAddress} is complete. Please rate your ${r.ratee}.`,
           relatedMatchId: r.relatedMatchId,
           relatedTripId: tripId,
           occurrenceDate,
-        },
+        })),
       })
-    ),
-  ]);
+    );
+  }
+  if (ops.length > 0) await prisma.$transaction(ops);
 
   return { trip, pendingDeclinedIds: pendingMatches.map((m) => m.id) };
 }
@@ -185,8 +236,10 @@ async function completeRecurringOccurrence(tripId, occurrenceDate) {
 // including any already-included `matches` array, patched by id rather than
 // re-fetched (see completeTrip's comment for why).
 //
-// ONE_TIME trips take exactly the path they always have (isOverdue +
-// completeTrip, byte-for-byte unchanged). Everything else is a recurring
+// ONE_TIME trips take the same isOverdue + completeTrip path they always
+// have (response shape unchanged; completeTrip now skips its own re-fetch
+// when this function already has `matches` loaded — see its comment).
+// Everything else is a recurring
 // trip: it never gets marked COMPLETED here (there's no recurrence-end
 // concept in the schema — only an explicit host cancellation ends one), and
 // its APPROVED matches are never touched; only a due occurrence's PENDING
@@ -195,9 +248,17 @@ async function applyLazyCompletion(trips, now = new Date()) {
   for (const t of trips) {
     if (t.status !== 'OPEN' && t.status !== 'FULL') continue;
 
+    // Pass the trip itself, not just its id, when the caller already
+    // included `matches` (My Trips / trip-detail) -- completeTrip/
+    // completeRecurringOccurrence use it directly instead of re-fetching the
+    // same row. Callers whose query doesn't include matches (search
+    // candidates, joined trips) fall back to the original id-based path,
+    // which still fetches internally exactly as before.
+    const preload = Array.isArray(t.matches) ? t : t.id;
+
     if (t.recurrenceType === 'ONE_TIME') {
       if (!isOverdue(t)) continue;
-      const { matchChanges } = await completeTrip(t.id);
+      const { matchChanges } = await completeTrip(preload);
       t.status = 'COMPLETED';
       if (Array.isArray(t.matches)) {
         for (const change of matchChanges) {
@@ -214,7 +275,7 @@ async function applyLazyCompletion(trips, now = new Date()) {
       // different UTC-day values across lazy-completion runs straddling the
       // UTC/PH boundary, defeating the notification dedup.
       const occurrenceDate = phDateOnly(now);
-      const { pendingDeclinedIds } = await completeRecurringOccurrence(t.id, occurrenceDate);
+      const { pendingDeclinedIds } = await completeRecurringOccurrence(preload, occurrenceDate);
       if (Array.isArray(t.matches)) {
         for (const id of pendingDeclinedIds) {
           const m = t.matches.find((match) => match.id === id);

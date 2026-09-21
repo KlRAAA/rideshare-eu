@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaFlag, FaBan, FaPen } from 'react-icons/fa';
 import Card from '@/components/Card';
-import RouteMap from '@/components/RouteMap';
+import LiveRouteMap from '@/components/LiveRouteMap';
 import RatingModal from '@/components/RatingModal';
 import CancelTripModal from '@/components/CancelTripModal';
 import DriverIdentityCard from '@/components/DriverIdentityCard';
@@ -183,38 +183,15 @@ export default function TripDetailClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trip.id, isHost, liveLocationSharing, tripIsActive]);
 
-  // Live location sharing — passenger side: polls the host's last-known
-  // position every ~30s while this viewer has a confirmed seat and the trip
-  // is active. The server re-checks the host's sharing preference and point
-  // staleness on every read (never trusted from anything cached here), so
-  // this just renders whatever comes back — no need to know the host's
-  // preference on this side at all.
-  const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
-  useEffect(() => {
-    const canWatch = !isHost && myActiveMatch?.status === 'APPROVED' && tripIsActive;
-    if (!canWatch) {
-      setDriverLocation(null);
-      return;
-    }
-    let cancelled = false;
-    const poll = () => {
-      apiFetch<{ location: { lat: number; lng: number; updatedAt: string } | null }>(`/api/trips/${trip.id}/location`)
-        .then((data) => {
-          if (cancelled) return;
-          setDriverLocation(data.location ? { lat: data.location.lat, lng: data.location.lng } : null);
-        })
-        .catch(() => {
-          if (!cancelled) setDriverLocation(null);
-        });
-    };
-    poll();
-    const intervalId = setInterval(poll, LOCATION_POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(intervalId);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip.id, isHost, myActiveMatch?.status, tripIsActive]);
+  // Live location sharing — passenger side: whether this viewer may watch the
+  // host's live position (confirmed seat, active trip). The actual ~30s poll
+  // now lives inside LiveRouteMap, not here — it used to be top-level state in
+  // this component, which meant every poll tick re-rendered this entire page
+  // (CoRidersCard's renderActions closure, ChatCard, everything) for a value
+  // only the map itself reads. The server re-checks the host's sharing
+  // preference and point staleness on every read regardless, so this side
+  // never needs to know the host's preference, only whether to poll at all.
+  const canWatchDriverLocation = !isHost && myActiveMatch?.status === 'APPROVED' && tripIsActive;
 
   // Arriving from a "requested to join" notification: bring that row into view.
   useEffect(() => {
@@ -255,7 +232,8 @@ export default function TripDetailClient({
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div className="md:col-span-2 space-y-4">
-        <RouteMap
+        <LiveRouteMap
+          tripId={trip.id}
           origin={{ lat: trip.originLat, lng: trip.originLng }}
           destination={{ lat: trip.destinationLat, lng: trip.destinationLng }}
           meetingPoint={
@@ -264,7 +242,7 @@ export default function TripDetailClient({
               : null
           }
           routeWaypoints={trip.routeWaypoints}
-          driverLocation={driverLocation}
+          canWatchDriverLocation={canWatchDriverLocation}
         />
 
         <DriverIdentityCard

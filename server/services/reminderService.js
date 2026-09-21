@@ -33,31 +33,37 @@ async function sendDueReminders(now = new Date()) {
     include: { matches: { where: { status: 'APPROVED' } } },
   });
   const dueTrips = dueTripsRaw.map((t) => decryptTripFields(t));
+  if (dueTrips.length === 0) return;
 
+  // Was one `alreadyNotified` query per due trip (N+1 — confirmed via real
+  // query-count instrumentation: 6 due trips fired 26 queries). A single
+  // query scoped to every due trip's id, deduped in memory per trip below,
+  // replaces all of them.
+  const recipientsByTrip = new Map(dueTrips.map((trip) => [trip.id, reminderRecipients(trip)]));
+  const alreadyNotified = await prisma.notification.findMany({
+    where: {
+      type: 'REMINDER',
+      relatedTripId: { in: dueTrips.map((t) => t.id) },
+    },
+    select: { userId: true, relatedTripId: true },
+  });
+  const alreadyNotifiedKeys = new Set(alreadyNotified.map((n) => `${n.relatedTripId}:${n.userId}`));
+
+  const toCreate = [];
   for (const trip of dueTrips) {
-    const recipients = reminderRecipients(trip);
-
-    const alreadyNotified = await prisma.notification.findMany({
-      where: { type: 'REMINDER', relatedTripId: trip.id, userId: { in: recipients } },
-      select: { userId: true },
-    });
-    const alreadyNotifiedIds = new Set(alreadyNotified.map((n) => n.userId));
-    const toNotify = recipients.filter((id) => !alreadyNotifiedIds.has(id));
-    if (toNotify.length === 0) continue;
-
-    await prisma.$transaction(
-      toNotify.map((userId) =>
-        prisma.notification.create({
-          data: {
-            userId,
-            type: 'REMINDER',
-            message: `Your trip to ${trip.destinationAddress} departs in about ${REMINDER_LEAD_MINUTES} minutes.`,
-            relatedTripId: trip.id,
-          },
-        })
-      )
-    );
+    for (const userId of recipientsByTrip.get(trip.id)) {
+      if (alreadyNotifiedKeys.has(`${trip.id}:${userId}`)) continue;
+      toCreate.push({
+        userId,
+        type: 'REMINDER',
+        message: `Your trip to ${trip.destinationAddress} departs in about ${REMINDER_LEAD_MINUTES} minutes.`,
+        relatedTripId: trip.id,
+      });
+    }
   }
+  if (toCreate.length === 0) return;
+
+  await prisma.notification.createMany({ data: toCreate });
 }
 
 module.exports = { REMINDER_LEAD_MINUTES, reminderWindowEnd, reminderRecipients, sendDueReminders };
