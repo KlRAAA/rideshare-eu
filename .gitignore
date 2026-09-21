@@ -17,3 +17,5 @@ backups/
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+__pycache__/

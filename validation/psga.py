@@ -36,11 +36,23 @@ import random
 from dataclasses import dataclass, field
 from typing import List, Dict, Any
 
-# ---- System parameters (match server/config/psgaConfig.js in the live app) ----
-MIN_OVERLAP = 0.4          # minimum RouteOverlap to pass Stage 1
-CORRIDOR_METERS = 500      # tolerance corridor width around the host route
-DEFAULT_FLEX_WINDOW = 15   # minutes, the proposal's stated default
-W1, W2, W3 = 0.5, 0.3, 0.2 # RouteOverlap, ScheduleAlignment, PreferenceMatch weights
+# ---- System parameters, per the thesis proposal's stated formula ----
+# These must match server/config/psgaConfig.js's exported values exactly —
+# Python and JS can't share the constant directly, so this is a manually
+# synced mirror. Last synced: 2026-09-21.
+#
+# History: CORRIDOR_METERS previously sat at a stale 500 after
+# psgaConfig.js's corridorMeters was widened to 1500 in a later change
+# ("Task 25", to absorb geocoding drift) without this file being updated to
+# follow it. That drift was caught by an independent Python re-port
+# disagreeing with this file's own dataset_500_pairs.json output on 93/500
+# rows (all routeOverlap-driven). If a future psgaConfig.js change trips this
+# again, re-run validation/psga_independent_recheck.py against a freshly
+# regenerated dataset_500_pairs.json to confirm both sides agree again.
+MIN_OVERLAP = 0.4          # minimum RouteOverlap to pass Stage 1 — matches psgaConfig.js minRouteOverlap
+CORRIDOR_METERS = 1500     # tolerance corridor width — matches psgaConfig.js corridorMeters
+DEFAULT_FLEX_WINDOW = 15   # minutes — matches psgaConfig.js defaultFlexWindowMinutes
+W1, W2, W3 = 0.5, 0.3, 0.2 # RouteOverlap/ScheduleAlignment/PreferenceMatch weights — matches psgaConfig.js weights.w1/w2/w3
 ROUTE_SAMPLE_POINTS = 20   # points sampled along each straight-line route
 
 

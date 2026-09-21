@@ -181,11 +181,11 @@
   },
   {
     "tripId": "Q002-T1",
-    "routeOverlap": 0.6,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9333,
     "preferenceMatch": 1.0,
-    "score": 0.78,
+    "score": 0.98,
     "queryId": "Q002",
     "passengerOrigin": [
       13.961622878014566,
@@ -217,11 +217,11 @@
   },
   {
     "tripId": "Q002-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.3,
     "timeDiffMinutes": 269,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.275,
+    "score": 0.35,
     "queryId": "Q002",
     "passengerOrigin": [
       13.961622878014566,
@@ -253,11 +253,11 @@
   },
   {
     "tripId": "Q002-T3",
-    "routeOverlap": 0.35,
+    "routeOverlap": 0.95,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.6667,
     "preferenceMatch": 1.0,
-    "score": 0.575,
+    "score": 0.875,
     "queryId": "Q002",
     "passengerOrigin": [
       13.961622878014566,
@@ -285,7 +285,7 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q002-T4",
@@ -361,11 +361,11 @@
   },
   {
     "tripId": "Q003-T1",
-    "routeOverlap": 0.75,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9667,
     "preferenceMatch": 1.0,
-    "score": 0.865,
+    "score": 0.99,
     "queryId": "Q003",
     "passengerOrigin": [
       13.975299331201576,
@@ -397,11 +397,11 @@
   },
   {
     "tripId": "Q003-T2",
-    "routeOverlap": 0.8,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 257,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.6,
+    "score": 0.7,
     "queryId": "Q003",
     "passengerOrigin": [
       13.975299331201576,
@@ -433,11 +433,11 @@
   },
   {
     "tripId": "Q003-T3",
-    "routeOverlap": 0.2,
+    "routeOverlap": 0.5,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9667,
     "preferenceMatch": 1.0,
-    "score": 0.59,
+    "score": 0.74,
     "queryId": "Q003",
     "passengerOrigin": [
       13.975299331201576,
@@ -465,15 +465,15 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": true,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q003-T4",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 27,
     "scheduleAlignment": 0.1,
     "preferenceMatch": 1.0,
-    "score": 0.705,
+    "score": 0.73,
     "queryId": "Q003",
     "passengerOrigin": [
       13.975299331201576,
@@ -577,11 +577,11 @@
   },
   {
     "tripId": "Q004-T2",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.7,
     "timeDiffMinutes": 207,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.325,
+    "score": 0.55,
     "queryId": "Q004",
     "passengerOrigin": [
       13.955951076698726,
@@ -649,11 +649,11 @@
   },
   {
     "tripId": "Q004-T4",
-    "routeOverlap": 0.9,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 27,
     "scheduleAlignment": 0.1,
     "preferenceMatch": 1.0,
-    "score": 0.68,
+    "score": 0.73,
     "queryId": "Q004",
     "passengerOrigin": [
       13.955951076698726,
@@ -937,11 +937,11 @@
   },
   {
     "tripId": "Q006-T2",
-    "routeOverlap": 0.7,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 219,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.55,
+    "score": 0.7,
     "queryId": "Q006",
     "passengerOrigin": [
       13.957083992357143,
@@ -1081,11 +1081,11 @@
   },
   {
     "tripId": "Q007-T1",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.75,
     "preferenceMatch": 1.0,
-    "score": 0.9,
+    "score": 0.925,
     "queryId": "Q007",
     "passengerOrigin": [
       13.972164695521176,
@@ -1117,11 +1117,11 @@
   },
   {
     "tripId": "Q007-T2",
-    "routeOverlap": 0.2,
+    "routeOverlap": 0.55,
     "timeDiffMinutes": 211,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.3,
+    "score": 0.475,
     "queryId": "Q007",
     "passengerOrigin": [
       13.972164695521176,
@@ -1225,11 +1225,11 @@
   },
   {
     "tripId": "Q007-T5",
-    "routeOverlap": 0.7,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 0,
     "scheduleAlignment": 1.0,
     "preferenceMatch": 0.0,
-    "score": 0.65,
+    "score": 0.8,
     "queryId": "Q007",
     "passengerOrigin": [
       13.972164695521176,
@@ -1297,11 +1297,11 @@
   },
   {
     "tripId": "Q008-T2",
-    "routeOverlap": 0.35,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 208,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.175,
+    "score": 0.5,
     "queryId": "Q008",
     "passengerOrigin": [
       13.94379217388717,
@@ -1477,11 +1477,11 @@
   },
   {
     "tripId": "Q009-T2",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.65,
     "timeDiffMinutes": 86,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.325,
+    "score": 0.525,
     "queryId": "Q009",
     "passengerOrigin": [
       13.936868624283854,
@@ -1585,11 +1585,11 @@
   },
   {
     "tripId": "Q009-T5",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 2,
     "scheduleAlignment": 0.9,
     "preferenceMatch": 0.0,
-    "score": 0.745,
+    "score": 0.77,
     "queryId": "Q009",
     "passengerOrigin": [
       13.936868624283854,
@@ -1657,11 +1657,11 @@
   },
   {
     "tripId": "Q010-T2",
-    "routeOverlap": 0.05,
+    "routeOverlap": 0.15,
     "timeDiffMinutes": 236,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.225,
+    "score": 0.275,
     "queryId": "Q010",
     "passengerOrigin": [
       13.9581546578829,
@@ -1693,11 +1693,11 @@
   },
   {
     "tripId": "Q010-T3",
-    "routeOverlap": 0.4,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 9,
     "scheduleAlignment": 0.4,
     "preferenceMatch": 1.0,
-    "score": 0.52,
+    "score": 0.82,
     "queryId": "Q010",
     "passengerOrigin": [
       13.9581546578829,
@@ -1801,11 +1801,11 @@
   },
   {
     "tripId": "Q011-T1",
-    "routeOverlap": 0.65,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 3,
     "scheduleAlignment": 0.9,
     "preferenceMatch": 1.0,
-    "score": 0.795,
+    "score": 0.97,
     "queryId": "Q011",
     "passengerOrigin": [
       13.96882511090787,
@@ -1837,11 +1837,11 @@
   },
   {
     "tripId": "Q011-T2",
-    "routeOverlap": 0.1,
+    "routeOverlap": 0.3,
     "timeDiffMinutes": 198,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.25,
+    "score": 0.35,
     "queryId": "Q011",
     "passengerOrigin": [
       13.96882511090787,
@@ -1873,11 +1873,11 @@
   },
   {
     "tripId": "Q011-T3",
-    "routeOverlap": 0.35,
+    "routeOverlap": 0.95,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9667,
     "preferenceMatch": 1.0,
-    "score": 0.665,
+    "score": 0.965,
     "queryId": "Q011",
     "passengerOrigin": [
       13.96882511090787,
@@ -1905,15 +1905,15 @@
     "hostGender": "MALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": true,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q011-T4",
-    "routeOverlap": 0.9,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 33,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.65,
+    "score": 0.7,
     "queryId": "Q011",
     "passengerOrigin": [
       13.96882511090787,
@@ -1981,11 +1981,11 @@
   },
   {
     "tripId": "Q012-T1",
-    "routeOverlap": 0.8,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9333,
     "preferenceMatch": 1.0,
-    "score": 0.88,
+    "score": 0.98,
     "queryId": "Q012",
     "passengerOrigin": [
       13.948778732824238,
@@ -2017,11 +2017,11 @@
   },
   {
     "tripId": "Q012-T2",
-    "routeOverlap": 0.7,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 242,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.55,
+    "score": 0.7,
     "queryId": "Q012",
     "passengerOrigin": [
       13.948778732824238,
@@ -2053,11 +2053,11 @@
   },
   {
     "tripId": "Q012-T3",
-    "routeOverlap": 0.35,
+    "routeOverlap": 0.95,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9333,
     "preferenceMatch": 0.0,
-    "score": 0.455,
+    "score": 0.755,
     "queryId": "Q012",
     "passengerOrigin": [
       13.948778732824238,
@@ -2085,7 +2085,7 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "SAME_GENDER",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q012-T4",
@@ -2197,11 +2197,11 @@
   },
   {
     "tripId": "Q013-T2",
-    "routeOverlap": 0.1,
+    "routeOverlap": 0.2,
     "timeDiffMinutes": 269,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.25,
+    "score": 0.3,
     "queryId": "Q013",
     "passengerOrigin": [
       13.949069169348448,
@@ -2233,11 +2233,11 @@
   },
   {
     "tripId": "Q013-T3",
-    "routeOverlap": 0.45,
+    "routeOverlap": 0.8,
     "timeDiffMinutes": 9,
     "scheduleAlignment": 0.4,
     "preferenceMatch": 1.0,
-    "score": 0.545,
+    "score": 0.72,
     "queryId": "Q013",
     "passengerOrigin": [
       13.949069169348448,
@@ -2305,11 +2305,11 @@
   },
   {
     "tripId": "Q013-T5",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.7333,
     "preferenceMatch": 0.0,
-    "score": 0.695,
+    "score": 0.72,
     "queryId": "Q013",
     "passengerOrigin": [
       13.949069169348448,
@@ -2377,11 +2377,11 @@
   },
   {
     "tripId": "Q014-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.4,
     "timeDiffMinutes": 224,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.075,
+    "score": 0.2,
     "queryId": "Q014",
     "passengerOrigin": [
       13.98135695356041,
@@ -2521,11 +2521,11 @@
   },
   {
     "tripId": "Q015-T1",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 3,
     "scheduleAlignment": 0.8,
     "preferenceMatch": 1.0,
-    "score": 0.915,
+    "score": 0.94,
     "queryId": "Q015",
     "passengerOrigin": [
       13.96355016921258,
@@ -2557,11 +2557,11 @@
   },
   {
     "tripId": "Q015-T2",
-    "routeOverlap": 0.05,
+    "routeOverlap": 0.2,
     "timeDiffMinutes": 125,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.225,
+    "score": 0.3,
     "queryId": "Q015",
     "passengerOrigin": [
       13.96355016921258,
@@ -2593,11 +2593,11 @@
   },
   {
     "tripId": "Q015-T3",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.4,
     "timeDiffMinutes": 7,
     "scheduleAlignment": 0.5333,
     "preferenceMatch": 1.0,
-    "score": 0.435,
+    "score": 0.56,
     "queryId": "Q015",
     "passengerOrigin": [
       13.96355016921258,
@@ -2625,7 +2625,7 @@
     "hostGender": "MALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q015-T4",
@@ -2701,11 +2701,11 @@
   },
   {
     "tripId": "Q016-T1",
-    "routeOverlap": 0.8,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.8,
     "preferenceMatch": 1.0,
-    "score": 0.84,
+    "score": 0.94,
     "queryId": "Q016",
     "passengerOrigin": [
       13.948065529247092,
@@ -2737,11 +2737,11 @@
   },
   {
     "tripId": "Q016-T2",
-    "routeOverlap": 0.5,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 61,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.25,
+    "score": 0.5,
     "queryId": "Q016",
     "passengerOrigin": [
       13.948065529247092,
@@ -2809,11 +2809,11 @@
   },
   {
     "tripId": "Q016-T4",
-    "routeOverlap": 0.85,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 20,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.625,
+    "score": 0.7,
     "queryId": "Q016",
     "passengerOrigin": [
       13.948065529247092,
@@ -2917,11 +2917,11 @@
   },
   {
     "tripId": "Q017-T2",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.65,
     "timeDiffMinutes": 212,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.325,
+    "score": 0.525,
     "queryId": "Q017",
     "passengerOrigin": [
       13.95914202854889,
@@ -2953,11 +2953,11 @@
   },
   {
     "tripId": "Q017-T3",
-    "routeOverlap": 0.5,
+    "routeOverlap": 0.8,
     "timeDiffMinutes": 9,
     "scheduleAlignment": 0.1,
     "preferenceMatch": 0.0,
-    "score": 0.28,
+    "score": 0.43,
     "queryId": "Q017",
     "passengerOrigin": [
       13.95914202854889,
@@ -2989,11 +2989,11 @@
   },
   {
     "tripId": "Q017-T4",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 7,
     "scheduleAlignment": 0.3,
     "preferenceMatch": 0.0,
-    "score": 0.565,
+    "score": 0.59,
     "queryId": "Q017",
     "passengerOrigin": [
       13.95914202854889,
@@ -3097,11 +3097,11 @@
   },
   {
     "tripId": "Q018-T2",
-    "routeOverlap": 0.3,
+    "routeOverlap": 0.9,
     "timeDiffMinutes": 182,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.35,
+    "score": 0.65,
     "queryId": "Q018",
     "passengerOrigin": [
       13.934670397559621,
@@ -3133,11 +3133,11 @@
   },
   {
     "tripId": "Q018-T3",
-    "routeOverlap": 0.7,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.5,
     "preferenceMatch": 0.0,
-    "score": 0.5,
+    "score": 0.65,
     "queryId": "Q018",
     "passengerOrigin": [
       13.934670397559621,
@@ -3421,11 +3421,11 @@
   },
   {
     "tripId": "Q020-T1",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9,
     "preferenceMatch": 0.0,
-    "score": 0.745,
+    "score": 0.77,
     "queryId": "Q020",
     "passengerOrigin": [
       13.977534979503403,
@@ -3457,11 +3457,11 @@
   },
   {
     "tripId": "Q020-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.4,
     "timeDiffMinutes": 212,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.075,
+    "score": 0.2,
     "queryId": "Q020",
     "passengerOrigin": [
       13.977534979503403,
@@ -3493,11 +3493,11 @@
   },
   {
     "tripId": "Q020-T3",
-    "routeOverlap": 0.4,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9,
     "preferenceMatch": 0.0,
-    "score": 0.47,
+    "score": 0.77,
     "queryId": "Q020",
     "passengerOrigin": [
       13.977534979503403,
@@ -3529,11 +3529,11 @@
   },
   {
     "tripId": "Q020-T4",
-    "routeOverlap": 0.65,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 13,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.325,
+    "score": 0.5,
     "queryId": "Q020",
     "passengerOrigin": [
       13.977534979503403,
@@ -3565,11 +3565,11 @@
   },
   {
     "tripId": "Q020-T5",
-    "routeOverlap": 0.75,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.6,
     "preferenceMatch": 0.0,
-    "score": 0.555,
+    "score": 0.68,
     "queryId": "Q020",
     "passengerOrigin": [
       13.977534979503403,
@@ -3637,11 +3637,11 @@
   },
   {
     "tripId": "Q021-T2",
-    "routeOverlap": 0.3,
+    "routeOverlap": 0.9,
     "timeDiffMinutes": 188,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.35,
+    "score": 0.65,
     "queryId": "Q021",
     "passengerOrigin": [
       13.935757685268136,
@@ -3709,11 +3709,11 @@
   },
   {
     "tripId": "Q021-T4",
-    "routeOverlap": 0.8,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 21,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.6,
+    "score": 0.7,
     "queryId": "Q021",
     "passengerOrigin": [
       13.935757685268136,
@@ -3745,11 +3745,11 @@
   },
   {
     "tripId": "Q021-T5",
-    "routeOverlap": 0.85,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 0,
     "scheduleAlignment": 1.0,
     "preferenceMatch": 0.0,
-    "score": 0.725,
+    "score": 0.8,
     "queryId": "Q021",
     "passengerOrigin": [
       13.935757685268136,
@@ -3781,11 +3781,11 @@
   },
   {
     "tripId": "Q022-T1",
-    "routeOverlap": 0.75,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.7333,
     "preferenceMatch": 1.0,
-    "score": 0.795,
+    "score": 0.92,
     "queryId": "Q022",
     "passengerOrigin": [
       13.983304730736934,
@@ -3817,11 +3817,11 @@
   },
   {
     "tripId": "Q022-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.4,
     "timeDiffMinutes": 108,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.275,
+    "score": 0.4,
     "queryId": "Q022",
     "passengerOrigin": [
       13.983304730736934,
@@ -3853,11 +3853,11 @@
   },
   {
     "tripId": "Q022-T3",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.45,
     "timeDiffMinutes": 9,
     "scheduleAlignment": 0.4,
     "preferenceMatch": 1.0,
-    "score": 0.395,
+    "score": 0.545,
     "queryId": "Q022",
     "passengerOrigin": [
       13.983304730736934,
@@ -3885,7 +3885,7 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q022-T4",
@@ -3961,11 +3961,11 @@
   },
   {
     "tripId": "Q023-T1",
-    "routeOverlap": 0.9,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 3,
     "scheduleAlignment": 0.85,
     "preferenceMatch": 1.0,
-    "score": 0.905,
+    "score": 0.955,
     "queryId": "Q023",
     "passengerOrigin": [
       13.972160178225732,
@@ -3997,11 +3997,11 @@
   },
   {
     "tripId": "Q023-T2",
-    "routeOverlap": 0.2,
+    "routeOverlap": 0.55,
     "timeDiffMinutes": 287,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.1,
+    "score": 0.275,
     "queryId": "Q023",
     "passengerOrigin": [
       13.972160178225732,
@@ -4033,11 +4033,11 @@
   },
   {
     "tripId": "Q023-T3",
-    "routeOverlap": 0.7,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 0,
     "scheduleAlignment": 1.0,
     "preferenceMatch": 0.0,
-    "score": 0.65,
+    "score": 0.8,
     "queryId": "Q023",
     "passengerOrigin": [
       13.972160178225732,
@@ -4141,11 +4141,11 @@
   },
   {
     "tripId": "Q024-T1",
-    "routeOverlap": 0.75,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.6667,
     "preferenceMatch": 1.0,
-    "score": 0.775,
+    "score": 0.9,
     "queryId": "Q024",
     "passengerOrigin": [
       13.924463527579208,
@@ -4177,11 +4177,11 @@
   },
   {
     "tripId": "Q024-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.45,
     "timeDiffMinutes": 171,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.275,
+    "score": 0.425,
     "queryId": "Q024",
     "passengerOrigin": [
       13.924463527579208,
@@ -4249,11 +4249,11 @@
   },
   {
     "tripId": "Q024-T4",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 12,
     "scheduleAlignment": 0.2,
     "preferenceMatch": 1.0,
-    "score": 0.735,
+    "score": 0.76,
     "queryId": "Q024",
     "passengerOrigin": [
       13.924463527579208,
@@ -4321,11 +4321,11 @@
   },
   {
     "tripId": "Q025-T1",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.7333,
     "preferenceMatch": 1.0,
-    "score": 0.895,
+    "score": 0.92,
     "queryId": "Q025",
     "passengerOrigin": [
       13.963969319328157,
@@ -4357,11 +4357,11 @@
   },
   {
     "tripId": "Q025-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.45,
     "timeDiffMinutes": 217,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.275,
+    "score": 0.425,
     "queryId": "Q025",
     "passengerOrigin": [
       13.963969319328157,
@@ -4393,11 +4393,11 @@
   },
   {
     "tripId": "Q025-T3",
-    "routeOverlap": 0.7,
+    "routeOverlap": 0.8,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9333,
     "preferenceMatch": 1.0,
-    "score": 0.83,
+    "score": 0.88,
     "queryId": "Q025",
     "passengerOrigin": [
       13.963969319328157,
@@ -4537,11 +4537,11 @@
   },
   {
     "tripId": "Q026-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.35,
     "timeDiffMinutes": 269,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.275,
+    "score": 0.375,
     "queryId": "Q026",
     "passengerOrigin": [
       13.98761632072153,
@@ -4573,11 +4573,11 @@
   },
   {
     "tripId": "Q026-T3",
-    "routeOverlap": 0.75,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 8,
     "scheduleAlignment": 0.4667,
     "preferenceMatch": 0.0,
-    "score": 0.515,
+    "score": 0.64,
     "queryId": "Q026",
     "passengerOrigin": [
       13.98761632072153,
@@ -4717,11 +4717,11 @@
   },
   {
     "tripId": "Q027-T2",
-    "routeOverlap": 0.1,
+    "routeOverlap": 0.2,
     "timeDiffMinutes": 249,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.05,
+    "score": 0.1,
     "queryId": "Q027",
     "passengerOrigin": [
       13.97388737180411,
@@ -4753,11 +4753,11 @@
   },
   {
     "tripId": "Q027-T3",
-    "routeOverlap": 0.7,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.7333,
     "preferenceMatch": 1.0,
-    "score": 0.77,
+    "score": 0.92,
     "queryId": "Q027",
     "passengerOrigin": [
       13.97388737180411,
@@ -4789,11 +4789,11 @@
   },
   {
     "tripId": "Q027-T4",
-    "routeOverlap": 0.85,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 13,
     "scheduleAlignment": 0.1333,
     "preferenceMatch": 1.0,
-    "score": 0.665,
+    "score": 0.74,
     "queryId": "Q027",
     "passengerOrigin": [
       13.97388737180411,
@@ -4825,11 +4825,11 @@
   },
   {
     "tripId": "Q027-T5",
-    "routeOverlap": 0.85,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9333,
     "preferenceMatch": 0.0,
-    "score": 0.705,
+    "score": 0.78,
     "queryId": "Q027",
     "passengerOrigin": [
       13.97388737180411,
@@ -4897,11 +4897,11 @@
   },
   {
     "tripId": "Q028-T2",
-    "routeOverlap": 0.65,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 35,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.525,
+    "score": 0.7,
     "queryId": "Q028",
     "passengerOrigin": [
       13.957705150850735,
@@ -4933,11 +4933,11 @@
   },
   {
     "tripId": "Q028-T3",
-    "routeOverlap": 0.6,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 6,
     "scheduleAlignment": 0.6,
     "preferenceMatch": 1.0,
-    "score": 0.68,
+    "score": 0.88,
     "queryId": "Q028",
     "passengerOrigin": [
       13.957705150850735,
@@ -5077,11 +5077,11 @@
   },
   {
     "tripId": "Q029-T2",
-    "routeOverlap": 0.4,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 76,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.4,
+    "score": 0.7,
     "queryId": "Q029",
     "passengerOrigin": [
       13.937755989376635,
@@ -5113,11 +5113,11 @@
   },
   {
     "tripId": "Q029-T3",
-    "routeOverlap": 0.7,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 0,
     "scheduleAlignment": 1.0,
     "preferenceMatch": 1.0,
-    "score": 0.85,
+    "score": 1.0,
     "queryId": "Q029",
     "passengerOrigin": [
       13.937755989376635,
@@ -5257,11 +5257,11 @@
   },
   {
     "tripId": "Q030-T2",
-    "routeOverlap": 0.75,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 263,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.575,
+    "score": 0.7,
     "queryId": "Q030",
     "passengerOrigin": [
       13.956224022585465,
@@ -5293,11 +5293,11 @@
   },
   {
     "tripId": "Q030-T3",
-    "routeOverlap": 0.45,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 2,
     "scheduleAlignment": 0.8667,
     "preferenceMatch": 1.0,
-    "score": 0.685,
+    "score": 0.96,
     "queryId": "Q030",
     "passengerOrigin": [
       13.956224022585465,
@@ -5437,11 +5437,11 @@
   },
   {
     "tripId": "Q031-T2",
-    "routeOverlap": 0.2,
+    "routeOverlap": 0.55,
     "timeDiffMinutes": 286,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.1,
+    "score": 0.275,
     "queryId": "Q031",
     "passengerOrigin": [
       13.973956705432105,
@@ -5473,11 +5473,11 @@
   },
   {
     "tripId": "Q031-T3",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.65,
     "timeDiffMinutes": 9,
     "scheduleAlignment": 0.7,
     "preferenceMatch": 0.0,
-    "score": 0.335,
+    "score": 0.535,
     "queryId": "Q031",
     "passengerOrigin": [
       13.973956705432105,
@@ -5505,15 +5505,15 @@
     "hostGender": "MALE",
     "hostGenderPreference": "SAME_GENDER",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q031-T4",
-    "routeOverlap": 0.85,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 27,
     "scheduleAlignment": 0.1,
     "preferenceMatch": 0.0,
-    "score": 0.455,
+    "score": 0.53,
     "queryId": "Q031",
     "passengerOrigin": [
       13.973956705432105,
@@ -5617,11 +5617,11 @@
   },
   {
     "tripId": "Q032-T2",
-    "routeOverlap": 0.3,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 120,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.15,
+    "score": 0.5,
     "queryId": "Q032",
     "passengerOrigin": [
       13.970001650889131,
@@ -5653,11 +5653,11 @@
   },
   {
     "tripId": "Q032-T3",
-    "routeOverlap": 0.35,
+    "routeOverlap": 0.95,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.7333,
     "preferenceMatch": 0.0,
-    "score": 0.395,
+    "score": 0.695,
     "queryId": "Q032",
     "passengerOrigin": [
       13.970001650889131,
@@ -5685,15 +5685,15 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": true,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q032-T4",
-    "routeOverlap": 0.85,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 12,
     "scheduleAlignment": 0.2,
     "preferenceMatch": 1.0,
-    "score": 0.685,
+    "score": 0.76,
     "queryId": "Q032",
     "passengerOrigin": [
       13.970001650889131,
@@ -5833,11 +5833,11 @@
   },
   {
     "tripId": "Q033-T3",
-    "routeOverlap": 0.4,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 9,
     "scheduleAlignment": 0.1,
     "preferenceMatch": 1.0,
-    "score": 0.43,
+    "score": 0.73,
     "queryId": "Q033",
     "passengerOrigin": [
       13.97144630547368,
@@ -5869,11 +5869,11 @@
   },
   {
     "tripId": "Q033-T4",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 7,
     "scheduleAlignment": 0.3,
     "preferenceMatch": 1.0,
-    "score": 0.765,
+    "score": 0.79,
     "queryId": "Q033",
     "passengerOrigin": [
       13.97144630547368,
@@ -5977,11 +5977,11 @@
   },
   {
     "tripId": "Q034-T2",
-    "routeOverlap": 0.2,
+    "routeOverlap": 0.55,
     "timeDiffMinutes": 90,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.3,
+    "score": 0.475,
     "queryId": "Q034",
     "passengerOrigin": [
       13.968056033216557,
@@ -6049,11 +6049,11 @@
   },
   {
     "tripId": "Q034-T4",
-    "routeOverlap": 0.45,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 18,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.225,
+    "score": 0.5,
     "queryId": "Q034",
     "passengerOrigin": [
       13.968056033216557,
@@ -6157,11 +6157,11 @@
   },
   {
     "tripId": "Q035-T2",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.7,
     "timeDiffMinutes": 240,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.325,
+    "score": 0.55,
     "queryId": "Q035",
     "passengerOrigin": [
       13.96786105094148,
@@ -6193,11 +6193,11 @@
   },
   {
     "tripId": "Q035-T3",
-    "routeOverlap": 0.4,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9333,
     "preferenceMatch": 1.0,
-    "score": 0.68,
+    "score": 0.98,
     "queryId": "Q035",
     "passengerOrigin": [
       13.96786105094148,
@@ -6229,11 +6229,11 @@
   },
   {
     "tripId": "Q035-T4",
-    "routeOverlap": 0.85,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 13,
     "scheduleAlignment": 0.1333,
     "preferenceMatch": 0.0,
-    "score": 0.465,
+    "score": 0.54,
     "queryId": "Q035",
     "passengerOrigin": [
       13.96786105094148,
@@ -6337,11 +6337,11 @@
   },
   {
     "tripId": "Q036-T2",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.65,
     "timeDiffMinutes": 274,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.325,
+    "score": 0.525,
     "queryId": "Q036",
     "passengerOrigin": [
       13.969496027727095,
@@ -6373,11 +6373,11 @@
   },
   {
     "tripId": "Q036-T3",
-    "routeOverlap": 0.5,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.75,
     "preferenceMatch": 1.0,
-    "score": 0.675,
+    "score": 0.925,
     "queryId": "Q036",
     "passengerOrigin": [
       13.969496027727095,
@@ -6517,11 +6517,11 @@
   },
   {
     "tripId": "Q037-T2",
-    "routeOverlap": 0.6,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 226,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.5,
+    "score": 0.7,
     "queryId": "Q037",
     "passengerOrigin": [
       13.942106053920396,
@@ -6589,11 +6589,11 @@
   },
   {
     "tripId": "Q037-T4",
-    "routeOverlap": 0.85,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 18,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.625,
+    "score": 0.7,
     "queryId": "Q037",
     "passengerOrigin": [
       13.942106053920396,
@@ -6697,11 +6697,11 @@
   },
   {
     "tripId": "Q038-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.5,
     "timeDiffMinutes": 208,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.275,
+    "score": 0.45,
     "queryId": "Q038",
     "passengerOrigin": [
       13.9356033712381,
@@ -6733,11 +6733,11 @@
   },
   {
     "tripId": "Q038-T3",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.75,
     "timeDiffMinutes": 8,
     "scheduleAlignment": 0.7333,
     "preferenceMatch": 1.0,
-    "score": 0.545,
+    "score": 0.795,
     "queryId": "Q038",
     "passengerOrigin": [
       13.9356033712381,
@@ -6765,7 +6765,7 @@
     "hostGender": "MALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q038-T4",
@@ -6877,11 +6877,11 @@
   },
   {
     "tripId": "Q039-T2",
-    "routeOverlap": 0.1,
+    "routeOverlap": 0.3,
     "timeDiffMinutes": 157,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.25,
+    "score": 0.35,
     "queryId": "Q039",
     "passengerOrigin": [
       13.972138696560718,
@@ -6913,11 +6913,11 @@
   },
   {
     "tripId": "Q039-T3",
-    "routeOverlap": 0.7,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 2,
     "scheduleAlignment": 0.8667,
     "preferenceMatch": 1.0,
-    "score": 0.81,
+    "score": 0.96,
     "queryId": "Q039",
     "passengerOrigin": [
       13.972138696560718,
@@ -6949,11 +6949,11 @@
   },
   {
     "tripId": "Q039-T4",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 12,
     "scheduleAlignment": 0.2,
     "preferenceMatch": 1.0,
-    "score": 0.735,
+    "score": 0.76,
     "queryId": "Q039",
     "passengerOrigin": [
       13.972138696560718,
@@ -7057,11 +7057,11 @@
   },
   {
     "tripId": "Q040-T2",
-    "routeOverlap": 0.1,
+    "routeOverlap": 0.2,
     "timeDiffMinutes": 224,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.25,
+    "score": 0.3,
     "queryId": "Q040",
     "passengerOrigin": [
       13.972550005680564,
@@ -7093,11 +7093,11 @@
   },
   {
     "tripId": "Q040-T3",
-    "routeOverlap": 0.2,
+    "routeOverlap": 0.55,
     "timeDiffMinutes": 2,
     "scheduleAlignment": 0.9333,
     "preferenceMatch": 1.0,
-    "score": 0.58,
+    "score": 0.755,
     "queryId": "Q040",
     "passengerOrigin": [
       13.972550005680564,
@@ -7125,15 +7125,15 @@
     "hostGender": "MALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q040-T4",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 28,
     "scheduleAlignment": 0.0667,
     "preferenceMatch": 0.0,
-    "score": 0.495,
+    "score": 0.52,
     "queryId": "Q040",
     "passengerOrigin": [
       13.972550005680564,
@@ -7237,11 +7237,11 @@
   },
   {
     "tripId": "Q041-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.35,
     "timeDiffMinutes": 185,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.275,
+    "score": 0.375,
     "queryId": "Q041",
     "passengerOrigin": [
       13.98889275339256,
@@ -7273,11 +7273,11 @@
   },
   {
     "tripId": "Q041-T3",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.35,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.6667,
     "preferenceMatch": 1.0,
-    "score": 0.475,
+    "score": 0.575,
     "queryId": "Q041",
     "passengerOrigin": [
       13.98889275339256,
@@ -7309,11 +7309,11 @@
   },
   {
     "tripId": "Q041-T4",
-    "routeOverlap": 0.7,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 17,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.55,
+    "score": 0.7,
     "queryId": "Q041",
     "passengerOrigin": [
       13.98889275339256,
@@ -7345,11 +7345,11 @@
   },
   {
     "tripId": "Q041-T5",
-    "routeOverlap": 0.7,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 3,
     "scheduleAlignment": 0.8,
     "preferenceMatch": 0.0,
-    "score": 0.59,
+    "score": 0.74,
     "queryId": "Q041",
     "passengerOrigin": [
       13.98889275339256,
@@ -7417,11 +7417,11 @@
   },
   {
     "tripId": "Q042-T2",
-    "routeOverlap": 0.3,
+    "routeOverlap": 0.8,
     "timeDiffMinutes": 126,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.15,
+    "score": 0.4,
     "queryId": "Q042",
     "passengerOrigin": [
       13.985080013816315,
@@ -7453,11 +7453,11 @@
   },
   {
     "tripId": "Q042-T3",
-    "routeOverlap": 0.3,
+    "routeOverlap": 0.7,
     "timeDiffMinutes": 0,
     "scheduleAlignment": 1.0,
     "preferenceMatch": 1.0,
-    "score": 0.65,
+    "score": 0.85,
     "queryId": "Q042",
     "passengerOrigin": [
       13.985080013816315,
@@ -7485,7 +7485,7 @@
     "hostGender": "MALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q042-T4",
@@ -7597,11 +7597,11 @@
   },
   {
     "tripId": "Q043-T2",
-    "routeOverlap": 0.1,
+    "routeOverlap": 0.2,
     "timeDiffMinutes": 21,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.25,
+    "score": 0.3,
     "queryId": "Q043",
     "passengerOrigin": [
       13.964667237310715,
@@ -7633,11 +7633,11 @@
   },
   {
     "tripId": "Q043-T3",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.65,
     "timeDiffMinutes": 2,
     "scheduleAlignment": 0.8667,
     "preferenceMatch": 0.0,
-    "score": 0.385,
+    "score": 0.585,
     "queryId": "Q043",
     "passengerOrigin": [
       13.964667237310715,
@@ -7665,7 +7665,7 @@
     "hostGender": "MALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": true,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q043-T4",
@@ -7777,11 +7777,11 @@
   },
   {
     "tripId": "Q044-T2",
-    "routeOverlap": 0.05,
+    "routeOverlap": 0.15,
     "timeDiffMinutes": 76,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.025,
+    "score": 0.075,
     "queryId": "Q044",
     "passengerOrigin": [
       13.950512228104962,
@@ -7813,11 +7813,11 @@
   },
   {
     "tripId": "Q044-T3",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.8,
     "timeDiffMinutes": 10,
     "scheduleAlignment": 0.3333,
     "preferenceMatch": 1.0,
-    "score": 0.425,
+    "score": 0.7,
     "queryId": "Q044",
     "passengerOrigin": [
       13.950512228104962,
@@ -7845,7 +7845,7 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q044-T4",
@@ -7957,11 +7957,11 @@
   },
   {
     "tripId": "Q045-T2",
-    "routeOverlap": 0.55,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 263,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.275,
+    "score": 0.5,
     "queryId": "Q045",
     "passengerOrigin": [
       13.951930704211572,
@@ -7993,11 +7993,11 @@
   },
   {
     "tripId": "Q045-T3",
-    "routeOverlap": 0.75,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 7,
     "scheduleAlignment": 0.5333,
     "preferenceMatch": 1.0,
-    "score": 0.735,
+    "score": 0.86,
     "queryId": "Q045",
     "passengerOrigin": [
       13.951930704211572,
@@ -8137,11 +8137,11 @@
   },
   {
     "tripId": "Q046-T2",
-    "routeOverlap": 0.7,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 214,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.55,
+    "score": 0.7,
     "queryId": "Q046",
     "passengerOrigin": [
       13.938657726160466,
@@ -8209,11 +8209,11 @@
   },
   {
     "tripId": "Q046-T4",
-    "routeOverlap": 0.9,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 12,
     "scheduleAlignment": 0.2,
     "preferenceMatch": 1.0,
-    "score": 0.71,
+    "score": 0.76,
     "queryId": "Q046",
     "passengerOrigin": [
       13.938657726160466,
@@ -8317,11 +8317,11 @@
   },
   {
     "tripId": "Q047-T2",
-    "routeOverlap": 0.05,
+    "routeOverlap": 0.15,
     "timeDiffMinutes": 198,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.225,
+    "score": 0.275,
     "queryId": "Q047",
     "passengerOrigin": [
       13.977511014385925,
@@ -8353,11 +8353,11 @@
   },
   {
     "tripId": "Q047-T3",
-    "routeOverlap": 0.3,
+    "routeOverlap": 0.8,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9333,
     "preferenceMatch": 0.0,
-    "score": 0.43,
+    "score": 0.68,
     "queryId": "Q047",
     "passengerOrigin": [
       13.977511014385925,
@@ -8385,15 +8385,15 @@
     "hostGender": "MALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": true,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q047-T4",
-    "routeOverlap": 0.45,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 13,
     "scheduleAlignment": 0.1333,
     "preferenceMatch": 1.0,
-    "score": 0.465,
+    "score": 0.74,
     "queryId": "Q047",
     "passengerOrigin": [
       13.977511014385925,
@@ -8425,11 +8425,11 @@
   },
   {
     "tripId": "Q047-T5",
-    "routeOverlap": 0.85,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9333,
     "preferenceMatch": 0.0,
-    "score": 0.705,
+    "score": 0.78,
     "queryId": "Q047",
     "passengerOrigin": [
       13.977511014385925,
@@ -8497,11 +8497,11 @@
   },
   {
     "tripId": "Q048-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.4,
     "timeDiffMinutes": 55,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.075,
+    "score": 0.2,
     "queryId": "Q048",
     "passengerOrigin": [
       13.98500785902697,
@@ -8533,11 +8533,11 @@
   },
   {
     "tripId": "Q048-T3",
-    "routeOverlap": 0.7,
+    "routeOverlap": 0.95,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9667,
     "preferenceMatch": 1.0,
-    "score": 0.84,
+    "score": 0.965,
     "queryId": "Q048",
     "passengerOrigin": [
       13.98500785902697,
@@ -8677,11 +8677,11 @@
   },
   {
     "tripId": "Q049-T2",
-    "routeOverlap": 0.05,
+    "routeOverlap": 0.15,
     "timeDiffMinutes": 161,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.025,
+    "score": 0.075,
     "queryId": "Q049",
     "passengerOrigin": [
       13.955687108186805,
@@ -8713,11 +8713,11 @@
   },
   {
     "tripId": "Q049-T3",
-    "routeOverlap": 0.65,
+    "routeOverlap": 0.75,
     "timeDiffMinutes": 6,
     "scheduleAlignment": 0.4,
     "preferenceMatch": 1.0,
-    "score": 0.645,
+    "score": 0.695,
     "queryId": "Q049",
     "passengerOrigin": [
       13.955687108186805,
@@ -8857,11 +8857,11 @@
   },
   {
     "tripId": "Q050-T2",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.65,
     "timeDiffMinutes": 252,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.325,
+    "score": 0.525,
     "queryId": "Q050",
     "passengerOrigin": [
       13.929601662867821,
@@ -8893,11 +8893,11 @@
   },
   {
     "tripId": "Q050-T3",
-    "routeOverlap": 0.3,
+    "routeOverlap": 0.8,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.7333,
     "preferenceMatch": 1.0,
-    "score": 0.57,
+    "score": 0.82,
     "queryId": "Q050",
     "passengerOrigin": [
       13.929601662867821,
@@ -8925,7 +8925,7 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q050-T4",
@@ -9037,11 +9037,11 @@
   },
   {
     "tripId": "Q051-T2",
-    "routeOverlap": 0.05,
+    "routeOverlap": 0.15,
     "timeDiffMinutes": 30,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.225,
+    "score": 0.275,
     "queryId": "Q051",
     "passengerOrigin": [
       13.941976478711412,
@@ -9073,11 +9073,11 @@
   },
   {
     "tripId": "Q051-T3",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.75,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.7333,
     "preferenceMatch": 0.0,
-    "score": 0.345,
+    "score": 0.595,
     "queryId": "Q051",
     "passengerOrigin": [
       13.941976478711412,
@@ -9105,7 +9105,7 @@
     "hostGender": "MALE",
     "hostGenderPreference": "SAME_GENDER",
     "familiarRidersOnly": true,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q051-T4",
@@ -9217,11 +9217,11 @@
   },
   {
     "tripId": "Q052-T2",
-    "routeOverlap": 0.1,
+    "routeOverlap": 0.3,
     "timeDiffMinutes": 169,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.05,
+    "score": 0.15,
     "queryId": "Q052",
     "passengerOrigin": [
       13.994344351978048,
@@ -9325,11 +9325,11 @@
   },
   {
     "tripId": "Q052-T5",
-    "routeOverlap": 0.75,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 3,
     "scheduleAlignment": 0.8,
     "preferenceMatch": 0.0,
-    "score": 0.615,
+    "score": 0.74,
     "queryId": "Q052",
     "passengerOrigin": [
       13.994344351978048,
@@ -9397,11 +9397,11 @@
   },
   {
     "tripId": "Q053-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.4,
     "timeDiffMinutes": 287,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.075,
+    "score": 0.2,
     "queryId": "Q053",
     "passengerOrigin": [
       13.984957455643746,
@@ -9433,11 +9433,11 @@
   },
   {
     "tripId": "Q053-T3",
-    "routeOverlap": 0.4,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 6,
     "scheduleAlignment": 0.6,
     "preferenceMatch": 0.0,
-    "score": 0.38,
+    "score": 0.68,
     "queryId": "Q053",
     "passengerOrigin": [
       13.984957455643746,
@@ -9577,11 +9577,11 @@
   },
   {
     "tripId": "Q054-T2",
-    "routeOverlap": 0.1,
+    "routeOverlap": 0.2,
     "timeDiffMinutes": 170,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.25,
+    "score": 0.3,
     "queryId": "Q054",
     "passengerOrigin": [
       13.955928375503722,
@@ -9613,11 +9613,11 @@
   },
   {
     "tripId": "Q054-T3",
-    "routeOverlap": 0.6,
+    "routeOverlap": 0.9,
     "timeDiffMinutes": 2,
     "scheduleAlignment": 0.8667,
     "preferenceMatch": 1.0,
-    "score": 0.76,
+    "score": 0.91,
     "queryId": "Q054",
     "passengerOrigin": [
       13.955928375503722,
@@ -9649,11 +9649,11 @@
   },
   {
     "tripId": "Q054-T4",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 15,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.675,
+    "score": 0.7,
     "queryId": "Q054",
     "passengerOrigin": [
       13.955928375503722,
@@ -9685,11 +9685,11 @@
   },
   {
     "tripId": "Q054-T5",
-    "routeOverlap": 0.8,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.6667,
     "preferenceMatch": 0.0,
-    "score": 0.6,
+    "score": 0.7,
     "queryId": "Q054",
     "passengerOrigin": [
       13.955928375503722,
@@ -9757,11 +9757,11 @@
   },
   {
     "tripId": "Q055-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.35,
     "timeDiffMinutes": 123,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.075,
+    "score": 0.175,
     "queryId": "Q055",
     "passengerOrigin": [
       13.986938354796317,
@@ -9937,11 +9937,11 @@
   },
   {
     "tripId": "Q056-T2",
-    "routeOverlap": 0.2,
+    "routeOverlap": 0.55,
     "timeDiffMinutes": 138,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.3,
+    "score": 0.475,
     "queryId": "Q056",
     "passengerOrigin": [
       13.935738150412321,
@@ -9973,11 +9973,11 @@
   },
   {
     "tripId": "Q056-T3",
-    "routeOverlap": 0.4,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 3,
     "scheduleAlignment": 0.8,
     "preferenceMatch": 1.0,
-    "score": 0.64,
+    "score": 0.94,
     "queryId": "Q056",
     "passengerOrigin": [
       13.935738150412321,
@@ -10117,11 +10117,11 @@
   },
   {
     "tripId": "Q057-T2",
-    "routeOverlap": 0.05,
+    "routeOverlap": 0.15,
     "timeDiffMinutes": 132,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.225,
+    "score": 0.275,
     "queryId": "Q057",
     "passengerOrigin": [
       13.960921993631214,
@@ -10153,11 +10153,11 @@
   },
   {
     "tripId": "Q057-T3",
-    "routeOverlap": 0.2,
+    "routeOverlap": 0.6,
     "timeDiffMinutes": 6,
     "scheduleAlignment": 0.6,
     "preferenceMatch": 1.0,
-    "score": 0.48,
+    "score": 0.68,
     "queryId": "Q057",
     "passengerOrigin": [
       13.960921993631214,
@@ -10185,7 +10185,7 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q057-T4",
@@ -10297,11 +10297,11 @@
   },
   {
     "tripId": "Q058-T2",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.7,
     "timeDiffMinutes": 69,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.125,
+    "score": 0.35,
     "queryId": "Q058",
     "passengerOrigin": [
       13.934468151363063,
@@ -10333,11 +10333,11 @@
   },
   {
     "tripId": "Q058-T3",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.75,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.8667,
     "preferenceMatch": 1.0,
-    "score": 0.585,
+    "score": 0.835,
     "queryId": "Q058",
     "passengerOrigin": [
       13.934468151363063,
@@ -10365,7 +10365,7 @@
     "hostGender": "MALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q058-T4",
@@ -10405,11 +10405,11 @@
   },
   {
     "tripId": "Q058-T5",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.8333,
     "preferenceMatch": 0.0,
-    "score": 0.725,
+    "score": 0.75,
     "queryId": "Q058",
     "passengerOrigin": [
       13.934468151363063,
@@ -10477,11 +10477,11 @@
   },
   {
     "tripId": "Q059-T2",
-    "routeOverlap": 0.2,
+    "routeOverlap": 0.55,
     "timeDiffMinutes": 260,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.1,
+    "score": 0.275,
     "queryId": "Q059",
     "passengerOrigin": [
       13.973495882985347,
@@ -10513,11 +10513,11 @@
   },
   {
     "tripId": "Q059-T3",
-    "routeOverlap": 0.6,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.8,
     "preferenceMatch": 1.0,
-    "score": 0.74,
+    "score": 0.94,
     "queryId": "Q059",
     "passengerOrigin": [
       13.973495882985347,
@@ -10549,11 +10549,11 @@
   },
   {
     "tripId": "Q059-T4",
-    "routeOverlap": 0.55,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 20,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.475,
+    "score": 0.7,
     "queryId": "Q059",
     "passengerOrigin": [
       13.973495882985347,
@@ -10657,11 +10657,11 @@
   },
   {
     "tripId": "Q060-T2",
-    "routeOverlap": 0.35,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 281,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.175,
+    "score": 0.5,
     "queryId": "Q060",
     "passengerOrigin": [
       13.965111880853861,
@@ -10693,11 +10693,11 @@
   },
   {
     "tripId": "Q060-T3",
-    "routeOverlap": 0.4,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 3,
     "scheduleAlignment": 0.8,
     "preferenceMatch": 1.0,
-    "score": 0.64,
+    "score": 0.94,
     "queryId": "Q060",
     "passengerOrigin": [
       13.965111880853861,
@@ -10837,11 +10837,11 @@
   },
   {
     "tripId": "Q061-T2",
-    "routeOverlap": 0.35,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 212,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.175,
+    "score": 0.5,
     "queryId": "Q061",
     "passengerOrigin": [
       13.96186158529603,
@@ -10873,11 +10873,11 @@
   },
   {
     "tripId": "Q061-T3",
-    "routeOverlap": 0.35,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 6,
     "scheduleAlignment": 0.4,
     "preferenceMatch": 1.0,
-    "score": 0.495,
+    "score": 0.82,
     "queryId": "Q061",
     "passengerOrigin": [
       13.96186158529603,
@@ -10905,15 +10905,15 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q061-T4",
-    "routeOverlap": 0.85,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 13,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.625,
+    "score": 0.7,
     "queryId": "Q061",
     "passengerOrigin": [
       13.96186158529603,
@@ -11017,11 +11017,11 @@
   },
   {
     "tripId": "Q062-T2",
-    "routeOverlap": 0.05,
+    "routeOverlap": 0.15,
     "timeDiffMinutes": 91,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.225,
+    "score": 0.275,
     "queryId": "Q062",
     "passengerOrigin": [
       13.939381816788,
@@ -11197,11 +11197,11 @@
   },
   {
     "tripId": "Q063-T2",
-    "routeOverlap": 0.35,
+    "routeOverlap": 0.85,
     "timeDiffMinutes": 192,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.375,
+    "score": 0.625,
     "queryId": "Q063",
     "passengerOrigin": [
       13.969875826162813,
@@ -11233,11 +11233,11 @@
   },
   {
     "tripId": "Q063-T3",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.7,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.6667,
     "preferenceMatch": 1.0,
-    "score": 0.525,
+    "score": 0.75,
     "queryId": "Q063",
     "passengerOrigin": [
       13.969875826162813,
@@ -11265,7 +11265,7 @@
     "hostGender": "MALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q063-T4",
@@ -11377,11 +11377,11 @@
   },
   {
     "tripId": "Q064-T2",
-    "routeOverlap": 0.1,
+    "routeOverlap": 0.25,
     "timeDiffMinutes": 270,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.25,
+    "score": 0.325,
     "queryId": "Q064",
     "passengerOrigin": [
       13.977017316756026,
@@ -11521,11 +11521,11 @@
   },
   {
     "tripId": "Q065-T1",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.95,
     "preferenceMatch": 1.0,
-    "score": 0.96,
+    "score": 0.985,
     "queryId": "Q065",
     "passengerOrigin": [
       13.9515613630561,
@@ -11557,11 +11557,11 @@
   },
   {
     "tripId": "Q065-T2",
-    "routeOverlap": 0.3,
+    "routeOverlap": 0.85,
     "timeDiffMinutes": 252,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.15,
+    "score": 0.425,
     "queryId": "Q065",
     "passengerOrigin": [
       13.9515613630561,
@@ -11593,11 +11593,11 @@
   },
   {
     "tripId": "Q065-T3",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.75,
     "timeDiffMinutes": 7,
     "scheduleAlignment": 0.65,
     "preferenceMatch": 1.0,
-    "score": 0.52,
+    "score": 0.77,
     "queryId": "Q065",
     "passengerOrigin": [
       13.9515613630561,
@@ -11625,15 +11625,15 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q065-T4",
-    "routeOverlap": 0.9,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 23,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.45,
+    "score": 0.5,
     "queryId": "Q065",
     "passengerOrigin": [
       13.9515613630561,
@@ -11737,11 +11737,11 @@
   },
   {
     "tripId": "Q066-T2",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.75,
     "timeDiffMinutes": 36,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.325,
+    "score": 0.575,
     "queryId": "Q066",
     "passengerOrigin": [
       13.937133669212637,
@@ -11917,11 +11917,11 @@
   },
   {
     "tripId": "Q067-T2",
-    "routeOverlap": 0.05,
+    "routeOverlap": 0.15,
     "timeDiffMinutes": 105,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.225,
+    "score": 0.275,
     "queryId": "Q067",
     "passengerOrigin": [
       13.983305349497213,
@@ -11953,11 +11953,11 @@
   },
   {
     "tripId": "Q067-T3",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.7,
     "timeDiffMinutes": 10,
     "scheduleAlignment": 0.5,
     "preferenceMatch": 1.0,
-    "score": 0.475,
+    "score": 0.7,
     "queryId": "Q067",
     "passengerOrigin": [
       13.983305349497213,
@@ -11985,15 +11985,15 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q067-T4",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 19,
     "scheduleAlignment": 0.05,
     "preferenceMatch": 1.0,
-    "score": 0.69,
+    "score": 0.715,
     "queryId": "Q067",
     "passengerOrigin": [
       13.983305349497213,
@@ -12097,11 +12097,11 @@
   },
   {
     "tripId": "Q068-T2",
-    "routeOverlap": 0.85,
+    "routeOverlap": 0.95,
     "timeDiffMinutes": 211,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.425,
+    "score": 0.475,
     "queryId": "Q068",
     "passengerOrigin": [
       13.959248519414436,
@@ -12133,11 +12133,11 @@
   },
   {
     "tripId": "Q068-T3",
-    "routeOverlap": 0.6,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 10,
     "scheduleAlignment": 0.3333,
     "preferenceMatch": 0.0,
-    "score": 0.4,
+    "score": 0.6,
     "queryId": "Q068",
     "passengerOrigin": [
       13.959248519414436,
@@ -12205,11 +12205,11 @@
   },
   {
     "tripId": "Q068-T5",
-    "routeOverlap": 0.8,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 2,
     "scheduleAlignment": 0.8667,
     "preferenceMatch": 0.0,
-    "score": 0.66,
+    "score": 0.76,
     "queryId": "Q068",
     "passengerOrigin": [
       13.959248519414436,
@@ -12277,11 +12277,11 @@
   },
   {
     "tripId": "Q069-T2",
-    "routeOverlap": 0.2,
+    "routeOverlap": 0.65,
     "timeDiffMinutes": 54,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.1,
+    "score": 0.325,
     "queryId": "Q069",
     "passengerOrigin": [
       13.95109283465828,
@@ -12313,11 +12313,11 @@
   },
   {
     "tripId": "Q069-T3",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.45,
     "timeDiffMinutes": 9,
     "scheduleAlignment": 0.1,
     "preferenceMatch": 1.0,
-    "score": 0.305,
+    "score": 0.455,
     "queryId": "Q069",
     "passengerOrigin": [
       13.95109283465828,
@@ -12345,15 +12345,15 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q069-T4",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 13,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.675,
+    "score": 0.7,
     "queryId": "Q069",
     "passengerOrigin": [
       13.95109283465828,
@@ -12421,11 +12421,11 @@
   },
   {
     "tripId": "Q070-T1",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.75,
     "preferenceMatch": 1.0,
-    "score": 0.9,
+    "score": 0.925,
     "queryId": "Q070",
     "passengerOrigin": [
       13.96926687596826,
@@ -12457,11 +12457,11 @@
   },
   {
     "tripId": "Q070-T2",
-    "routeOverlap": 0.2,
+    "routeOverlap": 0.55,
     "timeDiffMinutes": 110,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.3,
+    "score": 0.475,
     "queryId": "Q070",
     "passengerOrigin": [
       13.96926687596826,
@@ -12493,11 +12493,11 @@
   },
   {
     "tripId": "Q070-T3",
-    "routeOverlap": 0.3,
+    "routeOverlap": 0.85,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.95,
     "preferenceMatch": 1.0,
-    "score": 0.635,
+    "score": 0.91,
     "queryId": "Q070",
     "passengerOrigin": [
       13.96926687596826,
@@ -12525,7 +12525,7 @@
     "hostGender": "MALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q070-T4",
@@ -12781,11 +12781,11 @@
   },
   {
     "tripId": "Q072-T1",
-    "routeOverlap": 0.75,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.6667,
     "preferenceMatch": 1.0,
-    "score": 0.775,
+    "score": 0.9,
     "queryId": "Q072",
     "passengerOrigin": [
       13.94792093967936,
@@ -12817,11 +12817,11 @@
   },
   {
     "tripId": "Q072-T2",
-    "routeOverlap": 0.9,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 172,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.45,
+    "score": 0.5,
     "queryId": "Q072",
     "passengerOrigin": [
       13.94792093967936,
@@ -12853,11 +12853,11 @@
   },
   {
     "tripId": "Q072-T3",
-    "routeOverlap": 0.7,
+    "routeOverlap": 0.8,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9333,
     "preferenceMatch": 1.0,
-    "score": 0.83,
+    "score": 0.88,
     "queryId": "Q072",
     "passengerOrigin": [
       13.94792093967936,
@@ -12889,11 +12889,11 @@
   },
   {
     "tripId": "Q072-T4",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 14,
     "scheduleAlignment": 0.0667,
     "preferenceMatch": 0.0,
-    "score": 0.495,
+    "score": 0.52,
     "queryId": "Q072",
     "passengerOrigin": [
       13.94792093967936,
@@ -12961,11 +12961,11 @@
   },
   {
     "tripId": "Q073-T1",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 2,
     "scheduleAlignment": 0.8667,
     "preferenceMatch": 1.0,
-    "score": 0.935,
+    "score": 0.96,
     "queryId": "Q073",
     "passengerOrigin": [
       13.935687251575379,
@@ -12997,11 +12997,11 @@
   },
   {
     "tripId": "Q073-T2",
-    "routeOverlap": 0.35,
+    "routeOverlap": 0.95,
     "timeDiffMinutes": 126,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.375,
+    "score": 0.675,
     "queryId": "Q073",
     "passengerOrigin": [
       13.935687251575379,
@@ -13105,11 +13105,11 @@
   },
   {
     "tripId": "Q073-T5",
-    "routeOverlap": 0.9,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.7333,
     "preferenceMatch": 0.0,
-    "score": 0.67,
+    "score": 0.72,
     "queryId": "Q073",
     "passengerOrigin": [
       13.935687251575379,
@@ -13177,11 +13177,11 @@
   },
   {
     "tripId": "Q074-T2",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.75,
     "timeDiffMinutes": 89,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.325,
+    "score": 0.575,
     "queryId": "Q074",
     "passengerOrigin": [
       13.963308969855698,
@@ -13213,11 +13213,11 @@
   },
   {
     "tripId": "Q074-T3",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.75,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.6667,
     "preferenceMatch": 1.0,
-    "score": 0.525,
+    "score": 0.775,
     "queryId": "Q074",
     "passengerOrigin": [
       13.963308969855698,
@@ -13245,7 +13245,7 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "SAME_GENDER",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q074-T4",
@@ -13357,11 +13357,11 @@
   },
   {
     "tripId": "Q075-T2",
-    "routeOverlap": 0.05,
+    "routeOverlap": 0.15,
     "timeDiffMinutes": 249,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.225,
+    "score": 0.275,
     "queryId": "Q075",
     "passengerOrigin": [
       13.976693924122907,
@@ -13429,11 +13429,11 @@
   },
   {
     "tripId": "Q075-T4",
-    "routeOverlap": 0.5,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 32,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.25,
+    "score": 0.5,
     "queryId": "Q075",
     "passengerOrigin": [
       13.976693924122907,
@@ -13717,11 +13717,11 @@
   },
   {
     "tripId": "Q077-T2",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.7,
     "timeDiffMinutes": 16,
     "scheduleAlignment": 0.2,
     "preferenceMatch": 0.0,
-    "score": 0.185,
+    "score": 0.41,
     "queryId": "Q077",
     "passengerOrigin": [
       13.964201603101687,
@@ -13749,15 +13749,15 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "SAME_GENDER",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q077-T3",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.7,
     "timeDiffMinutes": 3,
     "scheduleAlignment": 0.85,
     "preferenceMatch": 0.0,
-    "score": 0.38,
+    "score": 0.605,
     "queryId": "Q077",
     "passengerOrigin": [
       13.964201603101687,
@@ -13785,15 +13785,15 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "SAME_GENDER",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q077-T4",
-    "routeOverlap": 0.8,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 20,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.6,
+    "score": 0.7,
     "queryId": "Q077",
     "passengerOrigin": [
       13.964201603101687,
@@ -13897,11 +13897,11 @@
   },
   {
     "tripId": "Q078-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.45,
     "timeDiffMinutes": 50,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.275,
+    "score": 0.425,
     "queryId": "Q078",
     "passengerOrigin": [
       13.977927200597351,
@@ -14257,11 +14257,11 @@
   },
   {
     "tripId": "Q080-T2",
-    "routeOverlap": 0.65,
+    "routeOverlap": 0.85,
     "timeDiffMinutes": 259,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.525,
+    "score": 0.625,
     "queryId": "Q080",
     "passengerOrigin": [
       13.966168255401891,
@@ -14437,11 +14437,11 @@
   },
   {
     "tripId": "Q081-T2",
-    "routeOverlap": 0.6,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 209,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.5,
+    "score": 0.7,
     "queryId": "Q081",
     "passengerOrigin": [
       13.94609675351782,
@@ -14473,11 +14473,11 @@
   },
   {
     "tripId": "Q081-T3",
-    "routeOverlap": 0.6,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9667,
     "preferenceMatch": 1.0,
-    "score": 0.79,
+    "score": 0.99,
     "queryId": "Q081",
     "passengerOrigin": [
       13.94609675351782,
@@ -14617,11 +14617,11 @@
   },
   {
     "tripId": "Q082-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.45,
     "timeDiffMinutes": 200,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.075,
+    "score": 0.225,
     "queryId": "Q082",
     "passengerOrigin": [
       13.981365145278906,
@@ -14653,11 +14653,11 @@
   },
   {
     "tripId": "Q082-T3",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.75,
     "timeDiffMinutes": 10,
     "scheduleAlignment": 0.3333,
     "preferenceMatch": 1.0,
-    "score": 0.425,
+    "score": 0.675,
     "queryId": "Q082",
     "passengerOrigin": [
       13.981365145278906,
@@ -14685,7 +14685,7 @@
     "hostGender": "MALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q082-T4",
@@ -14797,11 +14797,11 @@
   },
   {
     "tripId": "Q083-T2",
-    "routeOverlap": 0.15,
+    "routeOverlap": 0.35,
     "timeDiffMinutes": 199,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.075,
+    "score": 0.175,
     "queryId": "Q083",
     "passengerOrigin": [
       13.985593490276585,
@@ -14833,11 +14833,11 @@
   },
   {
     "tripId": "Q083-T3",
-    "routeOverlap": 0.35,
+    "routeOverlap": 0.8,
     "timeDiffMinutes": 3,
     "scheduleAlignment": 0.7,
     "preferenceMatch": 1.0,
-    "score": 0.585,
+    "score": 0.81,
     "queryId": "Q083",
     "passengerOrigin": [
       13.985593490276585,
@@ -14865,7 +14865,7 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q083-T4",
@@ -14977,11 +14977,11 @@
   },
   {
     "tripId": "Q084-T2",
-    "routeOverlap": 0.1,
+    "routeOverlap": 0.3,
     "timeDiffMinutes": 248,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.25,
+    "score": 0.35,
     "queryId": "Q084",
     "passengerOrigin": [
       13.992839441277425,
@@ -15013,11 +15013,11 @@
   },
   {
     "tripId": "Q084-T3",
-    "routeOverlap": 0.6,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 8,
     "scheduleAlignment": 0.7333,
     "preferenceMatch": 0.0,
-    "score": 0.52,
+    "score": 0.72,
     "queryId": "Q084",
     "passengerOrigin": [
       13.992839441277425,
@@ -15049,11 +15049,11 @@
   },
   {
     "tripId": "Q084-T4",
-    "routeOverlap": 0.9,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 10,
     "scheduleAlignment": 0.6667,
     "preferenceMatch": 1.0,
-    "score": 0.85,
+    "score": 0.9,
     "queryId": "Q084",
     "passengerOrigin": [
       13.992839441277425,
@@ -15337,11 +15337,11 @@
   },
   {
     "tripId": "Q086-T2",
-    "routeOverlap": 0.35,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 182,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.175,
+    "score": 0.5,
     "queryId": "Q086",
     "passengerOrigin": [
       13.945097481393526,
@@ -15373,11 +15373,11 @@
   },
   {
     "tripId": "Q086-T3",
-    "routeOverlap": 0.45,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 10,
     "scheduleAlignment": 0.3333,
     "preferenceMatch": 1.0,
-    "score": 0.525,
+    "score": 0.8,
     "queryId": "Q086",
     "passengerOrigin": [
       13.945097481393526,
@@ -15517,11 +15517,11 @@
   },
   {
     "tripId": "Q087-T2",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.75,
     "timeDiffMinutes": 227,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.325,
+    "score": 0.575,
     "queryId": "Q087",
     "passengerOrigin": [
       13.966343491603478,
@@ -15553,11 +15553,11 @@
   },
   {
     "tripId": "Q087-T3",
-    "routeOverlap": 0.45,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.7333,
     "preferenceMatch": 1.0,
-    "score": 0.645,
+    "score": 0.92,
     "queryId": "Q087",
     "passengerOrigin": [
       13.966343491603478,
@@ -15697,11 +15697,11 @@
   },
   {
     "tripId": "Q088-T2",
-    "routeOverlap": 0.1,
+    "routeOverlap": 0.2,
     "timeDiffMinutes": 292,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.25,
+    "score": 0.3,
     "queryId": "Q088",
     "passengerOrigin": [
       13.954473025368097,
@@ -15733,11 +15733,11 @@
   },
   {
     "tripId": "Q088-T3",
-    "routeOverlap": 0.25,
+    "routeOverlap": 0.75,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.7333,
     "preferenceMatch": 1.0,
-    "score": 0.545,
+    "score": 0.795,
     "queryId": "Q088",
     "passengerOrigin": [
       13.954473025368097,
@@ -15765,7 +15765,7 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q088-T4",
@@ -15841,11 +15841,11 @@
   },
   {
     "tripId": "Q089-T1",
-    "routeOverlap": 0.9,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.7333,
     "preferenceMatch": 1.0,
-    "score": 0.87,
+    "score": 0.92,
     "queryId": "Q089",
     "passengerOrigin": [
       13.970539532085944,
@@ -15877,11 +15877,11 @@
   },
   {
     "tripId": "Q089-T2",
-    "routeOverlap": 0.2,
+    "routeOverlap": 0.6,
     "timeDiffMinutes": 231,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.3,
+    "score": 0.5,
     "queryId": "Q089",
     "passengerOrigin": [
       13.970539532085944,
@@ -15949,11 +15949,11 @@
   },
   {
     "tripId": "Q089-T4",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 14,
     "scheduleAlignment": 0.0667,
     "preferenceMatch": 1.0,
-    "score": 0.695,
+    "score": 0.72,
     "queryId": "Q089",
     "passengerOrigin": [
       13.970539532085944,
@@ -16057,11 +16057,11 @@
   },
   {
     "tripId": "Q090-T2",
-    "routeOverlap": 0.5,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 153,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.45,
+    "score": 0.7,
     "queryId": "Q090",
     "passengerOrigin": [
       13.969374116012391,
@@ -16093,11 +16093,11 @@
   },
   {
     "tripId": "Q090-T3",
-    "routeOverlap": 0.35,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 7,
     "scheduleAlignment": 0.5333,
     "preferenceMatch": 1.0,
-    "score": 0.535,
+    "score": 0.86,
     "queryId": "Q090",
     "passengerOrigin": [
       13.969374116012391,
@@ -16125,15 +16125,15 @@
     "hostGender": "FEMALE",
     "hostGenderPreference": "ANY",
     "familiarRidersOnly": false,
-    "passesStage1": false
+    "passesStage1": true
   },
   {
     "tripId": "Q090-T4",
-    "routeOverlap": 0.75,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 17,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.575,
+    "score": 0.7,
     "queryId": "Q090",
     "passengerOrigin": [
       13.969374116012391,
@@ -16237,11 +16237,11 @@
   },
   {
     "tripId": "Q091-T2",
-    "routeOverlap": 0.05,
+    "routeOverlap": 0.15,
     "timeDiffMinutes": 188,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.225,
+    "score": 0.275,
     "queryId": "Q091",
     "passengerOrigin": [
       13.98126239803613,
@@ -16345,11 +16345,11 @@
   },
   {
     "tripId": "Q091-T5",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 1,
     "scheduleAlignment": 0.9,
     "preferenceMatch": 0.0,
-    "score": 0.745,
+    "score": 0.77,
     "queryId": "Q091",
     "passengerOrigin": [
       13.98126239803613,
@@ -16417,11 +16417,11 @@
   },
   {
     "tripId": "Q092-T2",
-    "routeOverlap": 0.05,
+    "routeOverlap": 0.15,
     "timeDiffMinutes": 225,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.025,
+    "score": 0.075,
     "queryId": "Q092",
     "passengerOrigin": [
       13.961727715812605,
@@ -16453,11 +16453,11 @@
   },
   {
     "tripId": "Q092-T3",
-    "routeOverlap": 0.85,
+    "routeOverlap": 0.95,
     "timeDiffMinutes": 10,
     "scheduleAlignment": 0.3333,
     "preferenceMatch": 1.0,
-    "score": 0.725,
+    "score": 0.775,
     "queryId": "Q092",
     "passengerOrigin": [
       13.961727715812605,
@@ -16777,11 +16777,11 @@
   },
   {
     "tripId": "Q094-T2",
-    "routeOverlap": 0.3,
+    "routeOverlap": 0.8,
     "timeDiffMinutes": 233,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.35,
+    "score": 0.6,
     "queryId": "Q094",
     "passengerOrigin": [
       13.928620761163295,
@@ -16849,11 +16849,11 @@
   },
   {
     "tripId": "Q094-T4",
-    "routeOverlap": 0.9,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 17,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.65,
+    "score": 0.7,
     "queryId": "Q094",
     "passengerOrigin": [
       13.928620761163295,
@@ -16957,11 +16957,11 @@
   },
   {
     "tripId": "Q095-T2",
-    "routeOverlap": 0.3,
+    "routeOverlap": 0.8,
     "timeDiffMinutes": 200,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.35,
+    "score": 0.6,
     "queryId": "Q095",
     "passengerOrigin": [
       13.934309433268178,
@@ -16993,11 +16993,11 @@
   },
   {
     "tripId": "Q095-T3",
-    "routeOverlap": 0.4,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 0,
     "scheduleAlignment": 1.0,
     "preferenceMatch": 0.0,
-    "score": 0.5,
+    "score": 0.8,
     "queryId": "Q095",
     "passengerOrigin": [
       13.934309433268178,
@@ -17029,11 +17029,11 @@
   },
   {
     "tripId": "Q095-T4",
-    "routeOverlap": 0.85,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 22,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.625,
+    "score": 0.7,
     "queryId": "Q095",
     "passengerOrigin": [
       13.934309433268178,
@@ -17137,11 +17137,11 @@
   },
   {
     "tripId": "Q096-T2",
-    "routeOverlap": 0.3,
+    "routeOverlap": 0.85,
     "timeDiffMinutes": 230,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.35,
+    "score": 0.625,
     "queryId": "Q096",
     "passengerOrigin": [
       13.95596381848401,
@@ -17173,11 +17173,11 @@
   },
   {
     "tripId": "Q096-T3",
-    "routeOverlap": 0.55,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 10,
     "scheduleAlignment": 0.5,
     "preferenceMatch": 1.0,
-    "score": 0.625,
+    "score": 0.85,
     "queryId": "Q096",
     "passengerOrigin": [
       13.95596381848401,
@@ -17209,11 +17209,11 @@
   },
   {
     "tripId": "Q096-T4",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 22,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.675,
+    "score": 0.7,
     "queryId": "Q096",
     "passengerOrigin": [
       13.95596381848401,
@@ -17245,11 +17245,11 @@
   },
   {
     "tripId": "Q096-T5",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.8,
     "preferenceMatch": 0.0,
-    "score": 0.715,
+    "score": 0.74,
     "queryId": "Q096",
     "passengerOrigin": [
       13.95596381848401,
@@ -17317,11 +17317,11 @@
   },
   {
     "tripId": "Q097-T2",
-    "routeOverlap": 0.1,
+    "routeOverlap": 0.2,
     "timeDiffMinutes": 184,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.25,
+    "score": 0.3,
     "queryId": "Q097",
     "passengerOrigin": [
       13.954499912901015,
@@ -17353,11 +17353,11 @@
   },
   {
     "tripId": "Q097-T3",
-    "routeOverlap": 0.6,
+    "routeOverlap": 0.85,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.6667,
     "preferenceMatch": 1.0,
-    "score": 0.7,
+    "score": 0.825,
     "queryId": "Q097",
     "passengerOrigin": [
       13.954499912901015,
@@ -17389,11 +17389,11 @@
   },
   {
     "tripId": "Q097-T4",
-    "routeOverlap": 0.95,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 14,
     "scheduleAlignment": 0.0667,
     "preferenceMatch": 1.0,
-    "score": 0.695,
+    "score": 0.72,
     "queryId": "Q097",
     "passengerOrigin": [
       13.954499912901015,
@@ -17461,11 +17461,11 @@
   },
   {
     "tripId": "Q098-T1",
-    "routeOverlap": 0.85,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.6667,
     "preferenceMatch": 1.0,
-    "score": 0.825,
+    "score": 0.9,
     "queryId": "Q098",
     "passengerOrigin": [
       13.940934988994055,
@@ -17497,11 +17497,11 @@
   },
   {
     "tripId": "Q098-T2",
-    "routeOverlap": 0.35,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 57,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 0.0,
-    "score": 0.175,
+    "score": 0.5,
     "queryId": "Q098",
     "passengerOrigin": [
       13.940934988994055,
@@ -17641,11 +17641,11 @@
   },
   {
     "tripId": "Q099-T1",
-    "routeOverlap": 0.7,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 4,
     "scheduleAlignment": 0.7333,
     "preferenceMatch": 0.0,
-    "score": 0.57,
+    "score": 0.72,
     "queryId": "Q099",
     "passengerOrigin": [
       13.941926485352461,
@@ -17677,11 +17677,11 @@
   },
   {
     "tripId": "Q099-T2",
-    "routeOverlap": 0.5,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 138,
     "scheduleAlignment": 0.0,
     "preferenceMatch": 1.0,
-    "score": 0.45,
+    "score": 0.7,
     "queryId": "Q099",
     "passengerOrigin": [
       13.941926485352461,
@@ -17713,11 +17713,11 @@
   },
   {
     "tripId": "Q099-T3",
-    "routeOverlap": 0.5,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 5,
     "scheduleAlignment": 0.6667,
     "preferenceMatch": 0.0,
-    "score": 0.45,
+    "score": 0.7,
     "queryId": "Q099",
     "passengerOrigin": [
       13.941926485352461,
@@ -17821,11 +17821,11 @@
   },
   {
     "tripId": "Q100-T1",
-    "routeOverlap": 0.85,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 2,
     "scheduleAlignment": 0.8667,
     "preferenceMatch": 0.0,
-    "score": 0.685,
+    "score": 0.76,
     "queryId": "Q100",
     "passengerOrigin": [
       13.942258082570998,
@@ -17893,11 +17893,11 @@
   },
   {
     "tripId": "Q100-T3",
-    "routeOverlap": 0.6,
+    "routeOverlap": 1.0,
     "timeDiffMinutes": 2,
     "scheduleAlignment": 0.8667,
     "preferenceMatch": 1.0,
-    "score": 0.76,
+    "score": 0.96,
     "queryId": "Q100",
     "passengerOrigin": [
       13.942258082570998,
