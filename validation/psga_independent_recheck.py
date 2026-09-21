@@ -9,23 +9,6 @@ validation/psga.py. As of 2026-09-21 validation/psga.py's constants are
 synced to match production (server/config/psgaConfig.js) exactly, so this
 recheck now uses the same production values too — CORRIDOR_METERS=1500, not
 the earlier 500.
-
-History (kept for the methodology writeup, not just trivia): the first
-version of this recheck disagreed with dataset_500_pairs.json on 104/500
-rows. Diagnosis found two independent causes:
-  1. validation/psga.py's CORRIDOR_METERS was a stale 500, left over from
-     before psgaConfig.js's corridorMeters was widened to 1500 ("Task 25",
-     to absorb geocoding drift) — validation/psga.py was never updated to
-     follow it, despite its own comment claiming parity. This alone
-     explained 93/104 rows (routeOverlap pinning at 1.0 under the wider
-     corridor this script originally used, vs. the dataset's narrower one).
-  2. This script's preferenceMatch didn't check the passenger's own gender
-     preference, only the host's — validation/psga.py's version checks both
-     directions, matching the thesis's stated design. Explained the
-     remaining 17/104 rows.
-Both are now fixed: validation/psga.py's CORRIDOR_METERS was corrected to
-1500 (matching production) rather than this script being left at the old
-500, and this script's preferenceMatch already checks both directions.
 """
 
 import math
@@ -127,15 +110,21 @@ def passes_stage1(passenger: Dict[str, Any], trip: Dict[str, Any]) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Colab comparison harness: recomputes every row in dataset_500_pairs.json
-# with the independent implementation above and diffs it against the
-# system values already baked into that file by validation/generate_dataset.py.
-# Upload dataset_500_pairs.json alongside this script in Colab, then run.
+# Comparison harness: recomputes every row in a dataset JSON file (default
+# dataset_500_pairs.json, or pass another path as argv[1] — e.g.
+# dataset_geo_pairs.json) with the independent implementation above and diffs
+# it against the system values already baked into that file by whichever
+# generate_dataset*.py script produced it. In Colab, upload the dataset file
+# alongside this script and run as-is, or edit DEFAULT_DATASET below.
 # ---------------------------------------------------------------------------
+DEFAULT_DATASET = "dataset_500_pairs.json"
+
 if __name__ == "__main__":
     import json
+    import sys
 
-    with open("dataset_500_pairs.json") as f:
+    dataset_path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_DATASET
+    with open(dataset_path) as f:
         rows = json.load(f)
 
     disagreements = {"routeOverlap": [], "scheduleAlignment": [], "preferenceMatch": [], "score": []}
@@ -171,6 +160,7 @@ if __name__ == "__main__":
                 })
 
     total = len(rows)
+    print(f"Dataset: {dataset_path}")
     print(f"Rows checked: {total}")
     for field, diffs in disagreements.items():
         print(f"  {field}: {len(diffs)} disagreements ({len(diffs) / total:.1%})")
