@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaEnvelope, FaUser, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
+import Logo from '@/components/Logo';
 import Select from '@/components/Select';
 import OtpInput from '@/components/OtpInput';
 import { apiFetch, ApiError, setSessionCookie } from '@/lib/api';
@@ -143,10 +143,8 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
-          {/* Logo image already carries the "RideShareEU" wordmark, so the
-              separate heading that used to sit under the icon is gone —
-              keeping both would repeat the name twice in one glance. */}
-          <Image src="/logo.png" alt="RideShareEU logo" width={64} height={64} className="mb-4" priority />
+          <Logo size={64} className="mb-4" />
+          <h1 className="text-2xl font-extrabold text-gray-900">RideShareEU</h1>
           <p className="text-sm text-gray-500 mt-1">Enverga University Carpool Network</p>
         </div>
 

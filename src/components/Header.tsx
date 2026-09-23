@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { FaBell } from 'react-icons/fa';
+import Logo from './Logo';
 import ThemeToggle from './ThemeToggle';
 
 export type ActiveRoute = 'dashboard' | 'trips' | 'search' | 'post' | 'notifications' | 'profile';
@@ -28,11 +28,8 @@ export default function Header({ active, unreadCount = 0 }: HeaderProps) {
     >
       <div className="app-desktop h-14 md:h-16 flex items-center justify-between gap-4">
         <Link href="/auth/dashboard" className="flex items-center gap-3 min-w-0">
-          {/* The logo image already carries the "RideShareEU" wordmark, so
-              unlike the old icon+text pair, one element covers every
-              breakpoint — no more swapping icon-only <-> text-only by
-              viewport width. */}
-          <Image src="/logo.png" alt="RideShareEU logo" width={40} height={40} priority />
+          <Logo size={40} />
+          <span className="font-extrabold text-gray-900 truncate">RideShareEU</span>
         </Link>
 
         <nav className="rsu-topnav flex-1 min-w-0 justify-end hidden md:flex">
