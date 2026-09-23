@@ -446,16 +446,6 @@ h2 { font-size: 1.125rem; font-weight: 700; color: var(--color-text); }
 	padding-top: env(safe-area-inset-top);
 }
 
-/* Header title collapse on mobile to prevent compressed words */
-@media (max-width: 767px) {
-	.header-title { display: none; }
-	.header-logo-only { display: inline-flex; }
-}
-@media (min-width: 768px) {
-	.header-title { display: inline; }
-	.header-logo-only { display: none; }
-}
-
 /* Desktop container for wider screens to match Figma layout */
 .app-desktop {
 	width: 100%;

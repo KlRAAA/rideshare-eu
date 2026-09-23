@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FaCar, FaEnvelope, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaEnvelope, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import OtpInput from '@/components/OtpInput';
 import { apiFetch, ApiError } from '@/lib/api';
 
@@ -108,10 +109,10 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
-          <div className="w-16 h-16 bg-[color:var(--rsu-color-primary)] text-white rounded-2xl flex items-center justify-center shadow-md mb-4">
-            <FaCar className="w-7 h-7" />
-          </div>
-          <h1 className="text-2xl font-extrabold text-gray-900">RideShareEU</h1>
+          {/* Logo image already carries the "RideShareEU" wordmark, so the
+              separate heading that used to sit under the icon is gone —
+              keeping both would repeat the name twice in one glance. */}
+          <Image src="/logo.png" alt="RideShareEU logo" width={64} height={64} className="mb-4" priority />
           <p className="text-sm text-gray-500 mt-1">Enverga University Carpool Network</p>
         </div>
 
