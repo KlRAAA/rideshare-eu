@@ -19,6 +19,7 @@ import Avatar from '@/components/Avatar';
 import DatePicker from '@/components/DatePicker';
 import TimePicker from '@/components/TimePicker';
 import RequestToJoinModal from '@/components/RequestToJoinModal';
+import Skeleton from '@/components/Skeleton';
 import { apiFetch } from '@/lib/api';
 import { formatDate, formatTime, roleLabel, phTimeToUtcMinutes, getPhTodayDateString, getPhNowTimeString } from '@/lib/format';
 import { tripStatusBadge } from '@/lib/statusBadge';
@@ -89,6 +90,45 @@ export interface SearchInitialState {
   genderPreference: 'ANY' | 'SAME_GENDER';
   flexibleTime: boolean;
   sortBy: SortBy;
+}
+
+// Search results are fetched client-side (runSearch below), not through a
+// Server Component/Suspense boundary, so there's no loading.tsx for this
+// page — the skeleton is wired directly into the existing `loading` state
+// instead. Mirrors a real result Card: host avatar + name/role/match-percent,
+// status badge, four icon+text detail lines, the vehicle/fuel-share line,
+// and the two-button row.
+function SearchResultCardSkeleton() {
+  return (
+    <Card>
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex items-center gap-3">
+          <Skeleton shape="circle" width={40} height={40} />
+          <div className="space-y-1.5">
+            <Skeleton shape="text" width={110} height={13} />
+            <Skeleton shape="text" width={70} height={10} />
+          </div>
+        </div>
+        <Skeleton shape="rect" width={54} height={18} radius="9999px" />
+      </div>
+
+      <div className="space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <Skeleton shape="rect" width={12} height={12} radius="3px" />
+            <Skeleton shape="text" width={i === 0 ? '70%' : '45%'} height={10} />
+          </div>
+        ))}
+      </div>
+
+      <Skeleton shape="text" width="55%" height={11} className="mt-2" />
+
+      <div className="flex gap-2 mt-4">
+        <Skeleton shape="rect" height={38} radius="var(--rsu-btn-radius)" className="flex-1" />
+        <Skeleton shape="rect" height={38} radius="var(--rsu-btn-radius)" className="flex-1" />
+      </div>
+    </Card>
+  );
 }
 
 export default function SearchClient({
@@ -440,7 +480,15 @@ export default function SearchClient({
 
         {error && <p className="text-xs text-red-600">{error}</p>}
 
-        {!searched && (
+        {loading && (
+          <>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <SearchResultCardSkeleton key={i} />
+            ))}
+          </>
+        )}
+
+        {!loading && !searched && (
           <Card>
             <p className="text-sm text-gray-400 text-center py-10">Enter your route to see ranked matches.</p>
           </Card>
@@ -477,7 +525,7 @@ export default function SearchClient({
           </Card>
         )}
 
-        {sortedMatches.map((match) => {
+        {!loading && sortedMatches.map((match) => {
           const status = tripStatusBadge(match.trip.status);
           const alreadyRequested = joinedTripIds.has(match.tripId);
           const rideFull =

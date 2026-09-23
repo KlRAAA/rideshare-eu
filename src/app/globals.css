@@ -185,6 +185,54 @@ h2 { font-size: 1.125rem; font-weight: 700; color: var(--color-text); }
 	color: var(--color-text-faint);
 }
 
+/* ---------------------------------------------------------------------
+   Skeleton loading placeholders (src/components/Skeleton.tsx). Base fill is
+   --color-border, not a hardcoded gray -- it's already theme-aware (light:
+   #e5e7eb, dark: #33333a), so a skeleton block never looks flatly light-gray
+   on a dark page. The shimmer band always mixes toward white regardless of
+   theme: a "shine" sweeping across a placeholder is conventionally lighter
+   than the block in both light AND dark mode -- mixing toward
+   --color-mix-base instead would flip to a DARKER band in dark mode (since
+   --color-mix-base is black there), which reads as a shadow, not a shimmer.
+   ------------------------------------------------------------------- */
+.rsu-skeleton {
+	position: relative;
+	display: block;
+	overflow: hidden;
+	background-color: var(--color-border);
+}
+
+.rsu-skeleton::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	transform: translateX(-100%);
+	background: linear-gradient(
+		90deg,
+		transparent,
+		color-mix(in srgb, var(--color-border) 35%, white),
+		transparent
+	);
+	animation: rsu-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes rsu-skeleton-shimmer {
+	100% { transform: translateX(100%); }
+}
+
+/* Explicit, not relying on the global reduced-motion rule above: without
+   animation-fill-mode the shimmer band would revert to its resting (centered,
+   visible) position once the global rule collapses its duration/iteration
+   count, leaving a frozen diagonal streak rather than a clean block. Removing
+   the overlay outright is the "static gray block" option the design calls
+   for -- simpler and more reduced-motion-respectful than a substitute pulse,
+   since the person asked to see less motion, not a different animation. */
+@media (prefers-reduced-motion: reduce) {
+	.rsu-skeleton::after {
+		display: none;
+	}
+}
+
 /* Primary button */
 .rsu-btn-primary {
 	background: var(--rsu-color-primary);
