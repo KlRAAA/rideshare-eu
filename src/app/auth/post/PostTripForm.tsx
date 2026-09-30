@@ -12,6 +12,9 @@ import { getPhTodayDateString, getPhNowTimeString, phInputDate, phInputTime } fr
 import { fetchRoute, type FetchedRoute } from '@/lib/directions';
 import { FUEL_PRICE_PER_LITER, MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER } from '@/lib/constants';
 import ConfirmStructuralEditModal from '@/components/ConfirmStructuralEditModal';
+import VehicleFields from '@/components/VehicleFields';
+import { EMPTY_VEHICLE_FIELDS, vehicleFieldsError, type VehicleFieldValues } from '@/lib/vehicles';
+import VehicleSection from './VehicleSection';
 import { useCurrentLocationAddress } from '@/lib/useCurrentLocationAddress';
 
 const SEAT_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({ value: n, label: `${n} seat${n > 1 ? 's' : ''}` }));
@@ -140,13 +143,18 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
       cancelled = true;
     };
   }, [isEdit]);
-  const [vehicleMake, setVehicleMake] = useState(editTrip?.vehicle.make ?? '');
-  const [vehicleModel, setVehicleModel] = useState(editTrip?.vehicle.model ?? '');
-  const [vehicleColor, setVehicleColor] = useState(editTrip?.vehicle.color ?? '');
-  const [vehiclePlate, setVehiclePlate] = useState(editTrip?.vehicle.plate ?? '');
-  const [fuelEfficiency, setFuelEfficiency] = useState(
-    editTrip ? String(editTrip.vehicle.fuelEfficiencyKmL) : ''
+  const [vehicle, setVehicle] = useState<VehicleFieldValues>(
+    editTrip
+      ? {
+          make: editTrip.vehicle.make,
+          model: editTrip.vehicle.model,
+          color: editTrip.vehicle.color,
+          plate: editTrip.vehicle.plate ?? '',
+          fuelEfficiency: String(editTrip.vehicle.fuelEfficiencyKmL),
+        }
+      : EMPTY_VEHICLE_FIELDS
   );
+  const [saveNewCar, setSaveNewCar] = useState(false);
   const [driverNotes, setDriverNotes] = useState(editTrip?.driverNotes ?? '');
   const [genderPreference, setGenderPreference] = useState<'ANY' | 'SAME_GENDER'>(editTrip?.genderPreference ?? 'ANY');
   const [flexibleDeparture, setFlexibleDeparture] = useState(editTrip?.flexibleDeparture ?? false);
@@ -237,7 +245,7 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
   // the authoritative value at posting time (from the same formula); this is a
   // display-only "≈" so the host sees roughly what riders will be asked to
   // chip in. Driver excluded — divided by seats offered.
-  const efficiencyNum = Number(fuelEfficiency);
+  const efficiencyNum = Number(vehicle.fuelEfficiency);
   // Once a passenger is approved the price is locked — show the stored value,
   // not a live recompute that would mislead the host into thinking it moved.
   const fuelShareLocked = isEdit && (editTrip?.approvedCount ?? 0) > 0;
@@ -280,8 +288,9 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
       setError('That departure time has already passed. Pick a time in the future.');
       return;
     }
-    if (!vehicleMake || !vehicleModel || !vehicleColor || !fuelEfficiency) {
-      setError('Fill in your vehicle details, including fuel efficiency — it drives the fuel share estimate.');
+    const vehicleError = vehicleFieldsError(vehicle);
+    if (vehicleError) {
+      setError(vehicleError);
       return;
     }
     // Empty is caught here rather than disabling the submit button live — an
@@ -353,11 +362,11 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
                 }
               : {}),
             vehicle: {
-              make: vehicleMake,
-              model: vehicleModel,
-              color: vehicleColor,
-              plate: vehiclePlate || null,
-              fuelEfficiencyKmL: Number(fuelEfficiency),
+              make: vehicle.make,
+              model: vehicle.model,
+              color: vehicle.color,
+              plate: vehicle.plate || null,
+              fuelEfficiencyKmL: Number(vehicle.fuelEfficiency),
             },
           }),
         });
@@ -366,23 +375,25 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
         return;
       }
 
-      const { vehicle } = await apiFetch<{ vehicle: { id: string } }>('/api/vehicles', {
+      const carPayload = {
+        make: vehicle.make,
+        model: vehicle.model,
+        color: vehicle.color,
+        plate: vehicle.plate,
+        fuelEfficiencyKmL: Number(vehicle.fuelEfficiency),
+      };
+      // Each trip keeps its own copy of the car, so a later edit to this trip
+      // never changes other trips or the saved car.
+      const { vehicle: tripVehicle } = await apiFetch<{ vehicle: { id: string } }>('/api/vehicles', {
         method: 'POST',
-        body: JSON.stringify({
-          ownerId: hostId,
-          make: vehicleMake,
-          model: vehicleModel,
-          color: vehicleColor,
-          plate: vehiclePlate || undefined,
-          fuelEfficiencyKmL: fuelEfficiency,
-        }),
+        body: JSON.stringify(carPayload),
       });
 
       await apiFetch('/api/trips', {
         method: 'POST',
         body: JSON.stringify({
           hostId,
-          vehicleId: vehicle.id,
+          vehicleId: tripVehicle.id,
           originAddress: origin,
           originLat: originCoords.lat,
           originLng: originCoords.lng,
@@ -407,6 +418,12 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
           durationSeconds: route?.durationSeconds,
         }),
       });
+
+      // Best-effort: the trip is already posted, so a failed save (e.g. the
+      // 5-car limit reached in another tab) must not turn this into an error.
+      if (saveNewCar) {
+        await apiFetch('/api/saved-vehicles', { method: 'POST', body: JSON.stringify(carPayload) }).catch(() => {});
+      }
 
       router.push('/auth/trips');
     } catch (err) {
@@ -597,71 +614,11 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
             </div>
           )}
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Vehicle Make</label>
-              <input
-                type="text"
-                required
-                placeholder="Toyota"
-                value={vehicleMake}
-                onChange={(e) => setVehicleMake(e.target.value)}
-                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Model</label>
-              <input
-                type="text"
-                required
-                placeholder="Vios"
-                value={vehicleModel}
-                onChange={(e) => setVehicleModel(e.target.value)}
-                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Color</label>
-              <input
-                type="text"
-                required
-                placeholder="White"
-                value={vehicleColor}
-                onChange={(e) => setVehicleColor(e.target.value)}
-                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Plate Number</label>
-              <input
-                type="text"
-                placeholder="ABC 1234"
-                value={vehiclePlate}
-                onChange={(e) => setVehiclePlate(e.target.value)}
-                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none"
-              />
-            </div>
-          </div>
-          <p className="text-[11px] text-gray-400 -mt-2">
-            Only shared with the host or riders you've approved — never shown in public search results.
-          </p>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-              Fuel Efficiency (km/L)
-            </label>
-            <input
-              type="number"
-              required
-              min="1"
-              step="0.1"
-              placeholder="e.g., 14"
-              value={fuelEfficiency}
-              onChange={(e) => setFuelEfficiency(e.target.value)}
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none"
-            />
-            <p className="text-[11px] text-gray-400 mt-1">Used to estimate each passenger's fuel share automatically.</p>
-          </div>
+          {isEdit ? (
+            <VehicleFields value={vehicle} onChange={setVehicle} idPrefix="edit-vehicle" />
+          ) : (
+            <VehicleSection value={vehicle} onChange={setVehicle} onSaveNewCarChange={setSaveNewCar} />
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Driver Notes</label>

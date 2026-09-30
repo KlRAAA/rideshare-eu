@@ -9,6 +9,7 @@ import Badge from '@/components/Badge';
 import Select from '@/components/Select';
 import Avatar from '@/components/Avatar';
 import ReportHistoryModal from '@/components/ReportHistoryModal';
+import MyCarsCard from './MyCarsCard';
 import { apiFetch, clearSessionCookie, API_BASE } from '@/lib/api';
 import { roleLabel } from '@/lib/format';
 import type { CurrentUser } from '@/lib/session';
@@ -298,6 +299,8 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
             </button>
           </div>
         </Card>
+
+        <MyCarsCard />
 
         {user.isAdmin && (
           <Card>
