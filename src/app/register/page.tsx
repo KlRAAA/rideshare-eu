@@ -21,6 +21,7 @@ function ErrorMessage({ code }: { code: string | undefined }) {
     OTP_EXPIRED: 'That code has expired. Send a new one.',
     INVALID_OTP: 'That code is incorrect. Check the 6 digits and try again.',
     TOO_MANY_ATTEMPTS: 'Too many incorrect attempts. Send a new code.',
+    TOO_MANY_REQUESTS: 'Too many requests. Wait a few minutes, then try again.',
     INVALID_OR_EXPIRED_TICKET: 'Your verification expired. Start again with your email.',
     EMPTY_FULL_NAME: 'Enter your full name.',
     FULL_NAME_TOO_SHORT: 'Full name must be at least 3 characters.',

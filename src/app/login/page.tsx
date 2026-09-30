@@ -41,6 +41,8 @@ export default function LoginPage() {
       // a new user who mistyped their email or never registered.
       if (err instanceof ApiError && err.code === 'INVALID_CREDENTIALS') {
         setError('That email and password don’t match. Check your password and try again.');
+      } else if (err instanceof ApiError && err.code === 'TOO_MANY_REQUESTS') {
+        setError('Too many sign-in attempts. Wait a few minutes, then try again.');
       } else {
         setError('Something went wrong reaching the server. Try again in a moment.');
       }

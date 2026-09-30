@@ -15,6 +15,14 @@ const { authenticate } = require('./middleware/authenticate');
 
 const app = express();
 
+// Number of reverse-proxy hops in front of the API (1 on Railway). Without it,
+// req.ip is the proxy's address, so the auth rate limiter would put every user
+// in one shared bucket. Unset locally on purpose: trusting X-Forwarded-For with
+// no proxy in front lets a client fake its IP and dodge the limiter.
+if (process.env.TRUST_PROXY) {
+  app.set('trust proxy', Number(process.env.TRUST_PROXY));
+}
+
 // Baseline security headers (X-Content-Type-Options, X-Frame-Options,
 // Content-Security-Policy, etc.) — this is a pure JSON API, never renders
 // HTML, so helmet's defaults are safe here with nothing to configure around
