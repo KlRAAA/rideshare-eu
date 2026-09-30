@@ -994,11 +994,13 @@ FUNCTION PSGA(passenger_request):
 
 ## Fuel Share Calculation {#fuel-share-calculation .unnumbered}
 
-The fuel share amount displayed at match confirmation is computed as a separate function called after the PSGA produces a match. It estimates the per-passenger cost contribution for the matched trip segment.
+The fuel share is a fixed, per-seat suggested contribution. It is computed when the Ride Host posts the trip and stored with the trip record. It is a separate function from the PSGA and does not affect matching or ranking.
 
-FuelShare = (DistanceKm / FuelEfficiency) x FuelPricePerLiter / (1 + FilledSeats)
+FuelShare = (DistanceKm / FuelEfficiency) x FuelPricePerLiter / SeatsOffered
 
-DistanceKm is the estimated driving distance of the matched route segment. FuelEfficiency is drawn from the vehicle record submitted by the Ride Host. FuelPricePerLiter is a configurable system parameter updated to reflect current Philippine fuel price advisories. FilledSeats is the current occupancy at the time of match. The result is a peso amount the Passenger contributes to the host for that trip. This figure is informational. Payment is arranged directly between the parties outside the platform.
+DistanceKm is the driving distance of the host's full route, obtained from the Mapbox Directions API when the trip is posted. FuelEfficiency is drawn from the vehicle record submitted by the Ride Host. FuelPricePerLiter is entered by the Ride Host for each trip, reflecting the pump price they actually paid; the system rejects values outside PHP 20 to PHP 150 per liter to catch typing errors. SeatsOffered is the number of passenger seats the host makes available. The driver is not counted, since the trip and vehicle are the host's own.
+
+Because the formula does not depend on how many seats are filled, the figure does not change as seats fill, and every Passenger sees the same amount. This follows the fixed-price-per-seat model used by BlaBlaCar. If the host edits the route, seat count, or vehicle before any Passenger has been approved, the figure is recalculated; once the first Passenger is approved, it is locked. When a Passenger requests to join, the current amount is also recorded on their request, so a later edit by the host never changes what an already-joined Passenger was shown. If the route distance, fuel efficiency, or fuel price is unavailable, no suggested amount is displayed. The figure is informational. Payment is arranged directly between the parties outside the platform.
 
 ## Complexity and Performance Targets {#complexity-and-performance-targets .unnumbered}
 
@@ -1052,7 +1054,7 @@ The PSGA is implemented in two stages as described in Section 5.1.2.5. The follo
 
 **Route Overlap Computation.** The system uses a line segment approximation of both the Passenger and host routes using Google Maps Directions API waypoints. Overlap is computed as the fraction of the Passenger route that falls within a 500-meter corridor of the host route using Haversine distance calculations between sampled points. This replaces a full polygon intersection approach, which is computationally heavier and unnecessary at the scale of city-level driving routes.
 
-**Fuel Share Calculation.** A direct arithmetic formula computes the per-passenger fuel contribution as described in Section 5.1.2.5. No machine learning or optimization is involved. The inputs are the trip distance, the vehicle fuel efficiency from the host\'s vehicle record, the current fuel price parameter, and the seat occupancy count at match time.
+**Fuel Share Calculation.** A direct arithmetic formula computes the per-passenger fuel contribution as described in Section 5.1.2.5. No machine learning or optimization is involved. The inputs are the host\'s route distance, the vehicle fuel efficiency from the host\'s vehicle record, the host-entered fuel price for that trip, and the number of passenger seats offered. It is computed when the trip is posted, and recalculated only if the host edits the route, seats, or vehicle before any Passenger has been approved.
 
 **Trust Score Update.** After each completed trip, both the Ride Host and the Passenger submit a rating from 1 to 5. The system updates each user\'s cumulative trust score as a running average over all received ratings. The formula is: TrustScore = (PreviousAverage x TripCount + NewRating) / (TripCount + 1). This avoids storing all individual ratings in a query at read time.
 
@@ -1073,7 +1075,7 @@ The core mathematical model of the system is the PSGA scoring formula. The compl
 
   PSGA Score          (w1 x RouteOverlap) + (w2 x ScheduleAlignment) + (w3 x PreferenceMatch)   \[0, 1\]
 
-  FuelShare (PHP)     (DistanceKm / FuelEfficiency) x FuelPricePerLiter / (1 + FilledSeats)     PHP \> 0
+  FuelShare (PHP)     (DistanceKm / FuelEfficiency) x FuelPricePerLiter / SeatsOffered          PHP \> 0
 
   TrustScore          (PrevAvg x TripCount + NewRating) / (TripCount + 1)                       \[1, 5\]
   ----------------------------------------------------------------------------------------------------------------
@@ -1084,7 +1086,7 @@ The core mathematical model of the system is the PSGA scoring formula. The compl
 
 Trip data submitted by users contains free-text origin and destination entries. Before these enter the matching engine, the system geocodes each address using the Google Maps Geocoding API to produce a standardized latitude-longitude coordinate pair. This normalization step ensures that route overlap computation operates on consistent geographic primitives regardless of how the user typed the address.
 
-Departure time entries are stored in UTC and converted to Philippine Standard Time (UTC+8) at display. All time arithmetic in the PSGA operates in UTC to avoid conversion errors during schedule comparison. Recurrence trip patterns are expanded at query time into individual departure timestamps covering the current academic week. The filter stage evaluates each expanded timestamp independently.
+Departure time entries are stored in UTC and converted to Philippine Standard Time (UTC+8) at display. All time arithmetic in the PSGA operates in UTC to avoid conversion errors during schedule comparison. Recurring trips are handled in two steps rather than by generating a list of future departures. First, a date-eligibility check keeps only the trips that actually run on the Passenger's chosen date: a one-time trip must fall on that exact date, a daily trip runs every day, a weekday trip runs Monday to Friday, and a custom trip runs only on the days of the week the host selected. A recurring trip is only eligible from its first departure date onward. The day is determined in Philippine local time, so a 7:00 AM departure (stored as 11:00 PM UTC the previous day) is counted on the correct calendar day. Second, the filter and scoring stages compare the departure time of day for the trips that remain. Because every remaining trip already runs on the Passenger's chosen date, comparing time of day at this point gives the same result as comparing full date-and-time values.
 
 Preference data requires no pre-processing beyond schema validation at input. The co-rider gender field, the Familiar Riders toggle, and the flexibility window are discrete or numeric values stored directly in the user preference table and applied as-is during Stage 2 scoring.
 
