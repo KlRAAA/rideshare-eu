@@ -3,6 +3,7 @@ import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import { apiFetch } from '@/lib/api-server';
 import { ApiError } from '@/lib/api';
+import { getSessionUserId } from '@/lib/session';
 import { reportCategoryLabel } from '@/lib/format';
 import { formatDateTime, type AdminAction } from '@/lib/admin';
 import UserActions from './UserActions';
@@ -57,6 +58,7 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
   }
   const { user, hostedTrips, joinedMatches, ratings, reportsFiledCount, reportsReceived, banHistory } = data;
   const banned = user.bannedUntil != null && new Date(user.bannedUntil) > new Date();
+  const isSelf = (await getSessionUserId()) === user.id;
 
   return (
     <div className="space-y-4">
@@ -82,7 +84,13 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
           <dt className="text-gray-500">Reports filed</dt>
           <dd className="text-gray-900 tabular-nums">{reportsFiledCount}</dd>
         </dl>
-        <UserActions userId={user.id} isAdmin={user.isAdmin} isBanned={banned} />
+        {isSelf ? (
+          <p className="mt-4 border-t border-gray-100 pt-3 text-xs text-gray-500">
+            This is your account. Another admin has to ban, unban or change your admin access.
+          </p>
+        ) : (
+          <UserActions userId={user.id} isAdmin={user.isAdmin} isBanned={banned} />
+        )}
       </Card>
 
       <Card>
