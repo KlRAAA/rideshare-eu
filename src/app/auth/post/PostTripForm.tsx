@@ -123,6 +123,23 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
   // to a number on every keystroke turns a cleared field into 0 instead of
   // empty, so typing "85" after clearing produces "085".
   const [fuelPricePerLiter, setFuelPricePerLiter] = useState(String(FUEL_PRICE_PER_LITER));
+  // Admin-set cap (GET /api/fuel-price). Pre-fills the field; the host may go
+  // lower, never higher. Null when no official price has been set.
+  const [officialFuelPrice, setOfficialFuelPrice] = useState<number | null>(null);
+  useEffect(() => {
+    if (isEdit) return;
+    let cancelled = false;
+    apiFetch<{ official: number | null }>('/api/fuel-price')
+      .then(({ official }) => {
+        if (cancelled || official == null) return;
+        setOfficialFuelPrice(official);
+        setFuelPricePerLiter(String(official));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit]);
   const [vehicleMake, setVehicleMake] = useState(editTrip?.vehicle.make ?? '');
   const [vehicleModel, setVehicleModel] = useState(editTrip?.vehicle.model ?? '');
   const [vehicleColor, setVehicleColor] = useState(editTrip?.vehicle.color ?? '');
@@ -212,7 +229,9 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
   const fuelPriceError =
     !isEdit && fuelPriceIsValidNumber && (fuelPriceValue < MIN_FUEL_PRICE_PER_LITER || fuelPriceValue > MAX_FUEL_PRICE_PER_LITER)
       ? `Enter a price between ₱${MIN_FUEL_PRICE_PER_LITER} and ₱${MAX_FUEL_PRICE_PER_LITER} per liter.`
-      : null;
+      : !isEdit && fuelPriceIsValidNumber && officialFuelPrice != null && fuelPriceValue > officialFuelPrice
+        ? `The official price is ₱${officialFuelPrice.toFixed(2)}/L. You can enter less, not more.`
+        : null;
 
   // Preview of the fixed per-seat fuel share. The server computes and persists
   // the authoritative value at posting time (from the same formula); this is a
@@ -403,6 +422,10 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
         setError(`This trip has ${n} confirmed passenger${n === 1 ? '' : 's'}. Decline a passenger before reducing seats below ${n}.`);
       } else if (err instanceof ApiError && err.code === 'TRIP_NOT_EDITABLE') {
         setError('This trip can no longer be edited.');
+      } else if (err instanceof ApiError && err.code === 'FUEL_PRICE_ABOVE_OFFICIAL') {
+        const cap = Number(err.body?.officialPrice);
+        setOfficialFuelPrice(cap);
+        setError(`The official price is now ₱${cap.toFixed(2)}/L. Lower your price and post again.`);
       } else {
         setError(isEdit ? 'Couldn’t save those changes. Try again in a moment.' : 'Couldn’t publish that trip. Check the fields above and try again.');
       }
@@ -566,7 +589,9 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
                 className="rsu-input-no-spinner w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
               />
               <p className="text-[11px] text-gray-400 mt-1">
-                Today's pump price — used to compute the fuel share above. No live price feed, so enter it yourself.
+                {officialFuelPrice != null
+                  ? `Official price ₱${officialFuelPrice.toFixed(2)}/L. You can enter less, not more.`
+                  : "Today's pump price — used to compute the fuel share above. No live price feed, so enter it yourself."}
               </p>
               {fuelPriceError && <p className="text-xs text-red-600 mt-1">{fuelPriceError}</p>}
             </div>

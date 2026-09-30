@@ -1,0 +1,61 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/lib/api';
+import { MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER } from '@/lib/constants';
+
+export default function FuelPriceForm({ current }: { current: number | null }) {
+  const router = useRouter();
+  const [value, setValue] = useState(current != null ? String(current) : '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const price = Number(value);
+    if (value.trim() === '' || !Number.isFinite(price) || price < MIN_FUEL_PRICE_PER_LITER || price > MAX_FUEL_PRICE_PER_LITER) {
+      setError(`Enter a price between ₱${MIN_FUEL_PRICE_PER_LITER} and ₱${MAX_FUEL_PRICE_PER_LITER}.`);
+      return;
+    }
+    if (!window.confirm(`Set the official price to ₱${price.toFixed(2)}/L for everyone?`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiFetch('/api/admin/fuel-price', { method: 'PUT', body: JSON.stringify({ pricePerLiter: price }) });
+      setSaved(true);
+      router.refresh();
+    } catch {
+      setError('Couldn’t save the price. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-4 flex flex-col md:flex-row gap-2 md:items-end">
+      <label htmlFor="official-fuel-price" className="flex-1 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+        New price (₱/liter)
+        <input
+          id="official-fuel-price"
+          type="number"
+          step="0.01"
+          min={MIN_FUEL_PRICE_PER_LITER}
+          max={MAX_FUEL_PRICE_PER_LITER}
+          value={value}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setSaved(false);
+          }}
+          className="rsu-input-no-spinner mt-1 w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm normal-case tracking-normal font-normal"
+        />
+      </label>
+      <button type="submit" disabled={busy} className="rsu-btn-primary disabled:opacity-60">
+        {busy ? 'Saving…' : 'Set official price'}
+      </button>
+      {error && <p className="text-xs text-red-600 md:self-center">{error}</p>}
+      {saved && !error && <p className="text-xs text-green-700 md:self-center">Saved.</p>}
+    </form>
+  );
+}
