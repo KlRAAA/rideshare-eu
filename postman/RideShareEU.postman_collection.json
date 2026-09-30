@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "8c1e4f2a-3b7d-4c9e-a5f0-6d2b1e8a7c43",
     "name": "RideShareEU API",
-    "description": "Every RideShareEU API endpoint. The Automated folder walks the full ride lifecycle (post, match, join, approve, chat, complete, rate, report) and checks access control. Every request also asserts a response time under 2 seconds.\n\nThe login endpoint allows 10 attempts per 15 minutes per IP and each run uses 3, so restart the API if you run it more than three times in a row.",
+    "description": "Every RideShareEU API endpoint. The Automated folder walks the full ride lifecycle (post, match, join, approve, chat, complete, rate, report), the admin console, and access control. Every request also asserts a response time under 2 seconds.\n\nThe login endpoint allows 10 attempts per 15 minutes per IP and each run uses 4, so restart the API before a third run within 15 minutes.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -75,6 +75,30 @@
     },
     {
       "key": "resetTicket",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "adminId",
+      "value": ""
+    },
+    {
+      "key": "tripFuelPrice",
+      "value": ""
+    },
+    {
+      "key": "expectedShare",
+      "value": ""
+    },
+    {
+      "key": "reportId",
+      "value": ""
+    },
+    {
+      "key": "adminTripId",
       "value": ""
     }
   ],
@@ -164,6 +188,49 @@
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"email\": \"{{passengerEmail}}\",\n  \"password\": \"{{passengerPassword}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Log in as admin",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const json = pm.response.json();",
+                      "pm.test('returns a session token and the user', () => {",
+                      "  pm.expect(json.token).to.be.a('string').and.not.empty;",
+                      "  pm.expect(json.user.email).to.eql(pm.variables.get('adminEmail'));",
+                      "});",
+                      "pm.collectionVariables.set('adminToken', json.token);",
+                      "pm.collectionVariables.set('adminId', json.user.id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/auth/verify",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -340,6 +407,41 @@
           "name": "3. Trips",
           "item": [
             {
+              "name": "Read official fuel price",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const { official } = pm.response.json();",
+                      "pm.test('official price is a number or null', () => pm.expect(official === null || typeof official === 'number').to.eql(true));",
+                      "const price = official == null ? 60 : Math.min(60, official);",
+                      "pm.collectionVariables.set('tripFuelPrice', price);",
+                      "pm.collectionVariables.set('expectedShare', Number(((12.5 / 12) * price / 3).toFixed(2)));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/fuel-price",
+                "description": "Posts use PHP 60 or the official price, whichever is lower, so the run passes under any cap an admin has set.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
               "name": "Post a trip",
               "event": [
                 {
@@ -366,8 +468,8 @@
                       "  pm.expect(trip.status).to.eql('OPEN');",
                       "  pm.expect(trip.hostId).to.eql(pm.collectionVariables.get('hostId'));",
                       "});",
-                      "// 12.5 km / 12 km/L x PHP 60 / 3 seats offered = PHP 20.83",
-                      "pm.test('fuel share is fixed per seat offered', () => pm.expect(trip.fuelSharePerSeat).to.eql(20.83));",
+                      "// 12.5 km / 12 km/L x fuel price / 3 seats offered",
+                      "pm.test('fuel share is fixed per seat offered', () => pm.expect(trip.fuelSharePerSeat).to.eql(Number(pm.collectionVariables.get('expectedShare'))));",
                       "pm.collectionVariables.set('tripId', trip.id);"
                     ]
                   }
@@ -394,7 +496,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"originAddress\": \"Sariaya, Quezon\",\n  \"originLat\": 13.9629837,\n  \"originLng\": 121.5243402,\n  \"destinationAddress\": \"Manuel S. Enverga University Foundation, Lucena City\",\n  \"destinationLat\": 13.9490188,\n  \"destinationLng\": 121.6202904,\n  \"departureTime\": \"{{departureTime}}\",\n  \"recurrenceType\": \"ONE_TIME\",\n  \"customDays\": [],\n  \"totalSeats\": 3,\n  \"driverNotes\": \"Leaving from the Sariaya town plaza.\",\n  \"genderPreference\": \"ANY\",\n  \"flexibleDeparture\": true,\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": false,\n  \"fuelPricePerLiter\": 60,\n  \"routeWaypoints\": [\n    { \"lat\": 13.9629837, \"lng\": 121.5243402 },\n    { \"lat\": 13.9566, \"lng\": 121.5720 },\n    { \"lat\": 13.9490188, \"lng\": 121.6202904 }\n  ],\n  \"distanceMeters\": 12500,\n  \"durationSeconds\": 1200\n}",
+                  "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"originAddress\": \"Sariaya, Quezon\",\n  \"originLat\": 13.9629837,\n  \"originLng\": 121.5243402,\n  \"destinationAddress\": \"Manuel S. Enverga University Foundation, Lucena City\",\n  \"destinationLat\": 13.9490188,\n  \"destinationLng\": 121.6202904,\n  \"departureTime\": \"{{departureTime}}\",\n  \"recurrenceType\": \"ONE_TIME\",\n  \"customDays\": [],\n  \"totalSeats\": 3,\n  \"driverNotes\": \"Leaving from the Sariaya town plaza.\",\n  \"genderPreference\": \"ANY\",\n  \"flexibleDeparture\": true,\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": false,\n  \"fuelPricePerLiter\": {{tripFuelPrice}},\n  \"routeWaypoints\": [\n    { \"lat\": 13.9629837, \"lng\": 121.5243402 },\n    { \"lat\": 13.9566, \"lng\": 121.5720 },\n    { \"lat\": 13.9490188, \"lng\": 121.6202904 }\n  ],\n  \"distanceMeters\": 12500,\n  \"durationSeconds\": 1200\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -703,7 +805,7 @@
                       "const { match } = pm.response.json();",
                       "pm.test('request is pending with the fuel share snapshotted', () => {",
                       "  pm.expect(match.status).to.eql('PENDING');",
-                      "  pm.expect(match.fuelShareAmount).to.eql(20.83);",
+                      "  pm.expect(match.fuelShareAmount).to.eql(Number(pm.collectionVariables.get('expectedShare')));",
                       "});",
                       "pm.collectionVariables.set('matchId', match.id);"
                     ]
@@ -1492,7 +1594,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"originAddress\": \"Sariaya, Quezon\",\n  \"originLat\": 13.9629837,\n  \"originLng\": 121.5243402,\n  \"destinationAddress\": \"Manuel S. Enverga University Foundation, Lucena City\",\n  \"destinationLat\": 13.9490188,\n  \"destinationLng\": 121.6202904,\n  \"departureTime\": \"{{departureTime}}\",\n  \"recurrenceType\": \"ONE_TIME\",\n  \"customDays\": [],\n  \"totalSeats\": 3,\n  \"driverNotes\": \"This trip will be cancelled.\",\n  \"genderPreference\": \"ANY\",\n  \"flexibleDeparture\": true,\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": false,\n  \"fuelPricePerLiter\": 60,\n  \"routeWaypoints\": [\n    { \"lat\": 13.9629837, \"lng\": 121.5243402 },\n    { \"lat\": 13.9566, \"lng\": 121.5720 },\n    { \"lat\": 13.9490188, \"lng\": 121.6202904 }\n  ],\n  \"distanceMeters\": 12500,\n  \"durationSeconds\": 1200\n}",
+                  "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"originAddress\": \"Sariaya, Quezon\",\n  \"originLat\": 13.9629837,\n  \"originLng\": 121.5243402,\n  \"destinationAddress\": \"Manuel S. Enverga University Foundation, Lucena City\",\n  \"destinationLat\": 13.9490188,\n  \"destinationLng\": 121.6202904,\n  \"departureTime\": \"{{departureTime}}\",\n  \"recurrenceType\": \"ONE_TIME\",\n  \"customDays\": [],\n  \"totalSeats\": 3,\n  \"driverNotes\": \"This trip will be cancelled.\",\n  \"genderPreference\": \"ANY\",\n  \"flexibleDeparture\": true,\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": false,\n  \"fuelPricePerLiter\": {{tripFuelPrice}},\n  \"routeWaypoints\": [\n    { \"lat\": 13.9629837, \"lng\": 121.5243402 },\n    { \"lat\": 13.9566, \"lng\": 121.5720 },\n    { \"lat\": 13.9490188, \"lng\": 121.6202904 }\n  ],\n  \"distanceMeters\": 12500,\n  \"durationSeconds\": 1200\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1593,7 +1695,7 @@
         },
         {
           "name": "12. Reports",
-          "description": "Runs last. The seeded passenger has tripCount 0, so the report does not qualify for the ban ladder and the host keeps access.",
+          "description": "The seeded passenger has tripCount 0, so the report does not qualify for the ban ladder and the host keeps access.",
           "item": [
             {
               "name": "Report the host",
@@ -1692,6 +1794,673 @@
                     {
                       "key": "token",
                       "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "13. Admin",
+          "description": "Runs last. Uses the seeded admin account; every ban email goes to a reserved @test.local address, which the API never sends to.",
+          "item": [
+            {
+              "name": "Admin overview",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('counts include the open report', () => pm.expect(pm.response.json().counts.openReports).to.be.at.least(1));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/overview",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Overview as a regular user",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 403', () => pm.response.to.have.status(403));",
+                      "pm.test('error is ADMIN_ONLY', () => pm.expect(pm.response.json().error).to.eql('ADMIN_ONLY'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/overview",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List open reports",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const r = pm.response.json().reports.find((x) => x.reportedUser && x.reportedUser.id === pm.collectionVariables.get('hostId'));",
+                      "pm.test('the passenger’s report on the host is listed', () => pm.expect(r).to.exist);",
+                      "pm.collectionVariables.set('reportId', r.id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/reports?status=OPEN",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Dismiss the report",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('report dismissed without a ban', () => pm.expect(pm.response.json()).to.eql({ status: 'DISMISSED', banned: false }));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/reports/{{reportId}}",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"DISMISSED\",\n  \"note\": \"Postman review\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Search users",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('finds the passenger', () => pm.expect(pm.response.json().users[0].id).to.eql(pm.collectionVariables.get('passengerId')));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/users?q=postman-passenger",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "User detail",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "pm.test('profile and activity returned', () => {",
+                      "  pm.expect(body.user.isAdmin).to.eql(false);",
+                      "  pm.expect(body.joinedMatches.length).to.be.at.least(1);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/users/{{passengerId}}",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Ban the passenger",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('banned', () => pm.expect(pm.response.json().status).to.eql('BANNED'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/users/{{passengerId}}/ban",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"duration\": \"24H\",\n  \"reason\": \"OTHER\",\n  \"note\": \"Postman ban test\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Banned passenger is locked out",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 403', () => pm.response.to.have.status(403));",
+                      "pm.test('suspended by an admin', () => pm.expect(pm.response.json()).to.include({ error: 'ACCOUNT_SUSPENDED', byAdmin: true }));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/trips/mine",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Unban the passenger",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/users/{{passengerId}}/unban",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"note\": \"Postman unban test\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Passenger has access again",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/trips/mine",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Admin cannot ban themselves",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "pm.test('error is CANNOT_TARGET_SELF', () => pm.expect(pm.response.json().error).to.eql('CANNOT_TARGET_SELF'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/users/{{adminId}}/ban",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"duration\": \"24H\",\n  \"reason\": \"OTHER\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Promote the host",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('host is now an admin', () => pm.expect(pm.response.json().isAdmin).to.eql(true));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/users/{{hostId}}/promote",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Demote the host",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('host is no longer an admin', () => pm.expect(pm.response.json().isAdmin).to.eql(false));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/users/{{hostId}}/demote",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Host posts a trip",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const d = new Date();",
+                      "d.setUTCDate(d.getUTCDate() + 1);",
+                      "d.setUTCHours(1, 0, 0, 0);",
+                      "pm.collectionVariables.set('departureTime', d.toISOString());",
+                      "pm.collectionVariables.set('searchDate', d.toISOString().slice(0, 10));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set('adminTripId', pm.response.json().trip.id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"originAddress\": \"Sariaya, Quezon\",\n  \"originLat\": 13.9629837,\n  \"originLng\": 121.5243402,\n  \"destinationAddress\": \"Manuel S. Enverga University Foundation, Lucena City\",\n  \"destinationLat\": 13.9490188,\n  \"destinationLng\": 121.6202904,\n  \"departureTime\": \"{{departureTime}}\",\n  \"recurrenceType\": \"ONE_TIME\",\n  \"customDays\": [],\n  \"totalSeats\": 3,\n  \"driverNotes\": \"Trip an admin will cancel.\",\n  \"genderPreference\": \"ANY\",\n  \"flexibleDeparture\": true,\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": false,\n  \"fuelPricePerLiter\": {{tripFuelPrice}},\n  \"routeWaypoints\": [\n    { \"lat\": 13.9629837, \"lng\": 121.5243402 },\n    { \"lat\": 13.9566, \"lng\": 121.5720 },\n    { \"lat\": 13.9490188, \"lng\": 121.6202904 }\n  ],\n  \"distanceMeters\": 12500,\n  \"durationSeconds\": 1200\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Admin cancels the trip",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('trip cancelled', () => pm.expect(pm.response.json().status).to.eql('TRIP_CANCELLED'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/trips/{{adminTripId}}/cancel",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Postman admin cancel\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Set the official fuel price",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('price saved', () => pm.expect(pm.response.json().official).to.eql(Number(pm.collectionVariables.get('tripFuelPrice'))));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/fuel-price",
+                "description": "Re-sets the price already in effect for this run, so the cap other users see does not change.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pricePerLiter\": {{tripFuelPrice}}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Fuel price history",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('newest row was set by this admin', () => pm.expect(pm.response.json().history[0].setBy.id).to.eql(pm.collectionVariables.get('adminId')));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/fuel-price/history",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Audit log",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const mine = pm.response.json().actions.filter((a) => a.actorId === pm.collectionVariables.get('adminId')).map((a) => a.action);",
+                      "pm.test('every admin action from this run was recorded', () => {",
+                      "  for (const action of ['REPORT_DISMISSED', 'BAN', 'UNBAN', 'PROMOTE', 'DEMOTE', 'TRIP_CANCELLED', 'FUEL_PRICE_SET']) {",
+                      "    pm.expect(mine, action).to.include(action);",
+                      "  }",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/actions",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
                       "type": "string"
                     }
                   ]

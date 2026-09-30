@@ -1,6 +1,7 @@
-// Resets the two fixed accounts the Postman "Automated" folder logs in as, so
-// every newman run starts from the same state: no trips, vehicles, matches,
-// ratings, reports or ban left over from the previous run.
+// Resets the three fixed accounts (host, passenger, admin) the Postman
+// "Automated" folder logs in as, so every newman run starts from the same
+// state: no trips, vehicles, matches, ratings, reports, bans, fuel prices or
+// admin actions left over from the previous run.
 //
 // Credentials live in postman/local.postman_environment.json (test-only
 // accounts on a @test.local address that can never receive mail) and are read
@@ -99,7 +100,7 @@ async function createUser({ email, password, fullName, universityId }) {
 
 async function main() {
   const env = readEnvironment();
-  await removeExisting([env.hostEmail, env.passengerEmail]);
+  await removeExisting([env.hostEmail, env.passengerEmail, env.adminEmail]);
 
   const host = await createUser({
     email: env.hostEmail,
@@ -113,8 +114,15 @@ async function main() {
     fullName: 'Postman Passenger',
     universityId: 'POSTMAN-PASSENGER',
   });
+  const admin = await createUser({
+    email: env.adminEmail,
+    password: env.adminPassword,
+    fullName: 'Postman Admin',
+    universityId: 'POSTMAN-ADMIN',
+  });
+  await prisma.user.update({ where: { id: admin.id }, data: { isAdmin: true } });
 
-  console.log(`Seeded Postman accounts: host ${host.email}, passenger ${passenger.email}`);
+  console.log(`Seeded Postman accounts: host ${host.email}, passenger ${passenger.email}, admin ${admin.email}`);
 }
 
 main()
