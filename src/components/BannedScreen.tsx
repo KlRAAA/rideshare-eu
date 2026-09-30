@@ -19,7 +19,9 @@ export default function BannedScreen({ suspension, appealEmail }: BannedScreenPr
         <FaBan className="w-10 h-10 mx-auto text-red-500 mb-4" />
         <h1 className="text-xl font-bold text-gray-900">Account suspended</h1>
         <p className="text-sm text-gray-600 mt-3">
-          Your account was automatically suspended following reports categorized as{' '}
+          {suspension.byAdmin
+            ? 'A RideShareEU administrator suspended your account for '
+            : 'Your account was automatically suspended following reports categorized as '}
           <span className="font-semibold text-gray-900">{reportCategoryLabel(suspension.banReason)}</span>.
         </p>
         <p className="text-sm text-gray-600 mt-2">
@@ -35,9 +37,11 @@ export default function BannedScreen({ suspension, appealEmail }: BannedScreenPr
             </>
           )}
         </p>
-        <p className="text-xs text-gray-400 mt-4">
-          This action was taken automatically based on report volume and category — it was not reviewed by a person.
-        </p>
+        {!suspension.byAdmin && (
+          <p className="text-xs text-gray-400 mt-4">
+            This action was taken automatically based on report volume and category — it was not reviewed by a person.
+          </p>
+        )}
         <a href={`mailto:${appealEmail}`} className="rsu-btn-secondary w-full mt-5 inline-block">
           Request a review — {appealEmail}
         </a>

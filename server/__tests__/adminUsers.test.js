@@ -77,7 +77,7 @@ describe('ban and unban', () => {
     expect(ban.status).toBe(200);
     const blocked = await call('GET', '/api/trips/mine', target.id);
     expect(blocked.status).toBe(403);
-    expect((await blocked.json()).error).toBe('ACCOUNT_SUSPENDED');
+    expect(await blocked.json()).toMatchObject({ error: 'ACCOUNT_SUSPENDED', byAdmin: true });
     const saved = await prisma.user.findUnique({ where: { id: target.id }, select: { banReason: true, banSeverity: true } });
     expect(saved).toEqual({ banReason: 'OTHER', banSeverity: 'STANDARD' });
     expect(await prisma.adminAction.count({ where: { actorId: admin.id, targetUserId: target.id, action: 'BAN' } })).toBe(1);

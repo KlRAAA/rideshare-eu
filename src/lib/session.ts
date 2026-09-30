@@ -50,6 +50,7 @@ export interface SuspensionDetails {
   banReason: string | null;
   banSeverity: string | null;
   permanent: boolean;
+  byAdmin: boolean;
 }
 
 // Distinguishes "banned" from every other reason getCurrentUser can fail (no
@@ -72,6 +73,7 @@ export async function getSuspension(): Promise<SuspensionDetails | null> {
         banReason: (body.banReason as string) ?? null,
         banSeverity: (body.banSeverity as string) ?? null,
         permanent: body.permanent === true,
+        byAdmin: body.byAdmin === true,
       };
     }
     return null;

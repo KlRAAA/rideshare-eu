@@ -62,7 +62,7 @@ async function banUser(tx, { actorId, targetId, duration, reason, note = null, r
 
 // Sent after the transaction commits, so a rolled-back ban never emails anyone.
 function notifyBan({ email, bannedUntil, permanent, reason }) {
-  return sendBanNotificationEmail(email, { categoryLabel: CATEGORY_LABELS[reason], permanent, bannedUntil });
+  return sendBanNotificationEmail(email, { categoryLabel: CATEGORY_LABELS[reason], permanent, bannedUntil, byAdmin: true });
 }
 
 async function unbanUser(tx, { actorId, targetId, note = null }) {

@@ -450,6 +450,7 @@ describe('A banned user is actually locked out via the auth middleware', () => {
       expect(body.error).toBe('ACCOUNT_SUSPENDED');
       expect(body.permanent).toBe(true);
       expect(body.banReason).toBe('SAFETY');
+      expect(body.byAdmin).toBe(false);
     } finally {
       await cleanup(bag);
     }

@@ -68,12 +68,21 @@ async function authenticate(req, res, next) {
   // in the past this comparison is simply false, no cron job or separate
   // "lift the ban" step needed.
   if (user?.bannedUntil && user.bannedUntil > new Date()) {
+    // Only runs for banned users, so the extra lookup costs nothing on the
+    // normal path. The latest BAN row says who applied it: an admin, or the
+    // automatic ladder (actorId null).
+    const lastBan = await prisma.adminAction.findFirst({
+      where: { targetUserId: userId, action: 'BAN' },
+      orderBy: { createdAt: 'desc' },
+      select: { actorId: true },
+    });
     return res.status(403).json({
       error: 'ACCOUNT_SUSPENDED',
       bannedUntil: user.bannedUntil,
       banReason: user.banReason,
       banSeverity: user.banSeverity,
       permanent: isPermanent(user.bannedUntil),
+      byAdmin: lastBan?.actorId != null,
     });
   }
 
