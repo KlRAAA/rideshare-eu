@@ -9,6 +9,7 @@ const { encryptField, decryptUserFields, decryptTripFields } = require('../servi
 
 const { MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER, getOfficialFuelPrice } = require('../services/fuelPriceService');
 const { cancelWholeTrip, ACTIVE_MATCH_STATUSES } = require('../services/tripCancellationService');
+const { validateNewTrip } = require('../services/tripValidation');
 
 // For a recurring trip, an APPROVED match never reaches COMPLETED (it's a
 // standing rider across every occurrence), so `ratedByMe` — a lifetime "have
@@ -77,6 +78,10 @@ async function createTrip(req, res) {
   // client can't POST a trip pre-marked COMPLETED or with filledSeats set.
   const body = {};
   for (const k of CREATABLE_TRIP_FIELDS) if (k in req.body) body[k] = req.body[k];
+
+  const invalidField = validateNewTrip(body);
+  if (invalidField) return res.status(400).json({ error: 'INVALID_TRIP', field: invalidField });
+  if (body.recurrenceType !== 'CUSTOM') body.customDays = [];
 
   // The car must exist and belong to the caller — otherwise a host could post a
   // trip with someone else's car, plate and fuel efficiency attached.

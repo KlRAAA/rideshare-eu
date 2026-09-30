@@ -33,6 +33,22 @@ interface Coords {
   lng: number;
 }
 
+// Server-side INVALID_TRIP field → what the host should fix.
+const INVALID_TRIP_MESSAGES: Record<string, string> = {
+  originAddress: 'Enter where you’re leaving from.',
+  destinationAddress: 'Enter where you’re going.',
+  originLat: 'We couldn’t place your origin on the map. Adjust the address or drag the pin.',
+  originLng: 'We couldn’t place your origin on the map. Adjust the address or drag the pin.',
+  destinationLat: 'We couldn’t place your destination on the map. Check the address.',
+  destinationLng: 'We couldn’t place your destination on the map. Check the address.',
+  departureTime: 'Pick a departure date and time in the future.',
+  customDays: 'Pick at least one day for a custom schedule.',
+  totalSeats: 'Offer between 1 and 6 seats.',
+  driverNotes: 'Keep driver notes under 500 characters.',
+  meetingPointLat: 'Set the meeting point again on the map.',
+  meetingPointLng: 'Set the meeting point again on the map.',
+};
+
 function samePoint(a: Coords | null, b: Coords | null): boolean {
   if (!a || !b) return a === b;
   return Math.abs(a.lat - b.lat) < 1e-7 && Math.abs(a.lng - b.lng) < 1e-7;
@@ -437,6 +453,8 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
         setError(`This trip has ${n} confirmed passenger${n === 1 ? '' : 's'}. Decline a passenger before reducing seats below ${n}.`);
       } else if (err instanceof ApiError && err.code === 'TRIP_NOT_EDITABLE') {
         setError('This trip can no longer be edited.');
+      } else if (err instanceof ApiError && err.code === 'INVALID_TRIP') {
+        setError(INVALID_TRIP_MESSAGES[String(err.body?.field)] ?? 'Some trip details aren’t valid. Check the fields above and try again.');
       } else if (err instanceof ApiError && err.code === 'FUEL_PRICE_ABOVE_OFFICIAL') {
         const cap = Number(err.body?.officialPrice);
         setOfficialFuelPrice(cap);

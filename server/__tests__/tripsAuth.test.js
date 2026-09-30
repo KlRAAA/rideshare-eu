@@ -77,7 +77,7 @@ const tripBody = (over = {}) => ({
   destinationAddress: 'B',
   destinationLat: 13.95,
   destinationLng: 121.62,
-  departureTime: '2026-09-25T00:00:00Z',
+  departureTime: new Date(Date.now() + 2 * 86400000).toISOString(),
   recurrenceType: 'ONE_TIME',
   customDays: [],
   totalSeats: 3,
@@ -101,6 +101,48 @@ describe('POST /api/trips', () => {
     if (guard()) return;
     const res = await json('POST', '/api/trips', null, tripBody());
     expect(res.status).toBe(401);
+  });
+
+  test.each([
+    [{ originAddress: '' }, 'originAddress'],
+    [{ destinationAddress: 'x'.repeat(201) }, 'destinationAddress'],
+    [{ originLat: 'abc' }, 'originLat'],
+    [{ originLng: 181 }, 'originLng'],
+    [{ destinationLat: -91 }, 'destinationLat'],
+    [{ departureTime: 'not a date' }, 'departureTime'],
+    [{ departureTime: undefined }, 'departureTime'],
+    [{ departureTime: new Date(Date.now() - 3600000).toISOString() }, 'departureTime'],
+    [{ recurrenceType: 'MONTHLY' }, 'recurrenceType'],
+    [{ recurrenceType: 'CUSTOM', customDays: [] }, 'customDays'],
+    [{ recurrenceType: 'CUSTOM', customDays: [1, 7] }, 'customDays'],
+    [{ totalSeats: 0 }, 'totalSeats'],
+    [{ totalSeats: 7 }, 'totalSeats'],
+    [{ totalSeats: '3' }, 'totalSeats'],
+    [{ totalSeats: 2.5 }, 'totalSeats'],
+    [{ genderPreference: 'MALE_ONLY' }, 'genderPreference'],
+    [{ flexWindowMinutes: 500 }, 'flexWindowMinutes'],
+    [{ flexibleDeparture: 'yes' }, 'flexibleDeparture'],
+    [{ driverNotes: 'x'.repeat(501) }, 'driverNotes'],
+    [{ meetingPointLat: 13.95 }, 'meetingPointLng'],
+  ])('%p → 400 INVALID_TRIP on %s, nothing created', async (over, field) => {
+    if (guard()) return;
+    const before = await prisma.trip.count({ where: { hostId: host.id } });
+    const res = await json('POST', '/api/trips', host.id, tripBody(over));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'INVALID_TRIP', field });
+    expect(await prisma.trip.count({ where: { hostId: host.id } })).toBe(before);
+  });
+
+  test('a valid custom-days trip with a meeting point is accepted', async () => {
+    if (guard()) return;
+    const res = await json(
+      'POST',
+      '/api/trips',
+      host.id,
+      tripBody({ recurrenceType: 'CUSTOM', customDays: [1, 3, 5], meetingPointAddress: 'Gate 2', meetingPointLat: 13.95, meetingPointLng: 121.61 })
+    );
+    expect(res.status).toBe(201);
+    expect((await res.json()).trip.customDays).toEqual([1, 3, 5]);
   });
 
   test('someone else’s vehicle → 403 VEHICLE_NOT_OWNED, nothing created', async () => {
