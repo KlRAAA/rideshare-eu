@@ -82,3 +82,34 @@ gets `401 UNAUTHENTICATED`.
 **Before deploy:** `JWT_SECRET` is still the dev placeholder — generate a real
 random secret. Production also needs the cookie set `sameSite: 'none'; secure`
 once frontend/API are on different domains.
+
+## Admin role (Oct 2026)
+
+Added at the research adviser's request. Spec and plan:
+`docs/superpowers/specs/2026-09-30-admin-role-design.md`,
+`docs/superpowers/plans/2026-09-30-admin-role.md`.
+
+- `User.isAdmin` is re-read by `authenticate` on every request, so a demotion
+  takes effect immediately. `requireAdmin` guards the whole `/api/admin/*`
+  router (403 `ADMIN_ONLY`).
+- First admin: `npm run make-admin <email>` (existing account). After that,
+  admins promote/demote each other in the console at `/auth/admin`.
+- Powers: official fuel price, report review (with optional ban), ban/unban,
+  user search/detail, cancel a trip, promote/demote, audit log.
+- Safety rules: no action on your own account (`CANNOT_TARGET_SELF`), including
+  deciding a report about yourself; an admin must be demoted before being
+  banned (`TARGET_IS_ADMIN`). Admins cannot read trip chats.
+- **Official fuel price is a cap.** `GET /api/fuel-price` (any signed-in user)
+  returns the newest `FuelPrice` row. `createTrip` rejects a higher host price
+  with 400 `FUEL_PRICE_ABOVE_OFFICIAL`; with no official price, the old
+  PHP 20–150 bounds apply. Posted trips keep their price.
+- Every admin write and every automatic ladder ban (`actorId` null) is recorded
+  in `AdminAction`, in the same transaction as the change. The 403
+  `ACCOUNT_SUSPENDED` body carries `byAdmin` so the suspended screen and ban
+  email word admin and automatic bans differently.
+- `emailService` never sends to reserved test domains (`.test`, `.local`,
+  `.invalid`, `example.com` …), so seeded/Postman accounts don't trigger real
+  mail.
+- Postman: `npm run seed:postman` also creates `postman-admin@test.local`; the
+  "13. Admin" folder covers every admin endpoint. Each run uses 4 of the 10
+  logins allowed per 15 minutes.

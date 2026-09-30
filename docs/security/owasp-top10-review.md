@@ -20,12 +20,14 @@
 | A06 | Vulnerable and Outdated Components | Partially mitigated *(downgraded from Gap — critical RCE resolved)* |
 | A07 | Identification and Authentication Failures | Partially mitigated *(upgraded from Gap — 3 of 4 issues fixed; only session revocation remains, an accepted trade-off)* |
 | A08 | Software and Data Integrity Failures | Partially mitigated |
-| A09 | Security Logging and Monitoring Failures | **Gap** *(untouched — separate scope)* |
+| A09 | Security Logging and Monitoring Failures | Partially mitigated *(upgraded from Gap in Oct 2026 — admin actions and bans are audited and reviewable; auth failures still unlogged)* |
 | A10 | Server-Side Request Forgery | **Mitigated** |
 
 **As of this update (commit `59b5de3`):** 4 fully mitigated, 4 partially mitigated, 2 real gaps — up from 2/5/3 in the original review. Five items from that review's "priorities if there's time" list have since landed: `npm audit fix`, JWT_SECRET rotation, the registration password-length check, the login enumeration fix, and `helmet()`. Items 6-7 (rate limiting, auth-failure logging) are still open, scoped for a separate pass. Each fixed finding below is marked **RESOLVED** in place, with the original finding kept intact underneath it — this document is an audit trail, not a snapshot that gets rewritten as if the gap never existed.
 
 **As of 2026-09-30:** item 6 (rate limiting on `/api/auth/*`) has also landed, moving A07 from Gap to Partially mitigated — now 4 fully mitigated, 5 partially mitigated, 1 real gap (A09, security-event logging).
+
+**As of October 2026 (admin role, branch `admin-role`):** an admin console with an append-only audit log moves A09 from Gap to Partially mitigated, and adds a new access-control boundary under A01 — now 4 fully mitigated, 6 partially mitigated, 0 outright gaps. Failed-login and OTP-exhaustion logging (priority item 7) is still open.
 
 ---
 
@@ -40,6 +42,7 @@
 - Notifications: `markRead` 404s if the notification doesn't exist, 403s if it isn't the caller's — [server/controllers/notificationController.js:36-46](../../server/controllers/notificationController.js#L36-L46).
 - Ratings: the rater is `req.user.id`, and both rater and ratee must actually be the two real participants on that specific match (checked against the DB row, not trusted from the body) — [server/controllers/ratingController.js:44-50](../../server/controllers/ratingController.js#L44-L50).
 - Trip group chat (added this session): participant check is trip-scoped by construction — a passenger's own `match` row is looked up *for that trip only*, so someone approved on a different trip is excluded with no separate check needed, plus an explicit trip-status gate that closes the endpoint to everyone once the trip ends — [server/controllers/messageController.js:59-60, 101-102](../../server/controllers/messageController.js#L59-L60).
+- Admin boundary (Oct 2026): every `/api/admin/*` route sits behind one `requireAdmin` middleware mounted on the router, not per handler — [server/middleware/requireAdmin.js](../../server/middleware/requireAdmin.js), [server/routes/adminRoutes.js](../../server/routes/adminRoutes.js). `isAdmin` is read from the database on every request by `authenticate`, never from the token, so a demotion takes effect on the very next request (tested in `adminAccess.test.js`). Admins cannot act on their own account, including deciding a report about themselves (`CANNOT_TARGET_SELF`), and cannot ban another admin without demoting them first (`TARGET_IS_ADMIN`). Admins have no endpoint for reading trip chats.
 - Mass-assignment: `createTrip`/`updateTrip` build their write payload from an explicit field allowlist (`CREATABLE_TRIP_FIELDS` / `EDITABLE_TRIP_FIELDS`), not a raw `req.body` spread — [server/controllers/tripController.js:60-67, 83](../../server/controllers/tripController.js#L60-L67) and [:451](../../server/controllers/tripController.js#L451).
 - Field-level disclosure: `safeUserSelect` never includes `passwordHash`, and `email` is stripped from any user record that isn't the caller's own — [server/config/safeUserSelect.js:12-23](../../server/config/safeUserSelect.js), applied at [server/controllers/userController.js:26-27](../../server/controllers/userController.js#L26-L27).
 - Auth-matrix test coverage exists for every one of the above (host/passenger/pending/outsider/no-token combinations) across `tripsAuth.test.js`, `matchAuth.test.js`, `preferencesAuth.test.js`, `messagesAuth.test.js`, `usersAuth.test.js`, `alertsAuth.test.js`, `vehiclesAuth.test.js`.
@@ -270,7 +273,11 @@ fix available via `npm audit fix --force` (installs autocannon@2.0.1, breaking)
 
 ---
 
-## A09: Security Logging and Monitoring Failures — Gap
+## A09: Security Logging and Monitoring Failures — Partially mitigated (was Gap)
+
+**PARTLY RESOLVED (October 2026, admin role):** every admin action (ban, unban, report review or dismissal, trip cancellation, fuel-price change, promote, demote) and every automatic strike-ladder ban now writes an `AdminAction` row inside the same database transaction as the change — [server/services/adminActionService.js](../../server/services/adminActionService.js). Automatic bans are recorded with `actorId = null`, so a user's full ban history is complete. The log is reviewable by a human for the first time, in the admin console's Activity page and on each user's detail page, which answers the original finding that no surface existed to review this data. Still open: failed logins, failed and exhausted OTP attempts, and ownership-check 403s are not logged (priority item 7), and there is no alerting.
+
+**Original finding (2026-09-15), kept for the audit trail:**
 
 **Confirmed absent, not assumed:**
 
@@ -305,6 +312,6 @@ Roughly in order of impact-per-effort, all individually small (S) except where n
 4. ~~**Fix the login enumeration inconsistency**~~ (A07) — **Done**, plus the timing side-channel it exposed, plus the frontend ripple (`login/page.tsx`'s dead-code UI branch).
 5. ~~**Add `helmet()`**~~ (A05) — **Done.** Verified live, headers present, CORS unaffected.
 6. ~~**Rate limiting on `/api/auth/*`**~~ (A07, M effort) — **Done (2026-09-30).** Per-route limits (5 or 10 per 15 min per IP), 429 `TOO_MANY_REQUESTS` with standard headers, friendly frontend message, dedicated tests, verified live. See A07.
-7. **Minimal security-event logging** (A09, M effort) — still open. At least log auth failures and exhausted OTP attempts with enough context to reconstruct an incident.
+7. **Minimal security-event logging** (A09, M effort) — partly done (Oct 2026): admin actions and all bans are audited in `AdminAction`. Still open: log auth failures and exhausted OTP attempts with enough context to reconstruct an incident.
 
 Everything else in this document (server-side score recomputation, CI/CD, session revocation, the 7 remaining dev-tooling-only CVEs) is real but lower-severity or larger-effort, and reasonable to explicitly defer past the 30th rather than rush.
