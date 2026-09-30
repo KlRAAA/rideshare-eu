@@ -1,5 +1,5 @@
 import Card from '@/components/Card';
-import { apiFetch } from '@/lib/api-server';
+import { adminFetch } from '@/app/auth/admin/adminFetch';
 import { formatDateTime } from '@/lib/admin';
 import FuelPriceForm from './FuelPriceForm';
 
@@ -12,8 +12,8 @@ interface HistoryRow {
 
 export default async function AdminFuelPricePage() {
   const [{ official, updatedAt }, { history }] = await Promise.all([
-    apiFetch<{ official: number | null; updatedAt: string | null }>('/api/fuel-price'),
-    apiFetch<{ history: HistoryRow[] }>('/api/admin/fuel-price/history'),
+    adminFetch<{ official: number | null; updatedAt: string | null }>('/api/fuel-price'),
+    adminFetch<{ history: HistoryRow[] }>('/api/admin/fuel-price/history'),
   ]);
 
   return (

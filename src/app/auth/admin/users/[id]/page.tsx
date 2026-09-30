@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
-import { apiFetch } from '@/lib/api-server';
+import { adminFetch } from '@/app/auth/admin/adminFetch';
 import { ApiError } from '@/lib/api';
 import { getSessionUserId } from '@/lib/session';
 import { reportCategoryLabel } from '@/lib/format';
@@ -51,7 +51,7 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
   const { id } = await params;
   let data: UserDetail;
   try {
-    data = await apiFetch<UserDetail>(`/api/admin/users/${id}`);
+    data = await adminFetch<UserDetail>(`/api/admin/users/${id}`);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;

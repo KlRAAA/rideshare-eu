@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Card from '@/components/Card';
-import { apiFetch } from '@/lib/api-server';
+import { adminFetch } from '@/app/auth/admin/adminFetch';
 import { describeAction, formatDateTime, type AdminAction, type AdminCounts } from '@/lib/admin';
 
 const TILES: { key: keyof AdminCounts; label: string }[] = [
@@ -14,7 +14,7 @@ const TILES: { key: keyof AdminCounts; label: string }[] = [
 ];
 
 export default async function AdminOverviewPage() {
-  const { counts, recentActions } = await apiFetch<{ counts: AdminCounts; recentActions: AdminAction[] }>('/api/admin/overview');
+  const { counts, recentActions } = await adminFetch<{ counts: AdminCounts; recentActions: AdminAction[] }>('/api/admin/overview');
 
   return (
     <div className="space-y-4">

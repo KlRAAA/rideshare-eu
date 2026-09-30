@@ -1,12 +1,12 @@
 import Link from 'next/link';
 import Card from '@/components/Card';
-import { apiFetch } from '@/lib/api-server';
+import { adminFetch } from '@/app/auth/admin/adminFetch';
 import { describeAction, formatDateTime, type AdminAction } from '@/lib/admin';
 
 export default async function AdminActivityPage({ searchParams }: { searchParams: Promise<{ cursor?: string }> }) {
   const { cursor } = await searchParams;
   const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
-  const { actions, nextCursor } = await apiFetch<{ actions: AdminAction[]; nextCursor: string | null }>(
+  const { actions, nextCursor } = await adminFetch<{ actions: AdminAction[]; nextCursor: string | null }>(
     `/api/admin/actions${query}`
   );
 

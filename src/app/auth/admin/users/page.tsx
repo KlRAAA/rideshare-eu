@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
-import { apiFetch } from '@/lib/api-server';
+import { adminFetch } from '@/app/auth/admin/adminFetch';
 
 interface AdminUserRow {
   id: string;
@@ -16,7 +16,7 @@ interface AdminUserRow {
 
 export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q = '' } = await searchParams;
-  const { users } = await apiFetch<{ users: AdminUserRow[] }>(`/api/admin/users?q=${encodeURIComponent(q)}`);
+  const { users } = await adminFetch<{ users: AdminUserRow[] }>(`/api/admin/users?q=${encodeURIComponent(q)}`);
 
   return (
     <div className="space-y-3">

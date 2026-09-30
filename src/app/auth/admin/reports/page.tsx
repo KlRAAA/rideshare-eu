@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { apiFetch } from '@/lib/api-server';
+import { adminFetch } from '@/app/auth/admin/adminFetch';
 import ReportCard, { type AdminReport } from './ReportCard';
 
 const STATUSES = [
@@ -16,7 +16,7 @@ export default async function AdminReportsPage({
   const { status: requested, cursor } = await searchParams;
   const status = STATUSES.some((s) => s.value === requested) ? requested! : 'OPEN';
   const cursorQuery = cursor ? `&cursor=${encodeURIComponent(cursor)}` : '';
-  const { reports, nextCursor } = await apiFetch<{ reports: AdminReport[]; nextCursor: string | null }>(
+  const { reports, nextCursor } = await adminFetch<{ reports: AdminReport[]; nextCursor: string | null }>(
     `/api/admin/reports?status=${status}${cursorQuery}`
   );
 
