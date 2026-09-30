@@ -4,13 +4,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Map, { Marker, Source, Layer, type MapRef } from 'react-map-gl/mapbox';
 import type { Feature, FeatureCollection } from 'geojson';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { FaHome, FaUniversity, FaMapMarkerAlt, FaCar } from 'react-icons/fa';
+import { FaHome, FaUniversity, FaMapMarkerAlt, FaCar, FaExpand, FaTimes } from 'react-icons/fa';
 import { MSEUF_LUCENA } from '@/lib/constants';
 import { fetchRoute, hasMapboxToken, type LatLng } from '@/lib/directions';
 
 const MAROON = '#800000'; // --rsu-color-primary
 const SHARED = '#059669'; // emerald-600 — route overlap
 const DETOUR = '#d97706'; // amber-600 — off-corridor
+const DRAG_CLICK_GUARD_MS = 500;
 
 export interface OverlapData {
   samples: { lat: number; lng: number; inside: boolean }[];
@@ -34,6 +35,10 @@ export interface RouteMapProps {
   // re-center/re-zoom the map on every update, which is jarring for someone
   // just watching a pin approach rather than reviewing a static route.
   driverLocation?: LatLng | null;
+  // Passing a handler makes that pin draggable. With onMeetingPointChange and
+  // no meeting point yet, tapping the map places one.
+  onOriginChange?: (point: LatLng) => void;
+  onMeetingPointChange?: (point: LatLng) => void;
   heightClassName?: string;
   className?: string;
 }
@@ -63,11 +68,46 @@ export default function RouteMapView({
   routeWaypoints,
   overlap,
   driverLocation,
+  onOriginChange,
+  onMeetingPointChange,
   heightClassName = 'h-56',
   className = '',
 }: RouteMapProps) {
   const mapRef = useRef<MapRef>(null);
   const [fetchedRoute, setFetchedRoute] = useState<LatLng[] | null>(null);
+  const [fullScreen, setFullScreen] = useState(false);
+  const editable = Boolean(onOriginChange || onMeetingPointChange);
+  const canTapToPlaceMeeting = Boolean(onMeetingPointChange && !meetingPoint);
+  // Releasing a dragged pin also fires a map click; without this guard the
+  // drop point would be taken as "place the meeting point here".
+  const lastDragEndRef = useRef(0);
+  const endDrag = (handler?: (p: LatLng) => void) => (e: { lngLat: { lat: number; lng: number } }) => {
+    lastDragEndRef.current = Date.now();
+    handler?.({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+  };
+  const editHint = canTapToPlaceMeeting
+    ? 'Drag the home pin to your exact spot. Tap the map to set a meeting point.'
+    : onMeetingPointChange
+      ? 'Drag the pins to your exact spots.'
+      : 'Drag the home pin to your exact spot.';
+
+  // Same map instance in both modes: resize it after the container changes,
+  // lock page scroll while it covers the screen, and let Escape close it.
+  useEffect(() => {
+    const t = setTimeout(() => mapRef.current?.resize(), 0);
+    if (!fullScreen) return () => clearTimeout(t);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullScreen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      clearTimeout(t);
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [fullScreen]);
 
   const dest = destination ?? MSEUF_LUCENA;
 
@@ -143,7 +183,15 @@ export default function RouteMapView({
   const fitToBounds = () => {
     if (bounds) mapRef.current?.fitBounds(bounds, { padding: 36, duration: 0, maxZoom: 15 });
   };
-  useEffect(fitToBounds, [bounds]);
+  // Refit only when something falls outside the current view, so dragging a
+  // pin (and the route redrawn after it) doesn't keep zooming the map out
+  // while the user is fine-tuning a spot.
+  useEffect(() => {
+    const view = mapRef.current?.getBounds();
+    if (view && allPoints.every((p) => view.contains([p.lng, p.lat]))) return;
+    fitToBounds();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bounds]);
 
   if (!hasMapboxToken()) {
     return (
@@ -167,7 +215,16 @@ export default function RouteMapView({
 
   return (
     <div className={className}>
-      <div className={`w-full ${heightClassName} rounded-2xl overflow-hidden border border-gray-300`}>
+      <div
+        className={
+          fullScreen
+            ? 'fixed inset-0 z-[100] bg-white'
+            : `relative w-full ${heightClassName} rounded-2xl overflow-hidden border border-gray-300`
+        }
+        role={fullScreen ? 'dialog' : undefined}
+        aria-modal={fullScreen || undefined}
+        aria-label={fullScreen ? 'Map, full screen' : undefined}
+      >
         <Map
           ref={mapRef}
           mapboxAccessToken={TOKEN}
@@ -175,6 +232,15 @@ export default function RouteMapView({
           initialViewState={{ ...center, zoom: 12 }}
           onLoad={fitToBounds}
           attributionControl={false}
+          cursor={canTapToPlaceMeeting ? 'crosshair' : undefined}
+          onClick={
+            canTapToPlaceMeeting
+              ? (e) => {
+                  if (Date.now() - lastDragEndRef.current < DRAG_CLICK_GUARD_MS) return;
+                  onMeetingPointChange?.({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+                }
+              : undefined
+          }
         >
           {roadFC && (
             <Source id="road" type="geojson" data={roadFC}>
@@ -194,7 +260,13 @@ export default function RouteMapView({
           )}
 
           {origin && (
-            <Marker longitude={origin.lng} latitude={origin.lat} anchor="center">
+            <Marker
+              longitude={origin.lng}
+              latitude={origin.lat}
+              anchor="center"
+              draggable={Boolean(onOriginChange)}
+              onDragEnd={endDrag(onOriginChange)}
+            >
               <Pin icon={<FaHome />} />
             </Marker>
           )}
@@ -202,7 +274,13 @@ export default function RouteMapView({
             <Pin icon={<FaUniversity />} />
           </Marker>
           {meetingPoint && (
-            <Marker longitude={meetingPoint.lng} latitude={meetingPoint.lat} anchor="center">
+            <Marker
+              longitude={meetingPoint.lng}
+              latitude={meetingPoint.lat}
+              anchor="center"
+              draggable={Boolean(onMeetingPointChange)}
+              onDragEnd={endDrag(onMeetingPointChange)}
+            >
               <Pin icon={<FaMapMarkerAlt />} inverted />
             </Marker>
           )}
@@ -214,7 +292,36 @@ export default function RouteMapView({
             </Marker>
           )}
         </Map>
+
+        <button
+          type="button"
+          onClick={() => setFullScreen((v) => !v)}
+          aria-label={fullScreen ? 'Close full-screen map' : 'Open map full screen'}
+          className="absolute right-2 flex items-center gap-1.5 rounded-full bg-white/95 text-gray-800 shadow-md px-3 py-1.5 text-xs font-semibold hover:bg-white"
+          style={{ top: fullScreen ? 'calc(env(safe-area-inset-top, 0px) + 12px)' : '8px' }}
+        >
+          {fullScreen ? (
+            <>
+              <FaTimes className="w-3 h-3" aria-hidden /> Done
+            </>
+          ) : (
+            <>
+              <FaExpand className="w-3 h-3" aria-hidden /> Full screen
+            </>
+          )}
+        </button>
+
+        {editable && fullScreen && (
+          <p
+            className="absolute left-2 right-2 rounded-lg bg-white/95 text-gray-700 shadow px-2.5 py-1.5 text-xs leading-snug pointer-events-none"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
+          >
+            {editHint}
+          </p>
+        )}
       </div>
+
+      {editable && !fullScreen && <p className="mt-1.5 text-[11px] text-gray-500">{editHint}</p>}
 
       {(overlap || meetingPoint || driverLocation) && (
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">

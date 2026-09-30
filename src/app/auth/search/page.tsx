@@ -10,9 +10,17 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 // The form reflects itself into the query string as the user searches, so
 // router.back() from a result page returns here with the same params and the
 // form (and results) rebuild from them.
+function parsePickup(sp: Record<string, string | string[] | undefined>): SearchInitialState['pickup'] {
+  const lat = Number(one(sp.olat));
+  const lng = Number(one(sp.olng));
+  const valid = one(sp.olat) !== '' && one(sp.olng) !== '' && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+  return valid && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+}
+
 function parseInitial(sp: Record<string, string | string[] | undefined>): SearchInitialState {
   return {
     origin: one(sp.origin),
+    pickup: parsePickup(sp),
     destination: one(sp.destination),
     date: one(sp.date),
     time: one(sp.time),

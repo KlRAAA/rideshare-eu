@@ -1,22 +1,16 @@
 import { useState } from 'react';
 import { apiFetch } from '@/lib/api';
 import { getCurrentCoords } from '@/lib/geoProximity';
+import type { LatLng } from './directions';
 
 // Shared by the "Use my current location" button on both PostTripForm and
-// SearchClient's origin field. Resolves a display address the caller can drop
-// straight into its existing origin text state — neither form has a separate
-// "set the coordinates directly" path today (PostTripForm's useGeocodedAddress
-// only ever derives coords by forward-geocoding whatever text is in the
-// field; SearchClient forward-geocodes the text at submit time). Setting the
-// text here and letting that existing mechanism resolve coordinates is
-// exactly how a typed address already works, so it's the correct way to
-// "match how the existing flow sets both together" rather than inventing a
-// second, bypassing path.
+// SearchClient's origin field. Returns the device's exact coordinates (which
+// the caller pins on the map) plus a readable address for the text field.
 export function useCurrentLocationAddress() {
   const [resolving, setResolving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function resolve(): Promise<string | null> {
+  async function resolve(): Promise<{ address: string; coords: LatLng } | null> {
     setResolving(true);
     setError(null);
     try {
@@ -28,7 +22,7 @@ export function useCurrentLocationAddress() {
         return null;
       }
       const result = await apiFetch<{ displayName: string }>(`/api/geocode?lat=${coords.lat}&lng=${coords.lng}`);
-      return result.displayName;
+      return { address: result.displayName, coords: { lat: coords.lat, lng: coords.lng } };
     } catch {
       setError('Couldn’t get your location — you can still type your address.');
       return null;

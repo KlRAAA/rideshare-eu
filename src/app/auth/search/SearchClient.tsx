@@ -24,6 +24,10 @@ import { apiFetch } from '@/lib/api';
 import { formatDate, formatTime, roleLabel, phTimeToUtcMinutes, getPhTodayDateString, getPhNowTimeString } from '@/lib/format';
 import { tripStatusBadge } from '@/lib/statusBadge';
 import { useCurrentLocationAddress } from '@/lib/useCurrentLocationAddress';
+import { useGeocodedAddress } from '@/lib/useGeocodedAddress';
+import { useMediaQuery } from '@/lib/useMediaQuery';
+import RouteMap from '@/components/RouteMap';
+import type { LatLng } from '@/lib/directions';
 
 interface Vehicle {
   make: string;
@@ -84,6 +88,7 @@ function defaultSearchTime(): string {
 
 export interface SearchInitialState {
   origin: string;
+  pickup: LatLng | null;
   destination: string;
   date: string;
   time: string;
@@ -146,20 +151,26 @@ export default function SearchClient({
     error: originLocationError,
     resolve: resolveCurrentLocation,
   } = useCurrentLocationAddress();
-  // Sets the same text state manual typing would — origin/destination are
-  // only ever forward-geocoded at search-submit time here (runSearch below),
-  // so there's no separate coordinate state to keep in sync ahead of that.
+  // A pickup pin dragged on the map (or the device's own location) beats the
+  // approximate address lookup; typing a new origin clears it.
+  const [originPin, setOriginPin] = useState<LatLng | null>(initial.pickup);
   async function useMyCurrentLocation() {
-    const address = await resolveCurrentLocation();
-    if (address) setOrigin(address);
+    const result = await resolveCurrentLocation();
+    if (!result) return;
+    setOrigin(result.address);
+    setOriginPin(result.coords);
   }
   const [destination, setDestination] = useState(initial.destination || DEFAULT_DESTINATION);
+  const { coords: geocodedOrigin } = useGeocodedAddress(originPin ? '' : origin);
+  const { coords: geocodedDestination } = useGeocodedAddress(destination);
+  const pickupCoords = originPin ?? geocodedOrigin;
   const [date, setDate] = useState(initial.date);
   const [time, setTime] = useState(() => initial.time || defaultSearchTime());
   const [genderPreference, setGenderPreference] = useState<'ANY' | 'SAME_GENDER'>(initial.genderPreference);
   const [flexibleTime, setFlexibleTime] = useState(initial.flexibleTime);
   const [sortBy, setSortBy] = useState<SortBy>(initial.sortBy);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const isDesktop = useMediaQuery('(min-width: 768px)');
 
   const [searched, setSearched] = useState(false);
   const [matches, setMatches] = useState<MatchResult[]>([]);
@@ -181,6 +192,10 @@ export default function SearchClient({
   const syncUrl = useCallback(() => {
     const q = new URLSearchParams();
     if (origin) q.set('origin', origin);
+    if (originPin) {
+      q.set('olat', originPin.lat.toFixed(6));
+      q.set('olng', originPin.lng.toFixed(6));
+    }
     if (destination && destination !== DEFAULT_DESTINATION) q.set('destination', destination);
     if (date) q.set('date', date);
     if (time) q.set('time', time);
@@ -189,7 +204,7 @@ export default function SearchClient({
     if (sortBy !== 'best') q.set('sort', sortBy);
     const qs = q.toString();
     router.replace(qs ? `/auth/search?${qs}` : '/auth/search', { scroll: false });
-  }, [origin, destination, date, time, genderPreference, flexibleTime, sortBy, router]);
+  }, [origin, originPin, destination, date, time, genderPreference, flexibleTime, sortBy, router]);
 
   const isFirstSync = useRef(true);
   useEffect(() => {
@@ -232,7 +247,7 @@ export default function SearchClient({
 
     try {
       const [originGeo, destinationGeo] = await Promise.all([
-        apiFetch<{ lat: number; lng: number }>(`/api/geocode?q=${encodeURIComponent(origin)}`),
+        originPin ?? apiFetch<{ lat: number; lng: number }>(`/api/geocode?q=${encodeURIComponent(origin)}`),
         apiFetch<{ lat: number; lng: number }>(`/api/geocode?q=${encodeURIComponent(destination)}`),
       ]);
       setSearchGeo({ origin: originGeo, destination: destinationGeo });
@@ -329,7 +344,33 @@ export default function SearchClient({
     return b.score - a.score; // already pre-sorted by the API, re-sort defensively
   });
 
-  const filterFields = (
+  // Rendered only in whichever search form is visible (desktop card or the
+  // mobile sheet), so a phone never loads a second, hidden map.
+  const pickupMap = pickupCoords ? (
+    <div className="mt-2">
+      <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Pickup spot</p>
+      <RouteMap
+        origin={pickupCoords}
+        destination={geocodedDestination}
+        onOriginChange={setOriginPin}
+        heightClassName="h-44"
+      />
+      {originPin && (
+        <p className="text-[11px] text-gray-500 mt-1">
+          Using the exact spot on the map.{' '}
+          <button
+            type="button"
+            onClick={() => setOriginPin(null)}
+            className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline"
+          >
+            Use the address instead
+          </button>
+        </p>
+      )}
+    </div>
+  ) : null;
+
+  const renderFilterFields = (showPickupMap: boolean) => (
     <>
       <div>
         <div className="flex items-center justify-between mb-1">
@@ -348,10 +389,14 @@ export default function SearchClient({
           required
           placeholder="e.g., Lucban, Tayabas"
           value={origin}
-          onChange={(e) => setOrigin(e.target.value)}
+          onChange={(e) => {
+            setOrigin(e.target.value);
+            setOriginPin(null);
+          }}
           className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
         />
         {originLocationError && <p className="text-xs text-red-600 mt-1">{originLocationError}</p>}
+        {showPickupMap && pickupMap}
       </div>
       <div>
         <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Destination</label>
@@ -429,7 +474,7 @@ export default function SearchClient({
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <form onSubmit={handleSearch} className="hidden md:block rsu-card space-y-4 h-fit">
         <h2 className="text-sm font-bold text-gray-900">Search</h2>
-        {filterFields}
+        {renderFilterFields(isDesktop)}
       </form>
 
       <div className="md:hidden">
@@ -453,7 +498,7 @@ export default function SearchClient({
               className="bg-white rounded-t-2xl w-full max-h-[85vh] overflow-y-auto p-5 pb-8 space-y-4"
             >
               <h2 className="text-sm font-bold text-gray-900">Search</h2>
-              {filterFields}
+              {renderFilterFields(!isDesktop)}
             </form>
           </div>
         )}

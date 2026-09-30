@@ -15,6 +15,7 @@ import ConfirmStructuralEditModal from '@/components/ConfirmStructuralEditModal'
 import VehicleFields from '@/components/VehicleFields';
 import { EMPTY_VEHICLE_FIELDS, vehicleFieldsError, type VehicleFieldValues } from '@/lib/vehicles';
 import VehicleSection from './VehicleSection';
+import { useGeocodedAddress, reverseGeocodeLabel } from '@/lib/useGeocodedAddress';
 import { useCurrentLocationAddress } from '@/lib/useCurrentLocationAddress';
 
 const SEAT_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({ value: n, label: `${n} seat${n > 1 ? 's' : ''}` }));
@@ -28,6 +29,11 @@ type Recurrence = 'ONE_TIME' | 'DAILY' | 'WEEKDAYS' | 'CUSTOM';
 interface Coords {
   lat: number;
   lng: number;
+}
+
+function samePoint(a: Coords | null, b: Coords | null): boolean {
+  if (!a || !b) return a === b;
+  return Math.abs(a.lat - b.lat) < 1e-7 && Math.abs(a.lng - b.lng) < 1e-7;
 }
 
 const RECURRENCE_OPTIONS: { value: Recurrence; label: string; hint: string }[] = [
@@ -68,32 +74,6 @@ export interface EditableTrip {
   vehicle: { make: string; model: string; color: string; plate: string | null; fuelEfficiencyKmL: number };
 }
 
-function useGeocodedAddress(query: string, initial: Coords | null = null) {
-  const [coords, setCoords] = useState<Coords | null>(initial);
-  const [resolving, setResolving] = useState(false);
-
-  useEffect(() => {
-    if (!query || query.trim().length < 3) {
-      setCoords(null);
-      return;
-    }
-    setResolving(true);
-    const timer = setTimeout(async () => {
-      try {
-        const result = await apiFetch<Coords & { displayName: string }>(`/api/geocode?q=${encodeURIComponent(query)}`);
-        setCoords({ lat: result.lat, lng: result.lng });
-      } catch {
-        setCoords(null);
-      } finally {
-        setResolving(false);
-      }
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  return { coords, resolving };
-}
-
 export default function PostTripForm({ hostId, editTrip }: { hostId: string; editTrip?: EditableTrip }) {
   const router = useRouter();
   const isEdit = Boolean(editTrip);
@@ -105,12 +85,11 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
     resolve: resolveCurrentLocation,
   } = useCurrentLocationAddress();
   async function useMyCurrentLocation() {
-    const address = await resolveCurrentLocation();
-    // Sets the same text state manual typing would — useGeocodedAddress below
-    // then forward-geocodes it into coordinates exactly like any typed
-    // address, since that's the only mechanism either path has for setting
-    // origin's coordinates.
-    if (address) setOrigin(address);
+    const result = await resolveCurrentLocation();
+    if (!result) return;
+    setOrigin(result.address);
+    // The device's own fix is more precise than re-geocoding its address text.
+    setOriginPin(result.coords);
   }
   const [destination, setDestination] = useState(editTrip?.destinationAddress ?? 'Enverga University, Lucena City');
   const [date, setDate] = useState(editTrip ? phInputDate(editTrip.departureTime) : '');
@@ -160,6 +139,15 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
   const [flexibleDeparture, setFlexibleDeparture] = useState(editTrip?.flexibleDeparture ?? false);
   const [familiarRidersOnly, setFamiliarRidersOnly] = useState(editTrip?.familiarRidersOnly ?? false);
   const [meetingPointAddress, setMeetingPointAddress] = useState(editTrip?.meetingPointAddress ?? '');
+  // When editing, start from the trip's stored spots so re-geocoding the same
+  // text can't drift them.
+  const savedOrigin = editTrip ? { lat: editTrip.originLat, lng: editTrip.originLng } : null;
+  const savedMeeting =
+    editTrip && editTrip.meetingPointLat != null && editTrip.meetingPointLng != null
+      ? { lat: editTrip.meetingPointLat, lng: editTrip.meetingPointLng }
+      : null;
+  const [originPin, setOriginPin] = useState<Coords | null>(savedOrigin);
+  const [meetingPin, setMeetingPin] = useState<Coords | null>(savedMeeting);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -176,20 +164,23 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
   // the state is just what drives the visible disabled/spinner UI.
   const isSubmittingRef = useRef(false);
 
-  const { coords: originCoords } = useGeocodedAddress(
-    origin,
-    editTrip ? { lat: editTrip.originLat, lng: editTrip.originLng } : null
-  );
+  const { coords: geocodedOrigin } = useGeocodedAddress(origin, savedOrigin);
   const { coords: destinationCoords } = useGeocodedAddress(
     destination,
     editTrip ? { lat: editTrip.destinationLat, lng: editTrip.destinationLng } : null
   );
-  const { coords: meetingCoords } = useGeocodedAddress(
-    meetingPointAddress,
-    editTrip && editTrip.meetingPointLat != null && editTrip.meetingPointLng != null
-      ? { lat: editTrip.meetingPointLat, lng: editTrip.meetingPointLng }
-      : null
-  );
+  const { coords: geocodedMeeting } = useGeocodedAddress(meetingPointAddress, savedMeeting);
+  // A pin set on the map (or the device's location) beats the approximate
+  // address lookup; typing a new address clears it.
+  const originCoords = originPin ?? geocodedOrigin;
+  const meetingCoords = meetingPin ?? geocodedMeeting;
+
+  async function placeMeetingPin(point: Coords) {
+    setMeetingPin(point);
+    if (!meetingPointAddress.trim()) {
+      setMeetingPointAddress((await reverseGeocodeLabel(point)) ?? 'Pinned on the map');
+    }
+  }
 
   // Fetch the road route once both ends resolve. The result feeds the map
   // preview AND is sent with the trip so the server can persist distance +
@@ -318,10 +309,11 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
         // Only send origin/destination (and the derived route) when the address
         // text actually changed — otherwise geocoder drift on re-lookup would
         // register as a route edit the host never made.
-        const originChanged = origin !== editTrip.originAddress;
+        const originChanged = origin !== editTrip.originAddress || !samePoint(originCoords, savedOrigin);
         const destChanged = destination !== editTrip.destinationAddress;
         const routeChanged = originChanged || destChanged;
-        const meetingChanged = meetingPointAddress !== (editTrip.meetingPointAddress ?? '');
+        const meetingChanged =
+          meetingPointAddress !== (editTrip.meetingPointAddress ?? '') || !samePoint(meetingCoords, savedMeeting);
 
         await apiFetch(`/api/trips/${editTrip.id}`, {
           method: 'PATCH',
@@ -478,10 +470,21 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
               required
               placeholder="e.g., Lucban, Tayabas, Candelaria"
               value={origin}
-              onChange={(e) => setOrigin(e.target.value)}
+              onChange={(e) => {
+                setOrigin(e.target.value);
+                setOriginPin(null);
+              }}
               className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
             />
             {originLocationError && <p className="text-xs text-red-600 mt-1">{originLocationError}</p>}
+            {originPin && (
+              <p className="text-[11px] text-gray-500 mt-1">
+                Using the exact spot on the map.{' '}
+                <button type="button" onClick={() => setOriginPin(null)} className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline">
+                  Use the address instead
+                </button>
+              </p>
+            )}
           </div>
 
           <div>
@@ -712,6 +715,8 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
                 destination={destinationCoords}
                 meetingPoint={meetingCoords}
                 routeWaypoints={route?.waypoints}
+                onOriginChange={setOriginPin}
+                onMeetingPointChange={placeMeetingPin}
               />
               {route && (
                 <p className="mt-2 text-xs text-gray-500">
@@ -726,9 +731,27 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
                   type="text"
                   placeholder="Defaults to your origin if left blank"
                   value={meetingPointAddress}
-                  onChange={(e) => setMeetingPointAddress(e.target.value)}
+                  onChange={(e) => {
+                    setMeetingPointAddress(e.target.value);
+                    setMeetingPin(null);
+                  }}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-xs outline-none"
                 />
+                {meetingPin && (
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Pinned on the map.{' '}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMeetingPin(null);
+                        setMeetingPointAddress('');
+                      }}
+                      className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline"
+                    >
+                      Remove meeting point
+                    </button>
+                  </p>
+                )}
               </div>
             </>
           ) : (
