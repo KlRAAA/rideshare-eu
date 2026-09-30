@@ -113,3 +113,17 @@ Added at the research adviser's request. Spec and plan:
 - Postman: `npm run seed:postman` also creates `postman-admin@test.local`; the
   "13. Admin" folder covers every admin endpoint. Each run uses 4 of the 10
   logins allowed per 15 minutes.
+
+## Saved cars (Oct 2026)
+
+- `SavedVehicle` is the host's "My cars" list (max 5, one default), managed at
+  `/api/saved-vehicles` and on the profile page. The post-trip form pre-selects
+  the default car.
+- Saved cars only fill in the form. Each trip still gets its own `Vehicle` row
+  (a snapshot via `POST /api/vehicles`), because editing a trip's car updates
+  that row — sharing one row across trips would change every trip at once.
+- `createTrip` rejects a missing car (400 `VEHICLE_REQUIRED`) and someone
+  else's car (403 `VEHICLE_NOT_OWNED`). Car fields are validated by
+  `server/services/vehicleValidation.js` (fuel efficiency 3–50 km/L).
+- `npm run import-saved-cars` (one-time, rerunnable) saves each host's most
+  recently used car as their default when they have none.
