@@ -1,5 +1,4 @@
 import React from 'react';
-import type { Viewport } from 'next';
 import Script from 'next/script';
 import { headers } from 'next/headers';
 import './globals.css';
@@ -9,9 +8,24 @@ export const metadata = {
   description: 'Priority-Scored Greedy Matching Algorithm for Optimizing Schedule-Based University Carpooling',
 };
 
-export const viewport: Viewport = {
-  viewportFit: 'cover',
-};
+// No viewport-fit: 'cover' here (on purpose, not an oversight — it used to be
+// set, for Header/BottomNav's env(safe-area-inset-*) padding to clear an
+// iPhone notch/home-indicator). 'cover' tells the browser the page will
+// handle its own safe-area insets and lets content render full-bleed behind
+// system UI. iOS Safari's insets are real and non-zero under a notch, so that
+// worked there -- but Android has no equivalent concept of "safe area" for
+// its address bar the way iOS does for a notch, so env(safe-area-inset-top)
+// reports 0 on Android regardless, and 'cover' still tells Chrome to render
+// the page edge-to-edge -- the header ends up drawn at literal y=0 of the
+// physical screen, underneath Chrome's own address bar, with no CSS-visible
+// signal that anything is covering it. Confirmed from a real phone
+// screenshot: the header (logo, brand name, every nav control) sat mostly
+// hidden behind the address bar, effectively untappable.
+// The default (unset) viewport-fit is 'auto': the browser keeps the page
+// inside the safe area itself and reserves the notch/home-indicator/address-
+// bar space automatically, on every platform, with no per-page math needed --
+// strictly safer than doing it by hand for a benefit ('cover') that was
+// costing real usability on Android.
 
 export default async function RootLayout({
   children,

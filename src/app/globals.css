@@ -446,6 +446,19 @@ h2 { font-size: 1.125rem; font-weight: 700; color: var(--color-text); }
 	padding-top: env(safe-area-inset-top);
 }
 
+/* Extra fixed buffer on top of whatever env(safe-area-inset-top) reports
+   (0 on most Android phones — see layout.tsx's viewport-fit comment). Without
+   this the header sits flush against the very top of the screen, which on a
+   real phone means right up against the browser's own address bar — tight
+   enough that it read as "hidden behind" it and made the whole header hard
+   to tap. max() keeps this additive with any real notch inset rather than
+   replacing it. */
+@media (max-width: 767px) {
+	.rsu-header-bar {
+		padding-top: max(env(safe-area-inset-top), 14px);
+	}
+}
+
 /* Desktop container for wider screens to match Figma layout */
 .app-desktop {
 	width: 100%;
