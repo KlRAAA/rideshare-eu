@@ -4,6 +4,7 @@ const { overview, listActions } = require('../controllers/admin/overviewControll
 const { setOfficial, history } = require('../controllers/fuelPriceController');
 const users = require('../controllers/admin/userController');
 const reports = require('../controllers/admin/reportController');
+const { cancelTripAsAdmin } = require('../controllers/admin/tripController');
 
 const router = express.Router();
 router.use(requireAdmin);
@@ -22,5 +23,7 @@ router.post('/users/:id/demote', users.demote);
 
 router.get('/reports', reports.listReports);
 router.patch('/reports/:id', reports.reviewReport);
+
+router.patch('/trips/:id/cancel', cancelTripAsAdmin);
 
 module.exports = router;

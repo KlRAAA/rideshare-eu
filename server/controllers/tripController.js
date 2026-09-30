@@ -8,6 +8,7 @@ const safeUserSelect = require('../config/safeUserSelect');
 const { encryptField, decryptUserFields, decryptTripFields } = require('../services/encryptionService');
 
 const { MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER, getOfficialFuelPrice } = require('../services/fuelPriceService');
+const { cancelWholeTrip, ACTIVE_MATCH_STATUSES } = require('../services/tripCancellationService');
 
 // For a recurring trip, an APPROVED match never reaches COMPLETED (it's a
 // standing rider across every occurrence), so `ratedByMe` — a lifetime "have
@@ -409,36 +410,10 @@ async function cancelTrip(req, res) {
     return res.status(409).json({ error: 'TRIP_NOT_CANCELLABLE' });
   }
 
-  const ACTIVE_MATCH_STATUSES = ['PENDING', 'APPROVED'];
-
   if (userId === trip.hostId) {
     // Host cancels: whole trip + every active match, notify every affected passenger.
-    const affectedMatches = trip.matches.filter((m) => ACTIVE_MATCH_STATUSES.includes(m.status));
-
-    await prisma.$transaction([
-      prisma.trip.update({
-        where: { id },
-        data: { status: 'CANCELLED', cancelledAt: new Date(), cancelReason: reason || null },
-      }),
-      ...affectedMatches.map((m) =>
-        prisma.match.update({ where: { id: m.id }, data: { status: 'CANCELLED' } })
-      ),
-      ...affectedMatches.map((m) =>
-        prisma.notification.create({
-          data: {
-            userId: m.passengerId,
-            type: 'CANCELLATION',
-            message: reason
-              ? `Host cancelled: ${reason} (trip to ${trip.destinationAddress})`
-              : `Your host cancelled the trip to ${trip.destinationAddress}.`,
-            relatedMatchId: m.id,
-            relatedTripId: trip.id,
-          },
-        })
-      ),
-    ]);
-
-    return res.json({ status: 'TRIP_CANCELLED', affectedMatches: affectedMatches.length });
+    const affectedMatches = await prisma.$transaction((tx) => cancelWholeTrip(tx, trip, { reason }));
+    return res.json({ status: 'TRIP_CANCELLED', affectedMatches });
   }
 
   const myMatch = trip.matches.find((m) => m.passengerId === userId && ACTIVE_MATCH_STATUSES.includes(m.status));
