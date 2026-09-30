@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FaFlag, FaSignOutAlt, FaSpinner, FaCompass } from 'react-icons/fa';
+import { FaFlag, FaSignOutAlt, FaSpinner, FaCompass, FaUserShield } from 'react-icons/fa';
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import Select from '@/components/Select';
@@ -297,6 +298,20 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
             </button>
           </div>
         </Card>
+
+        {user.isAdmin && (
+          <Card>
+            <h3 className="text-sm font-bold text-gray-900 mb-1">Administration</h3>
+            <Link
+              href="/auth/admin"
+              className="flex items-center gap-2 text-sm font-semibold text-[color:var(--rsu-color-primary)] hover:underline mt-2"
+            >
+              <FaUserShield className="w-4 h-4" />
+              Open admin console
+            </Link>
+            <p className="text-[11px] text-gray-400 mt-1">Reports, bans, users, trips and the official fuel price</p>
+          </Card>
+        )}
 
         <Card>
           <h3 className="text-sm font-bold text-gray-900 mb-1">Privacy &amp; Safety</h3>

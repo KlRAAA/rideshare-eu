@@ -1,0 +1,59 @@
+export interface AdminAction {
+  id: string;
+  actorId: string | null;
+  actorName: string | null;
+  action: 'BAN' | 'UNBAN' | 'REPORT_REVIEWED' | 'REPORT_DISMISSED' | 'TRIP_CANCELLED' | 'FUEL_PRICE_SET' | 'PROMOTE' | 'DEMOTE';
+  targetUserId: string | null;
+  targetUserName: string | null;
+  targetTripId: string | null;
+  targetReportId: string | null;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface AdminCounts {
+  users: number;
+  admins: number;
+  openTrips: number;
+  completedTrips: number;
+  pendingRequests: number;
+  openReports: number;
+  activeBans: number;
+}
+
+const ACTION_LABELS: Record<AdminAction['action'], string> = {
+  BAN: 'banned',
+  UNBAN: 'lifted the ban on',
+  REPORT_REVIEWED: 'reviewed a report on',
+  REPORT_DISMISSED: 'dismissed a report on',
+  TRIP_CANCELLED: 'cancelled a trip hosted by',
+  FUEL_PRICE_SET: 'set the official fuel price',
+  PROMOTE: 'made an admin:',
+  DEMOTE: 'removed admin from',
+};
+
+export function describeAction(a: AdminAction): string {
+  const actor = a.actorName ?? (a.details?.automatic ? 'Automatic strike ladder' : a.details?.via ? 'Server command' : 'System');
+  if (a.action === 'FUEL_PRICE_SET') return `${actor} set the official fuel price to ₱${Number(a.details?.to).toFixed(2)}/L`;
+  return `${actor} ${ACTION_LABELS[a.action]} ${a.targetUserName ?? 'a deleted user'}`;
+}
+
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
+}
+
+export const BAN_DURATION_OPTIONS = [
+  { value: '24H', label: '24 hours' },
+  { value: '7D', label: '7 days' },
+  { value: '30D', label: '30 days' },
+  { value: 'PERMANENT', label: 'Permanent' },
+] as const;
+
+export const CATEGORY_OPTIONS = [
+  { value: 'SPAM', label: 'Spam' },
+  { value: 'NO_SHOW', label: 'No-show' },
+  { value: 'INAPPROPRIATE_BEHAVIOR', label: 'Inappropriate behavior' },
+  { value: 'HARASSMENT', label: 'Harassment' },
+  { value: 'SAFETY', label: 'Safety concern' },
+  { value: 'OTHER', label: 'Other' },
+] as const;

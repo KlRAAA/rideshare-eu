@@ -19,6 +19,7 @@ export interface CurrentUser {
   tripsHosted: number;
   tripsJoined: number;
   hasSeenOnboarding: boolean;
+  isAdmin?: boolean;
 }
 
 export async function getSessionUserId(): Promise<string | null> {
