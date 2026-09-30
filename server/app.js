@@ -10,6 +10,7 @@ const userRoutes = require('./routes/userRoutes');
 const vehicleRoutes = require('./routes/vehicleRoutes');
 const preferenceRoutes = require('./routes/preferenceRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const { geocode } = require('./controllers/tripController');
 const { authenticate } = require('./middleware/authenticate');
 
@@ -61,6 +62,7 @@ app.use('/api/preferences', preferenceRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api', matchRoutes); // exposes POST /api/matches/search and POST /api/matches
 app.use('/api/alerts', notificationRoutes); // POST/GET notification endpoints per traceability matrix
+app.use('/api/admin', adminRoutes);
 
 // Reports the error to Sentry, then calls next(err) itself so the existing
 // handler below still runs unchanged — same response shape for clients,

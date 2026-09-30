@@ -56,7 +56,7 @@ async function authenticate(req, res, next) {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { bannedUntil: true, banReason: true, banSeverity: true },
+    select: { bannedUntil: true, banReason: true, banSeverity: true, isAdmin: true },
   });
   // A signature-valid token for a row that doesn't exist (or predates the ban
   // columns) has nothing to enforce — fall through the same as "not banned"
@@ -77,7 +77,7 @@ async function authenticate(req, res, next) {
     });
   }
 
-  req.user = { id: userId };
+  req.user = { id: userId, isAdmin: user?.isAdmin === true };
   return next();
 }
 
