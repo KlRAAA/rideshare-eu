@@ -1,5 +1,6 @@
 const prisma = require('../config/db');
 const { sendBanNotificationEmail } = require('./emailService');
+const { record } = require('./adminActionService');
 
 // Fixed mapping, not a per-report human judgment call — no admin role reviews
 // these (see AGENTS.md / the thesis's IP-compliance section on why). HARASSMENT
@@ -115,13 +116,25 @@ async function applyBanIfWarranted(reportedUserId, triggeringReporterId, trigger
     return;
   }
 
-  await prisma.user.update({
-    where: { id: reportedUserId },
-    data: {
-      bannedUntil: result.tier.until,
-      banReason: triggeringCategory,
-      banSeverity: result.tier.severity,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: reportedUserId },
+      data: {
+        bannedUntil: result.tier.until,
+        banReason: triggeringCategory,
+        banSeverity: result.tier.severity,
+      },
+    });
+    await record(tx, {
+      action: 'BAN',
+      targetUserId: reportedUserId,
+      details: {
+        automatic: true,
+        reason: triggeringCategory,
+        strikeCount: result.strikeCount,
+        bannedUntil: result.tier.until.toISOString(),
+      },
+    });
   });
 
   await sendBanNotificationEmail(user.email, {

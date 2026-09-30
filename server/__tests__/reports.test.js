@@ -262,6 +262,8 @@ describe('Automated enforcement — flat strike ladder', () => {
       const hoursLeft = (updated.bannedUntil.getTime() - Date.now()) / (60 * 60 * 1000);
       expect(hoursLeft).toBeGreaterThan(23);
       expect(hoursLeft).toBeLessThanOrEqual(24);
+      const audit = await prisma.adminAction.findFirst({ where: { targetUserId: target.id, action: 'BAN' } });
+      expect(audit).toMatchObject({ actorId: null, details: expect.objectContaining({ automatic: true, reason: 'SPAM' }) });
     } finally {
       await cleanup(bag);
     }
