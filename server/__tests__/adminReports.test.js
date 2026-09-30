@@ -119,6 +119,15 @@ describe('PATCH /api/admin/reports/:id', () => {
     expect((await res.json()).error).toBe(code);
   });
 
+  test('an admin cannot resolve a report about themselves', async () => {
+    if (guard()) return;
+    const { host, report } = await makeReport({ reportedIsAdmin: true });
+    const res = await call('PATCH', `/api/admin/reports/${report.id}`, host.id, { status: 'DISMISSED', note: 'Not me' });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('CANNOT_TARGET_SELF');
+    expect((await prisma.report.findUnique({ where: { id: report.id } })).status).toBe('OPEN');
+  });
+
   test('unknown report → 404', async () => {
     if (guard()) return;
     const admin = await makeAdminUser(bag);

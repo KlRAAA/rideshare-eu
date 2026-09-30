@@ -49,6 +49,8 @@ async function reviewReport(req, res) {
     const banResult = await prisma.$transaction(async (tx) => {
       const report = await tx.report.findUnique({ where: { id: req.params.id } });
       if (!report) throw new AdminError(404, 'REPORT_NOT_FOUND');
+      // Conflict of interest: a report about an admin is decided by another admin.
+      if (report.reportedUserId === req.user.id) throw new AdminError(400, 'CANNOT_TARGET_SELF');
       // Conditional write, so two admins resolving the same report can't both win.
       const { count } = await tx.report.updateMany({
         where: { id: report.id, status: 'OPEN' },
