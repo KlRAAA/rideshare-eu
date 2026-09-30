@@ -49,6 +49,23 @@ enum NotificationType {
   MESSAGE
 }
 
+enum ReportStatus {
+  OPEN
+  REVIEWED
+  DISMISSED
+}
+
+enum AdminActionType {
+  BAN
+  UNBAN
+  REPORT_REVIEWED
+  REPORT_DISMISSED
+  TRIP_CANCELLED
+  FUEL_PRICE_SET
+  PROMOTE
+  DEMOTE
+}
+
 enum ReportCategory {
   SPAM
   NO_SHOW
@@ -85,10 +102,9 @@ model User {
   // stored version, not just checking "is this non-null".
   termsAcceptedAt DateTime?
   termsVersion    String?
-  // Automated moderation state (server/services/reportEnforcementService.js) —
-  // set only by the flat strike-ladder in code, never by a human reviewer:
-  // there's no admin role in this app, deliberately (see the thesis's IP/
-  // compliance notes on authorization). A far-future bannedUntil (year 9999)
+  // Moderation state — set by the strike ladder in
+  // reportEnforcementService.js or by an admin (/api/admin/users/:id/ban);
+  // every change is recorded in AdminAction. A far-future bannedUntil (year 9999)
   // IS how "permanent" is represented — no separate boolean — so the
   // authenticate middleware's ban check stays one timestamp comparison
   // instead of needing a second branch. banReason stores the ReportCategory
@@ -101,6 +117,9 @@ model User {
   // again," not just a completed run. "Show tutorial again" replays the tour
   // client-side without touching this column.
   hasSeenOnboarding Boolean @default(false)
+  // Read by the authenticate middleware on every request, so a demotion
+  // takes effect immediately. Granted by `npm run make-admin` or another admin.
+  isAdmin Boolean @default(false)
 
   vehicles        Vehicle[]
   hostedTrips     Trip[]          @relation("HostTrips")
@@ -112,6 +131,9 @@ model User {
   messagesSent    Message[]
   reportsFiled    Report[]        @relation("ReportsFiled")
   reportsReceived Report[]        @relation("ReportsReceived")
+  reportsReviewed Report[]        @relation("ReportsReviewed")
+  fuelPricesSet   FuelPrice[]
+  adminActions    AdminAction[]   @relation("AdminActionActor")
 }
 
 model Vehicle {
@@ -289,8 +311,8 @@ model Rating {
 // derives it server-side as the other party on that match) but is kept
 // nullable per spec for a possible future non-user report. category maps to
 // a severity tier in code (HARASSMENT/SAFETY = high-alert) — that mapping is
-// a constant, never a per-report human judgment call, since no admin role
-// reviews these.
+// a constant; admins can additionally review a report (status/reviewedBy) and
+// ban or dismiss through /api/admin/reports.
 model Report {
   id              String         @id @default(cuid())
   reporterId      String
@@ -302,11 +324,46 @@ model Report {
   category        ReportCategory
   description     String?        // optional free text, capped at 500 chars (server-enforced, not just UI)
   createdAt       DateTime       @default(now())
+  status          ReportStatus   @default(OPEN)
+  reviewedById    String?
+  reviewedBy      User?          @relation("ReportsReviewed", fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?
+  reviewNote      String?
 
   // Powers the enforcement window query (distinct qualifying reporters against
   // a user within the last 90 days) and the per-reporter abuse-guard count.
   @@index([reportedUserId, createdAt])
   @@index([reporterId, createdAt])
+  @@index([status, createdAt])
+}
+
+// Official fuel price history. The newest row is the current cap on the
+// price a host may enter when posting a trip; no rows means no cap.
+model FuelPrice {
+  id            String   @id @default(cuid())
+  pricePerLiter Float
+  setById       String
+  setBy         User     @relation(fields: [setById], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// Audit log of every admin action and every automatic ban (actorId null).
+// Targets are plain ids, not foreign keys, so the trail survives deletions.
+model AdminAction {
+  id             String          @id @default(cuid())
+  actorId        String?
+  actor          User?           @relation("AdminActionActor", fields: [actorId], references: [id])
+  action         AdminActionType
+  targetUserId   String?
+  targetTripId   String?
+  targetReportId String?
+  details        Json?
+  createdAt      DateTime        @default(now())
+
+  @@index([createdAt])
+  @@index([targetUserId, createdAt])
 }
 
 // Registration 2FA: one row per in-progress signup attempt. Not linked to

@@ -26,6 +26,12 @@ async function makeUser(bag, { fullName = 'Test User', gender = 'MALE' } = {}) {
   return { ...user, fullName, gender };
 }
 
+async function makeAdminUser(bag, opts) {
+  const user = await makeUser(bag, opts);
+  await prisma.user.update({ where: { id: user.id }, data: { isAdmin: true } });
+  return { ...user, isAdmin: true };
+}
+
 async function makeVehicle(bag, ownerId) {
   const vehicle = await prisma.vehicle.create({
     data: { ownerId, make: 'Test', model: 'Car', color: 'Blue', fuelEfficiencyKmL: 12 },
@@ -107,6 +113,7 @@ async function cleanup(bag) {
         { reporterId: { in: bag.userIds } },
         { reportedUserId: { in: bag.userIds } },
         { reportedMatchId: { in: bag.matchIds } },
+        { reviewedById: { in: bag.userIds } },
       ],
     },
   });
@@ -118,7 +125,11 @@ async function cleanup(bag) {
   await prisma.trip.deleteMany({ where: { id: { in: bag.tripIds } } });
   await prisma.preference.deleteMany({ where: { userId: { in: [...bag.userIds, ...bag.preferenceUserIds] } } });
   await prisma.vehicle.deleteMany({ where: { id: { in: bag.vehicleIds } } });
+  await prisma.adminAction.deleteMany({
+    where: { OR: [{ actorId: { in: bag.userIds } }, { targetUserId: { in: bag.userIds } }] },
+  });
+  await prisma.fuelPrice.deleteMany({ where: { setById: { in: bag.userIds } } });
   await prisma.user.deleteMany({ where: { id: { in: bag.userIds } } });
 }
 
-module.exports = { newBag, makeUser, makeVehicle, makeTrip, makeMatch, makeNotification, cleanup };
+module.exports = { newBag, makeUser, makeAdminUser, makeVehicle, makeTrip, makeMatch, makeNotification, cleanup };

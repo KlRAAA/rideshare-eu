@@ -50,6 +50,7 @@ async function removeExisting(emails) {
         { reporterId: { in: userIds } },
         { reportedUserId: { in: userIds } },
         { reportedMatchId: { in: matchIds } },
+        { reviewedById: { in: userIds } },
       ],
     },
   });
@@ -66,6 +67,10 @@ async function removeExisting(emails) {
   await prisma.trip.deleteMany({ where: { id: { in: tripIds } } });
   await prisma.preference.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.vehicle.deleteMany({ where: { ownerId: { in: userIds } } });
+  await prisma.adminAction.deleteMany({
+    where: { OR: [{ actorId: { in: userIds } }, { targetUserId: { in: userIds } }] },
+  });
+  await prisma.fuelPrice.deleteMany({ where: { setById: { in: userIds } } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 
   for (const { avatarUrl } of users) {
