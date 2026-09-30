@@ -4,6 +4,14 @@ const prisma = require('../config/db');
 const { bearer } = require('../test-helpers/auth');
 const { newBag, makeUser, makeVehicle, makeTrip, makeMatch, cleanup } = require('../test-helpers/seed');
 
+// Its fuel-price bound tests assume no official cap; the real cap is covered
+// in adminFuelPrice.test.js. Mocked per file so a price set in the dev DB (or
+// by that file running in parallel) can't change these results.
+jest.mock('../services/fuelPriceService', () => ({
+  ...jest.requireActual('../services/fuelPriceService'),
+  getOfficialFuelPrice: jest.fn().mockResolvedValue(null),
+}));
+
 // Phase 2: every trip endpoint derives the caller from req.user.id. Self-identity
 // fields (hostId on create, userId on mine) are taken from the token; ownership
 // checks (edit / cancel / complete / plate visibility) compare the real

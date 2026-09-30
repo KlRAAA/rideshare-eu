@@ -12,6 +12,7 @@ const preferenceRoutes = require('./routes/preferenceRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const { geocode } = require('./controllers/tripController');
+const { getOfficial: getOfficialFuelPrice } = require('./controllers/fuelPriceController');
 const { authenticate } = require('./middleware/authenticate');
 
 const app = express();
@@ -55,6 +56,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api', authenticate);
 
 app.get('/api/geocode', geocode);
+app.get('/api/fuel-price', getOfficialFuelPrice);
 app.use('/api/trips', tripRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/vehicles', vehicleRoutes);

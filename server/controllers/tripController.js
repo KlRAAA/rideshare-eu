@@ -7,13 +7,7 @@ const { applyLazyCompletion, completeTrip } = require('../services/tripCompletio
 const safeUserSelect = require('../config/safeUserSelect');
 const { encryptField, decryptUserFields, decryptTripFields } = require('../services/encryptionService');
 
-// Sanity bounds for the host-entered retail fuel price (PHP/L) — catches an
-// obvious typo (an extra digit, a decimal slip) before it produces a wildly
-// wrong fuel-share figure shown to passengers. Keep in sync with
-// src/lib/constants.ts's MIN/MAX_FUEL_PRICE_PER_LITER (client-side copy for
-// the same check, shown inline before the host even submits).
-const MIN_FUEL_PRICE_PER_LITER = 20;
-const MAX_FUEL_PRICE_PER_LITER = 150;
+const { MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER, getOfficialFuelPrice } = require('../services/fuelPriceService');
 
 // For a recurring trip, an APPROVED match never reaches COMPLETED (it's a
 // standing rider across every occurrence), so `ratedByMe` — a lifetime "have
@@ -94,6 +88,11 @@ async function createTrip(req, res) {
       return res.status(400).json({ error: 'INVALID_FUEL_PRICE' });
     }
     body.fuelPricePerLiter = price;
+
+    const official = await getOfficialFuelPrice();
+    if (official && price > official.pricePerLiter) {
+      return res.status(400).json({ error: 'FUEL_PRICE_ABOVE_OFFICIAL', officialPrice: official.pricePerLiter });
+    }
   }
 
   const check = validateClientRoute({
