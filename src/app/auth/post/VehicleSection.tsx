@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Badge from '@/components/Badge';
 import VehicleFields from '@/components/VehicleFields';
 import { apiFetch } from '@/lib/api';
@@ -12,6 +12,16 @@ import {
   type SavedVehicle,
   type VehicleFieldValues,
 } from '@/lib/vehicles';
+
+function sameCar(a: VehicleFieldValues, b: VehicleFieldValues): boolean {
+  return (
+    a.make === b.make &&
+    a.model === b.model &&
+    a.color === b.color &&
+    a.plate === b.plate &&
+    Number(a.fuelEfficiency) === Number(b.fuelEfficiency)
+  );
+}
 
 interface VehicleSectionProps {
   value: VehicleFieldValues;
@@ -27,6 +37,10 @@ export default function VehicleSection({ value, onChange, onSaveNewCarChange }: 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [choosing, setChoosing] = useState(false);
   const [saveNewCar, setSaveNewCar] = useState(true);
+  // Latest fields, read when the saved cars arrive: a draft may have restored
+  // a car in the meantime, and it must not be replaced by the default.
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
   useEffect(() => {
     let cancelled = false;
@@ -34,7 +48,14 @@ export default function VehicleSection({ value, onChange, onSaveNewCarChange }: 
       .then(({ vehicles }) => {
         if (cancelled) return;
         setCars(vehicles);
-        if (vehicles.length > 0) {
+        const current = valueRef.current;
+        const hasCar = current.make.trim() !== '';
+        const matching = hasCar ? vehicles.find((v) => sameCar(toFieldValues(v), current)) : undefined;
+        if (matching) {
+          setSelectedId(matching.id);
+        } else if (hasCar) {
+          setSelectedId(null);
+        } else if (vehicles.length > 0) {
           setSelectedId(vehicles[0].id);
           onChange(toFieldValues(vehicles[0]));
         }

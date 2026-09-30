@@ -16,6 +16,8 @@ import VehicleFields from '@/components/VehicleFields';
 import { EMPTY_VEHICLE_FIELDS, vehicleFieldsError, type VehicleFieldValues } from '@/lib/vehicles';
 import VehicleSection from './VehicleSection';
 import { useGeocodedAddress, reverseGeocodeLabel } from '@/lib/useGeocodedAddress';
+import { useFormDraft } from '@/lib/useFormDraft';
+import DraftRestoredBar from '@/components/DraftRestoredBar';
 import { useCurrentLocationAddress } from '@/lib/useCurrentLocationAddress';
 
 const SEAT_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({ value: n, label: `${n} seat${n > 1 ? 's' : ''}` }));
@@ -115,7 +117,9 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
       .then(({ official }) => {
         if (cancelled || official == null) return;
         setOfficialFuelPrice(official);
-        setFuelPricePerLiter(String(official));
+        // Only replace the untouched default, never a price the host typed
+        // (or one restored from a draft).
+        setFuelPricePerLiter((prev) => (prev === String(FUEL_PRICE_PER_LITER) ? String(official) : prev));
       })
       .catch(() => {});
     return () => {
@@ -363,6 +367,7 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
           }),
         });
         setConfirmData(null);
+        draft.clear();
         router.push(`/auth/trips/${editTrip.id}`);
         return;
       }
@@ -417,6 +422,7 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
         await apiFetch('/api/saved-vehicles', { method: 'POST', body: JSON.stringify(carPayload) }).catch(() => {});
       }
 
+      draft.clear();
       router.push('/auth/trips');
     } catch (err) {
       if (err instanceof ApiError && err.code === 'CONFIRMATION_REQUIRED') {
@@ -444,9 +450,43 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
     }
   }
 
+  const draft = useFormDraft(
+    editTrip ? `post-trip:edit:${editTrip.id}` : 'post-trip:new',
+    {
+      origin, originPin, destination, date, time, recurrence, customDays, seats, fuelPricePerLiter,
+      vehicle, driverNotes, genderPreference, flexibleDeparture, familiarRidersOnly, meetingPointAddress, meetingPin,
+    },
+    {
+      onRestore: (d) => {
+        if (typeof d.origin === 'string') setOrigin(d.origin);
+        if (d.originPin !== undefined) setOriginPin(d.originPin);
+        if (typeof d.destination === 'string') setDestination(d.destination);
+        if (typeof d.date === 'string') setDate(d.date);
+        if (typeof d.time === 'string') setTime(d.time);
+        if (d.recurrence) setRecurrence(d.recurrence);
+        if (Array.isArray(d.customDays)) setCustomDays(d.customDays);
+        if (typeof d.seats === 'number') setSeats(d.seats);
+        if (typeof d.fuelPricePerLiter === 'string') setFuelPricePerLiter(d.fuelPricePerLiter);
+        if (d.vehicle) setVehicle(d.vehicle);
+        if (typeof d.driverNotes === 'string') setDriverNotes(d.driverNotes);
+        if (d.genderPreference) setGenderPreference(d.genderPreference);
+        if (typeof d.flexibleDeparture === 'boolean') setFlexibleDeparture(d.flexibleDeparture);
+        if (typeof d.familiarRidersOnly === 'boolean') setFamiliarRidersOnly(d.familiarRidersOnly);
+        if (typeof d.meetingPointAddress === 'string') setMeetingPointAddress(d.meetingPointAddress);
+        if (d.meetingPin !== undefined) setMeetingPin(d.meetingPin);
+      },
+    }
+  );
+
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <form
+      onSubmit={handleSubmit}
+      onInputCapture={draft.markDirty}
+      onClickCapture={draft.markDirty}
+      className="grid grid-cols-1 md:grid-cols-3 gap-6"
+    >
       <div className="md:col-span-2 space-y-4">
+        {draft.restored && <DraftRestoredBar onDiscard={draft.discard} />}
         <div className="rsu-card space-y-4">
           <div>
             <h2 className="text-sm font-bold text-gray-900">Trip Details</h2>
@@ -695,7 +735,10 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
           </button>
           <button
             type="button"
-            onClick={() => router.push(isEdit && editTrip ? `/auth/trips/${editTrip.id}` : '/auth/dashboard')}
+            onClick={() => {
+              draft.clear();
+              router.push(isEdit && editTrip ? `/auth/trips/${editTrip.id}` : '/auth/dashboard');
+            }}
             className="rsu-btn-secondary flex-1"
           >
             Cancel
@@ -715,8 +758,14 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
                 destination={destinationCoords}
                 meetingPoint={meetingCoords}
                 routeWaypoints={route?.waypoints}
-                onOriginChange={setOriginPin}
-                onMeetingPointChange={placeMeetingPin}
+                onOriginChange={(point) => {
+                  draft.markDirty();
+                  setOriginPin(point);
+                }}
+                onMeetingPointChange={(point) => {
+                  draft.markDirty();
+                  placeMeetingPin(point);
+                }}
               />
               {route && (
                 <p className="mt-2 text-xs text-gray-500">

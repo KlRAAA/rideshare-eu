@@ -8,6 +8,8 @@ import Logo from '@/components/Logo';
 import Select from '@/components/Select';
 import OtpInput from '@/components/OtpInput';
 import { apiFetch, ApiError, setSessionCookie } from '@/lib/api';
+import { useFormDraft } from '@/lib/useFormDraft';
+import DraftRestoredBar from '@/components/DraftRestoredBar';
 
 type Step = 'EMAIL' | 'OTP' | 'PASSWORD';
 
@@ -132,6 +134,7 @@ export default function RegisterPage() {
         body: JSON.stringify({ verificationTicket, password, fullName, universityId, gender, termsAccepted }),
       });
       await setSessionCookie(token);
+      draft.clear();
       router.push('/auth/dashboard');
     } catch (err) {
       setErrorCode(err instanceof ApiError ? err.code : undefined);
@@ -139,6 +142,23 @@ export default function RegisterPage() {
       setLoading(false);
     }
   }
+
+  // Password, code and verification ticket are never saved (formDraft strips
+  // them too). A step past the code resumes at the email step, because the
+  // ticket that step needs isn't kept.
+  const draft = useFormDraft(
+    'register',
+    { email, resumeStep: step === 'OTP' ? 'OTP' : 'EMAIL', fullName, universityId, gender },
+    {
+      onRestore: (d) => {
+        if (typeof d.email === 'string') setEmail(d.email);
+        if (typeof d.fullName === 'string') setFullName(d.fullName);
+        if (typeof d.universityId === 'string') setUniversityId(d.universityId);
+        if (d.gender === 'MALE' || d.gender === 'FEMALE' || d.gender === 'UNSPECIFIED') setGender(d.gender);
+        if (d.resumeStep === 'OTP' && typeof d.email === 'string' && d.email) setStep('OTP');
+      },
+    }
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-12">
@@ -149,7 +169,9 @@ export default function RegisterPage() {
           <p className="text-sm text-gray-500 mt-1">Enverga University Carpool Network</p>
         </div>
 
-        <div className="rsu-card">
+        {draft.restored && <DraftRestoredBar onDiscard={draft.discard} />}
+
+        <div className="rsu-card" onInputCapture={draft.markDirty} onClickCapture={draft.markDirty}>
           {step === 'EMAIL' && (
             <>
               <h2 className="text-lg font-bold text-gray-900">Create Your Account</h2>
