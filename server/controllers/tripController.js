@@ -78,6 +78,12 @@ async function createTrip(req, res) {
   const body = {};
   for (const k of CREATABLE_TRIP_FIELDS) if (k in req.body) body[k] = req.body[k];
 
+  // The car must exist and belong to the caller — otherwise a host could post a
+  // trip with someone else's car, plate and fuel efficiency attached.
+  const vehicle = typeof body.vehicleId === 'string' ? await prisma.vehicle.findUnique({ where: { id: body.vehicleId } }) : null;
+  if (!vehicle) return res.status(400).json({ error: 'VEHICLE_REQUIRED' });
+  if (vehicle.ownerId !== req.user.id) return res.status(403).json({ error: 'VEHICLE_NOT_OWNED' });
+
   // The host's own typed retail price, not a fixed app-wide default (no
   // reliable free PH fuel-price API exists — see AGENTS.md). Rejected outright
   // if outside sane bounds, catching an obvious typo before it produces a
@@ -121,10 +127,9 @@ async function createTrip(req, res) {
   // trip this is one Trip row, so this is priced once for the whole series.
   // A future seats/vehicle-edit endpoint should recompute this ONLY while the
   // trip has no matches yet — once a passenger has seen the price it's locked.
-  const vehicle = await prisma.vehicle.findUnique({ where: { id: body.vehicleId } });
   const fuelSharePerSeat = computeFuelSharePerSeat({
     distanceMeters: routeData.distanceMeters,
-    efficiencyKmL: vehicle ? vehicle.fuelEfficiencyKmL : null,
+    efficiencyKmL: vehicle.fuelEfficiencyKmL,
     pricePerLiter: body.fuelPricePerLiter,
     passengerSeats: Number(body.totalSeats),
   });

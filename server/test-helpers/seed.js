@@ -129,6 +129,7 @@ async function cleanup(bag) {
     where: { OR: [{ actorId: { in: bag.userIds } }, { targetUserId: { in: bag.userIds } }] },
   });
   await prisma.fuelPrice.deleteMany({ where: { setById: { in: bag.userIds } } });
+  await prisma.savedVehicle.deleteMany({ where: { ownerId: { in: bag.userIds } } });
   await prisma.user.deleteMany({ where: { id: { in: bag.userIds } } });
 }
 

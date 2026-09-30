@@ -122,6 +122,7 @@ model User {
   isAdmin Boolean @default(false)
 
   vehicles        Vehicle[]
+  savedVehicles   SavedVehicle[]
   hostedTrips     Trip[]          @relation("HostTrips")
   matches         Match[]         @relation("PassengerMatches")
   notifications   Notification[]
@@ -146,6 +147,24 @@ model Vehicle {
   plate             String?
   fuelEfficiencyKmL Float
   trips             Trip[]
+
+  @@index([ownerId])
+}
+
+// A host's "My cars" list. Only fills in the post-trip form: each trip still
+// gets its own Vehicle row (a snapshot), so editing one trip's car never
+// changes another trip or the saved car.
+model SavedVehicle {
+  id                String   @id @default(cuid())
+  ownerId           String
+  owner             User     @relation(fields: [ownerId], references: [id])
+  make              String
+  model             String
+  color             String
+  plate             String?
+  fuelEfficiencyKmL Float
+  isDefault         Boolean  @default(false)
+  createdAt         DateTime @default(now())
 
   @@index([ownerId])
 }

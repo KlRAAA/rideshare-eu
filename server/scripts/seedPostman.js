@@ -72,6 +72,7 @@ async function removeExisting(emails) {
     where: { OR: [{ actorId: { in: userIds } }, { targetUserId: { in: userIds } }] },
   });
   await prisma.fuelPrice.deleteMany({ where: { setById: { in: userIds } } });
+  await prisma.savedVehicle.deleteMany({ where: { ownerId: { in: userIds } } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 
   for (const { avatarUrl } of users) {

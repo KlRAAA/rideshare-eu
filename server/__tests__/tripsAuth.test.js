@@ -103,6 +103,23 @@ describe('POST /api/trips', () => {
     expect(res.status).toBe(401);
   });
 
+  test('someone else’s vehicle → 403 VEHICLE_NOT_OWNED, nothing created', async () => {
+    if (guard()) return;
+    const othersCar = await makeVehicle(bag, other.id);
+    const before = await prisma.trip.count({ where: { hostId: host.id } });
+    const res = await json('POST', '/api/trips', host.id, tripBody({ vehicleId: othersCar.id }));
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toBe('VEHICLE_NOT_OWNED');
+    expect(await prisma.trip.count({ where: { hostId: host.id } })).toBe(before);
+  });
+
+  test.each([[undefined], ['does-not-exist']])('vehicleId %p → 400 VEHICLE_REQUIRED', async (vehicleId) => {
+    if (guard()) return;
+    const res = await json('POST', '/api/trips', host.id, tripBody({ vehicleId }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('VEHICLE_REQUIRED');
+  });
+
   test('lifecycle fields in the body are ignored — a new trip starts OPEN with 0 filled seats', async () => {
     if (guard()) return;
     const res = await json(
