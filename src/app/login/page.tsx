@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
@@ -18,6 +18,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accountDeleted, setAccountDeleted] = useState(false);
+
+  useEffect(() => {
+    setAccountDeleted(new URLSearchParams(window.location.search).get('deleted') === '1');
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -61,6 +66,11 @@ export default function LoginPage() {
         </div>
 
         <div className="rsu-card">
+          {accountDeleted && (
+            <p role="status" className="mb-4 rounded-xl bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-700">
+              Your account has been deleted. You can register again anytime with your school email.
+            </p>
+          )}
           <h2 className="text-lg font-bold text-gray-900">Login to Your Account</h2>
           <p className="text-sm text-gray-500 mt-1 mb-5">Use your verified school credentials to continue</p>
 

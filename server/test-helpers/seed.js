@@ -121,6 +121,10 @@ async function cleanup(bag) {
   await prisma.notification.deleteMany({
     where: { OR: [{ id: { in: bag.notificationIds } }, { relatedTripId: { in: bag.tripIds } }] },
   });
+  await prisma.notification.deleteMany({ where: { userId: { in: bag.userIds } } });
+  await prisma.message.deleteMany({
+    where: { OR: [{ tripId: { in: bag.tripIds } }, { senderId: { in: bag.userIds } }] },
+  });
   await prisma.match.deleteMany({ where: { id: { in: bag.matchIds } } });
   await prisma.trip.deleteMany({ where: { id: { in: bag.tripIds } } });
   await prisma.preference.deleteMany({ where: { userId: { in: [...bag.userIds, ...bag.preferenceUserIds] } } });

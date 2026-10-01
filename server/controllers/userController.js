@@ -5,6 +5,8 @@ const prisma = require('../config/db');
 const safeUserSelect = require('../config/safeUserSelect');
 const { sniffImageType } = require('../services/imageType');
 const { decryptUserFields } = require('../services/encryptionService');
+const bcrypt = require('bcrypt');
+const { deleteAccount, AccountDeletionError } = require('../services/accountDeletionService');
 
 const AVATAR_DIR = path.join(__dirname, '..', '..', 'public', 'uploads', 'avatars');
 const AVATAR_URL_PREFIX = '/uploads/avatars';
@@ -148,4 +150,24 @@ async function completeOnboarding(req, res) {
   res.json({ hasSeenOnboarding: true });
 }
 
-module.exports = { getById, getRatings, uploadAvatar, completeOnboarding };
+// DELETE /api/users/me — the password is re-checked so a borrowed or stolen
+// session alone can't erase someone's account.
+async function deleteMe(req, res) {
+  const password = req.body?.password;
+  if (typeof password !== 'string' || password === '') return res.status(400).json({ error: 'PASSWORD_REQUIRED' });
+
+  const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { passwordHash: true } });
+  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    return res.status(403).json({ error: 'INVALID_PASSWORD' });
+  }
+
+  try {
+    await deleteAccount(req.user.id);
+  } catch (err) {
+    if (err instanceof AccountDeletionError) return res.status(err.status).json({ error: err.code });
+    throw err;
+  }
+  res.json({ status: 'ACCOUNT_DELETED' });
+}
+
+module.exports = { getById, getRatings, uploadAvatar, completeOnboarding, deleteMe };

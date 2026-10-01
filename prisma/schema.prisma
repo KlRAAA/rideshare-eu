@@ -120,6 +120,10 @@ model User {
   // Read by the authenticate middleware on every request, so a demotion
   // takes effect immediately. Granted by `npm run make-admin` or another admin.
   isAdmin Boolean @default(false)
+  // Set when the user deletes their account (accountDeletionService). The row
+  // stays, anonymized, so other people's trip history, ratings and safety
+  // reports still resolve; authenticate refuses any session for it.
+  deletedAt DateTime?
 
   vehicles        Vehicle[]
   savedVehicles   SavedVehicle[]

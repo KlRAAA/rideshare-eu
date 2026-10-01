@@ -56,7 +56,7 @@ async function authenticate(req, res, next) {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { bannedUntil: true, banReason: true, banSeverity: true, isAdmin: true },
+    select: { bannedUntil: true, banReason: true, banSeverity: true, isAdmin: true, deletedAt: true },
   });
   // A signature-valid token for a row that doesn't exist (or predates the ban
   // columns) has nothing to enforce — fall through the same as "not banned"
@@ -67,6 +67,10 @@ async function authenticate(req, res, next) {
   // A time-served ban (24h/7d/30d) self-clears here too: once `bannedUntil` is
   // in the past this comparison is simply false, no cron job or separate
   // "lift the ban" step needed.
+  if (user?.deletedAt) {
+    return res.status(401).json({ error: 'ACCOUNT_DELETED' });
+  }
+
   if (user?.bannedUntil && user.bannedUntil > new Date()) {
     // Only runs for banned users, so the extra lookup costs nothing on the
     // normal path. The latest BAN row says who applied it: an admin, or the

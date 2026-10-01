@@ -10,6 +10,7 @@ import Select from '@/components/Select';
 import Avatar from '@/components/Avatar';
 import ReportHistoryModal from '@/components/ReportHistoryModal';
 import MyCarsCard from './MyCarsCard';
+import DeleteAccountPanel from './DeleteAccountPanel';
 import { apiFetch, clearSessionCookie, API_BASE } from '@/lib/api';
 import { roleLabel } from '@/lib/format';
 import type { CurrentUser } from '@/lib/session';
@@ -327,6 +328,7 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
             View Report History
           </button>
           <p className="text-[11px] text-gray-400 mt-1">See reports you've submitted (privacy protected)</p>
+          <DeleteAccountPanel />
         </Card>
 
         <button
