@@ -1,0 +1,68 @@
+Issue Id,Parent,Issue Type,Summary,Status,Priority,Labels,Labels,Description
+1,,Epic,Phase 1: Environment and Authentication,Done,High,rideshareeu,,"Development environment, database schema, school-email registration and sign-in. The identity foundation everything else depends on."
+2,,Epic,Phase 2: Core Trip and Matching Modules,Done,High,rideshareeu,,"Trip posting for hosts, search and join for passengers, and the PSGA matching engine."
+3,,Epic,"Phase 3: Notifications, Trust, and Fuel Share",Done,High,rideshareeu,,"Alerts, reminders, ratings and trust scores, the fuel share, live location, chat, and reporting."
+4,,Epic,"Phase 4: Integration, Testing, and Deployment",Ready,High,rideshareeu,,"End-to-end testing, performance, validation, user acceptance testing, and deployment."
+5,,Epic,Security and Privacy Hardening,Ready,High,rideshareeu,,"OWASP Top 10 review findings, encryption, rate limiting, and RA 10173 obligations."
+6,,Epic,Adviser Revisions (Sep-Oct 2026),Ready,High,rideshareeu,,Changes requested by the research adviser before the October check.
+101,1,Task,"Set up project structure, Prisma schema and Next.js + Express skeleton",Done,High,setup,,"Completed Aug 12-24, 2026."
+102,1,Story,Register with a school email and an emailed one-time code,Done,Highest,auth,,"6-digit code from a cryptographic generator, bcrypt-hashed, 10-minute expiry, locks after 5 wrong tries. Only MSEUF email domains are accepted."
+103,1,Story,"Sign in, stay signed in, and reset a forgotten password",Done,Highest,auth,,"JWT session (HS256, 7 days) in an httpOnly cookie. Password reset with an emailed code. Passwords stored as bcrypt hashes (cost 12)."
+104,1,Story,Require a valid session on every API endpoint,Done,Highest,auth,security,"Phase 1 auth middleware: 401 UNAUTHENTICATED without a valid token. Completed Sep 8, 2026."
+105,1,Story,"Take the caller's identity from the session, never from the request",Done,Highest,auth,security,"Phase 2: every controller uses the verified user id; ownership checks return 403. Completed Sep 10, 2026."
+106,1,Story,Accept the Terms of Use at registration,Done,Medium,auth,privacy,"Records the accepted terms version and time. Completed Sep 17, 2026."
+107,1,Task,Replace the in-process dev database with local PostgreSQL 17,Done,Medium,setup,,Fixed idle connection drops from prisma dev. Backup and restore scripts added.
+108,2,Story,Post a ride with a Mapbox route preview,Done,Highest,trip-module,ui,"Host enters origin, destination, schedule, seats, car and fuel price; route distance and duration come from Mapbox Directions."
+109,2,Story,"Build the PSGA matching engine (Stage 1 gate, Stage 2 scoring)",Done,Highest,algorithm,,"Route overlap at least 0.4 within a 1,500 m corridor and time gap within the flex window; score = 0.5 overlap + 0.3 schedule + 0.2 preferences."
+110,2,Story,"Find a ride by date and time, in Philippine time",Done,Highest,algorithm,trip-module,"Date eligibility runs before time-of-day comparison. Completed Sep 14, 2026."
+111,2,Bug,An empty time field matched every trip against 00:00,Done,High,algorithm,,null was coerced to 0; client and server now reject a missing departure time.
+112,2,Story,"Recurring trips (daily, weekdays, custom days) with standing matches",Done,High,trip-module,algorithm,"One approval covers every occurrence; ratings are per occurrence. Completed Sep 13, 2026."
+113,2,Story,"Request to join, and host approval with no seat double-booking",Done,Highest,trip-module,,"Approval is a conditional update inside a transaction, so two approvals can never take the same last seat."
+114,2,Story,Auto-decline other pending requests when the last seat fills,Done,Medium,trip-module,,"Completed Sep 14, 2026."
+115,2,Story,Show all trips to my destination when strict matching finds none,Done,Medium,algorithm,ui,"Relaxes route and time gates only; seats, gender and familiar-riders rules stay hard; destination within 3 km."
+116,2,Story,Edit a posted trip (cosmetic and structural changes),Done,High,trip-module,,Structural edits with approved passengers need confirmation; fuel share locks after the first approval.
+117,2,Story,Use my current location for the origin,Done,Medium,ui,,Now pins the device's exact coordinates instead of re-geocoding the address.
+118,2,Story,Show route overlap on the map,Done,Medium,algorithm,ui,"Green for the shared part, amber for the detour, drawn from the same samples the algorithm scores."
+119,2,Bug,A cancelled approved passenger never freed their seat,Done,Highest,trip-module,,"Seat is now released and a full trip reopens. Fixed Oct 1, 2026."
+120,2,Story,Validate every field when a trip is posted,Done,High,trip-module,security,"Returns 400 INVALID_TRIP naming the field instead of a 500. Completed Oct 1, 2026."
+121,3,Story,"Notifications that open the related trip, with paging",Done,High,ui,,"Cursor pagination on the alerts list. Completed Sep 13, 2026."
+122,3,Story,Departure reminders,Done,Medium,trip-module,,"node-cron job every 5 minutes. Completed Sep 13, 2026."
+123,3,Story,Rate co-riders and build a trust score,Done,High,trust,,Running average; anonymous reviews; public profile page with ratings.
+124,3,Story,Fixed fuel share per seat from a host-entered fuel price,Done,High,fuel-share,,(km / km per L) x price per L / seats offered; computed at posting; driver excluded.
+125,3,Story,Share live location with approved passengers,Done,Medium,trip-module,privacy,"Last position only, hidden after 90 seconds without an update. Completed Sep 14, 2026."
+126,3,Story,Trip group chat for the host and approved passengers,Done,Medium,trip-module,,"Closes when the trip ends. Completed Sep 15, 2026."
+127,3,Story,"Report a user or ride, with automatic strike-ladder bans",Done,High,trust,security,"24 h, 7 d, 30 d, then permanent; harassment and safety reports go straight to permanent. Report history view for reporters."
+128,4,Task,Automated tests for the sign-in controllers,Done,High,test,,"Registration, login, password reset. Completed Sep 15, 2026."
+129,4,Task,Load test the search endpoint and fix the bottleneck,Done,High,test,performance,"50 concurrent: p97.5 1,387 ms (pass). Deferring the vehicle/host join halved search time."
+130,4,Task,Independently verify the PSGA scoring formula,Done,High,test,algorithm,500/500 scores reproduced by a second implementation; two drift bugs found and fixed.
+131,4,Task,Postman collection and newman runner for every endpoint,Done,High,test,,"63 requests, 186 assertions, response time under 2 s each."
+132,4,Task,UAT protocol and SUS scoring workbook,Done,High,test,docs,"Consent script, 8 tasks, SUS scoring with adjective scale."
+133,4,Task,Error tracking (Sentry) and analytics (Umami),Done,Low,setup,,"Completed Sep 18, 2026."
+134,4,Story,"Design system, dark theme, onboarding tour and loading skeletons",Done,Medium,ui,,"Color tokens, theme toggle, reduced-motion support, react-joyride tour, logo."
+135,4,Task,"Deploy the website, API and database",Ready,Highest,deployment,,"Vercel (website), Railway (API, TRUST_PROXY=1), Neon (PostgreSQL). Set production secrets and CORS_ORIGIN."
+136,4,Task,Re-run the load test and Postman suite against the live URL,Ready,High,test,performance,Laptop numbers are not production numbers. Depends on deployment.
+137,4,Task,Run the UAT sessions and SUS survey with 5-8 participants,Ready,Highest,test,,Follow docs/evaluation/uat-sus-protocol.md; record results in the workbook.
+138,4,Task,Complete the human labeling sheet and measure ranking quality,Ready,Highest,test,algorithm,"Two evaluators plus a tiebreaker; then run validation/score_against_ground_truth.py for precision@1, recall and mean rank against the baselines."
+139,4,Task,Meet the 200-concurrent-user search target,Ready,Medium,performance,,Currently p97.5 5.3 s. Reduce database round-trips per search or cache the candidate pool.
+140,4,Task,Measure mobile data use per session,Ready,Medium,performance,,"Raised by the adviser. Measure map tiles, API payloads and live-location polling after deployment."
+141,5,Task,OWASP Top 10 review and top-five fixes,Done,Highest,security,,"Dependency audit, real JWT secret, password length check, login enumeration fix, security headers. Now 4 mitigated, 6 partial, 0 gaps."
+142,5,Story,"Encrypt names, gender and addresses at rest",Done,Highest,security,privacy,AES-256-GCM with a random IV per value; key kept outside the database.
+143,5,Task,Rate-limit sign-in endpoints,Done,High,security,,10 attempts per 15 minutes per IP; 5 for email-sending endpoints.
+144,5,Task,Cache and throttle address lookups (Nominatim policy),Done,High,security,,"24-hour cache, shared in-flight lookups, requests spaced at least 1.1 s apart."
+145,5,Story,Delete my account,Done,Highest,privacy,,"Anonymizes personal data, cancels rides and notifies affected users; ratings and reports stay intact."
+146,5,Task,Reject trips posted with someone else's car,Done,High,security,,403 VEHICLE_NOT_OWNED.
+147,5,Task,Log failed sign-ins and code lockouts,Ready,Medium,security,,Last open part of OWASP A09.
+148,5,Task,Configure the session cookie for cross-domain production,Ready,High,security,deployment,sameSite none and secure once the website and API are on different domains.
+149,5,Task,Add a CI pipeline running tests and npm audit,Ready,Medium,security,test,OWASP A08: nothing runs automatically before code lands on main.
+150,5,Task,Prepare NPC registration if MSEUF adopts the app,Ready,Low,privacy,docs,"Automated decision-making (matching, automatic bans) requires registration under NPC Circular 2022-04."
+151,6,Story,"Admin role: fuel price, reports, bans, users, trips, audit log",Done,Highest,admin,,"Official fuel price acts as a cap; every admin action is audited; admins cannot read chats. Completed Sep 30, 2026."
+152,6,Story,Save my cars and pre-select the default when posting,Done,High,ui,trip-module,"Up to 5 cars, one default; fewer taps when posting. Completed Sep 30, 2026."
+153,6,Story,Full-screen maps and draggable pins,Done,High,ui,,Drag the home and meeting-point pins to the exact spot; search keeps the pinned pickup.
+154,6,Story,Keep what I typed when I press back by accident,Done,High,ui,,Session drafts for post-trip and register forms; passwords and codes never saved.
+155,6,Bug,Header hidden behind the mobile browser's address bar,Done,Medium,ui,,"Fixed Sep 30, 2026."
+156,6,Task,Align the manuscript with the implementation,Done,High,docs,,"Fuel share, recurrence, Mapbox/Nominatim, 1,500 m corridor, account deletion."
+157,6,Task,"Defense brief: algorithm, backend, connections, data, governance, legality, costs",Done,High,docs,,Published as a shareable page.
+158,6,Task,Import the backlog into Jira,Done,Medium,docs,,This board.
+159,6,Task,Decide the manuscript's ICTD/OAuth sign-in wording,Ready,High,docs,,"Abstract and lines 1161, 1267 claim ICTD credentials via OAuth; the app uses a school-email code and its own hashed passwords."
+160,6,Task,Simplify stored routes before scoring,Ready,Low,algorithm,performance,Douglas-Peucker simplification keeps scoring cost flat as route detail grows.
+161,6,Task,Require two admins for permanent bans,Ready,Low,admin,,Policy safeguard suggested in the governance section.
