@@ -299,6 +299,24 @@ describe('PATCH /api/trips/:id/cancel — ownership', () => {
     const fresh = await prisma.trip.findUnique({ where: { id } });
     expect(fresh.status).toBe('CANCELLED');
   });
+
+  test('an approved passenger who cancels frees their seat and reopens a full trip', async () => {
+    if (guard()) return;
+    const trip = await makeTrip(bag, host.id, vehicle.id, { totalSeats: 1, filledSeats: 1, status: 'FULL' });
+    await makeMatch(bag, trip.id, other.id, { status: 'APPROVED' });
+    const res = await json('PATCH', `/api/trips/${trip.id}/cancel`, other.id, {});
+    expect(res.status).toBe(200);
+    const fresh = await prisma.trip.findUnique({ where: { id: trip.id } });
+    expect(fresh).toMatchObject({ filledSeats: 0, status: 'OPEN' });
+  });
+
+  test('a pending passenger who cancels leaves the seat count alone', async () => {
+    if (guard()) return;
+    const trip = await makeTrip(bag, host.id, vehicle.id, { totalSeats: 2, filledSeats: 1 });
+    await makeMatch(bag, trip.id, other.id, { status: 'PENDING' });
+    expect((await json('PATCH', `/api/trips/${trip.id}/cancel`, other.id, {})).status).toBe(200);
+    expect((await prisma.trip.findUnique({ where: { id: trip.id } })).filledSeats).toBe(1);
+  });
 });
 
 describe('GET /api/trips/:id — plate visibility keyed to the verified caller', () => {

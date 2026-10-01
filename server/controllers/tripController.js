@@ -8,7 +8,7 @@ const safeUserSelect = require('../config/safeUserSelect');
 const { encryptField, decryptUserFields, decryptTripFields } = require('../services/encryptionService');
 
 const { MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER, getOfficialFuelPrice } = require('../services/fuelPriceService');
-const { cancelWholeTrip, ACTIVE_MATCH_STATUSES } = require('../services/tripCancellationService');
+const { cancelWholeTrip, cancelPassengerMatch, ACTIVE_MATCH_STATUSES } = require('../services/tripCancellationService');
 const { validateNewTrip } = require('../services/tripValidation');
 
 // For a recurring trip, an APPROVED match never reaches COMPLETED (it's a
@@ -432,9 +432,9 @@ async function cancelTrip(req, res) {
   const passengerRaw = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
   const passenger = decryptUserFields(passengerRaw);
 
-  await prisma.$transaction([
-    prisma.match.update({ where: { id: myMatch.id }, data: { status: 'CANCELLED' } }),
-    prisma.notification.create({
+  await prisma.$transaction(async (tx) => {
+    await cancelPassengerMatch(tx, myMatch);
+    await tx.notification.create({
       data: {
         userId: trip.hostId,
         type: 'CANCELLATION',
@@ -442,8 +442,8 @@ async function cancelTrip(req, res) {
         relatedMatchId: myMatch.id,
         relatedTripId: trip.id,
       },
-    }),
-  ]);
+    });
+  });
 
   return res.json({ status: 'MATCH_CANCELLED' });
 }
