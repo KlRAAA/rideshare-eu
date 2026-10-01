@@ -7,6 +7,7 @@ const { sniffImageType } = require('../services/imageType');
 const { decryptUserFields } = require('../services/encryptionService');
 const bcrypt = require('bcrypt');
 const { deleteAccount, AccountDeletionError } = require('../services/accountDeletionService');
+const { logSecurityEvent } = require('../services/securityLog');
 
 const AVATAR_DIR = path.join(__dirname, '..', '..', 'public', 'uploads', 'avatars');
 const AVATAR_URL_PREFIX = '/uploads/avatars';
@@ -158,6 +159,7 @@ async function deleteMe(req, res) {
 
   const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { passwordHash: true } });
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    logSecurityEvent(req, 'PASSWORD_RECHECK_FAILED', { userId: req.user.id, reason: 'DELETE_ACCOUNT' });
     return res.status(403).json({ error: 'INVALID_PASSWORD' });
   }
 

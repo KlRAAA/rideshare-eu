@@ -4,6 +4,7 @@ const prisma = require('../config/db');
 const { generateOtp, hashOtp, verifyOtp, otpExpiryDate, MAX_ATTEMPTS } = require('../services/otpService');
 const { sendOtpEmail } = require('../services/emailService');
 const { encryptField, decryptField } = require('../services/encryptionService');
+const { logSecurityEvent } = require('../services/securityLog');
 
 const STUDENT_DOMAIN = '@student.mseuf.edu.ph';
 const STAFF_DOMAIN = '@mseuf.edu.ph';
@@ -25,6 +26,34 @@ function inferRole(email) {
   // them apart without an ICTD record, so this defaults to FACULTY — a
   // documented limitation, not a full solution (see the plan's decisions log).
   if (email.endsWith(STAFF_DOMAIN)) return 'FACULTY';
+  return null;
+}
+
+// Shared by registration and password reset. Returns null when the code is
+// right (and marks it used), otherwise the error to send. Wrong guesses and
+// lockouts are logged; the responses are the same as before logging existed.
+async function checkOtp(req, email, otp, reason) {
+  const record = await prisma.emailVerification.findFirst({
+    where: { email, consumed: false },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!record) return { status: 400, error: 'NO_PENDING_OTP' };
+  if (record.expiresAt < new Date()) return { status: 400, error: 'OTP_EXPIRED' };
+  if (record.attempts >= MAX_ATTEMPTS) {
+    logSecurityEvent(req, 'OTP_LOCKED', { email, reason, attempts: record.attempts });
+    return { status: 429, error: 'TOO_MANY_ATTEMPTS' };
+  }
+
+  const valid = await verifyOtp(otp, record.otpHash);
+  if (!valid) {
+    const attempts = record.attempts + 1;
+    await prisma.emailVerification.update({ where: { id: record.id }, data: { attempts: { increment: 1 } } });
+    logSecurityEvent(req, 'OTP_FAILED', { email, reason, attempts });
+    if (attempts >= MAX_ATTEMPTS) logSecurityEvent(req, 'OTP_LOCKED', { email, reason, attempts });
+    return { status: 401, error: 'INVALID_OTP' };
+  }
+
+  await prisma.emailVerification.update({ where: { id: record.id }, data: { consumed: true } });
   return null;
 }
 
@@ -53,21 +82,8 @@ async function startRegistration(req, res) {
 async function verifyRegistrationOtp(req, res) {
   const { email, otp } = req.body;
 
-  const record = await prisma.emailVerification.findFirst({
-    where: { email, consumed: false },
-    orderBy: { createdAt: 'desc' },
-  });
-  if (!record) return res.status(400).json({ error: 'NO_PENDING_OTP' });
-  if (record.expiresAt < new Date()) return res.status(400).json({ error: 'OTP_EXPIRED' });
-  if (record.attempts >= MAX_ATTEMPTS) return res.status(429).json({ error: 'TOO_MANY_ATTEMPTS' });
-
-  const valid = await verifyOtp(otp, record.otpHash);
-  if (!valid) {
-    await prisma.emailVerification.update({ where: { id: record.id }, data: { attempts: { increment: 1 } } });
-    return res.status(401).json({ error: 'INVALID_OTP' });
-  }
-
-  await prisma.emailVerification.update({ where: { id: record.id }, data: { consumed: true } });
+  const failure = await checkOtp(req, email, otp, 'REGISTRATION');
+  if (failure) return res.status(failure.status).json({ error: failure.error });
 
   const verificationTicket = jwt.sign({ email, purpose: 'complete-registration' }, process.env.JWT_SECRET, { expiresIn: '15m' });
   return res.json({ verificationTicket });
@@ -160,21 +176,8 @@ async function requestPasswordReset(req, res) {
 async function verifyPasswordResetOtp(req, res) {
   const { email, otp } = req.body;
 
-  const record = await prisma.emailVerification.findFirst({
-    where: { email, consumed: false },
-    orderBy: { createdAt: 'desc' },
-  });
-  if (!record) return res.status(400).json({ error: 'NO_PENDING_OTP' });
-  if (record.expiresAt < new Date()) return res.status(400).json({ error: 'OTP_EXPIRED' });
-  if (record.attempts >= MAX_ATTEMPTS) return res.status(429).json({ error: 'TOO_MANY_ATTEMPTS' });
-
-  const valid = await verifyOtp(otp, record.otpHash);
-  if (!valid) {
-    await prisma.emailVerification.update({ where: { id: record.id }, data: { attempts: { increment: 1 } } });
-    return res.status(401).json({ error: 'INVALID_OTP' });
-  }
-
-  await prisma.emailVerification.update({ where: { id: record.id }, data: { consumed: true } });
+  const failure = await checkOtp(req, email, otp, 'PASSWORD_RESET');
+  if (failure) return res.status(failure.status).json({ error: failure.error });
 
   const resetTicket = jwt.sign({ email, purpose: 'reset-password' }, process.env.JWT_SECRET, { expiresIn: '15m' });
   return res.json({ resetTicket });
@@ -215,7 +218,12 @@ async function login(req, res) {
   // timing consistent too, not just the status code — bcrypt.compare's cost
   // is what a timing check would actually measure.
   const valid = await bcrypt.compare(password || '', user ? user.passwordHash : DUMMY_PASSWORD_HASH);
-  if (!user || !valid) return res.status(401).json({ error: 'INVALID_CREDENTIALS' });
+  if (!user || !valid) {
+    logSecurityEvent(req, 'LOGIN_FAILED', user
+      ? { email, userId: user.id, reason: 'WRONG_PASSWORD' }
+      : { email, reason: 'UNKNOWN_ACCOUNT' });
+    return res.status(401).json({ error: 'INVALID_CREDENTIALS' });
+  }
 
   const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
   return res.json({ token, user: { id: user.id, email: user.email, fullName: decryptField(user.fullName), role: user.role } });

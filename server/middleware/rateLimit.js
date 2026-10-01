@@ -1,4 +1,5 @@
 const { rateLimit } = require('express-rate-limit');
+const { logSecurityEvent } = require('../services/securityLog');
 
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
@@ -27,6 +28,7 @@ function createLimiter({ limit, windowMs = FIFTEEN_MINUTES_MS }) {
     legacyHeaders: false,
     skip: skipUnderTests,
     handler: (req, res, next, options) => {
+      logSecurityEvent(req, 'RATE_LIMITED', { limit: options.limit });
       res.status(options.statusCode).json({
         error: 'TOO_MANY_REQUESTS',
         message: 'Too many attempts. Try again in a few minutes.',

@@ -20,7 +20,7 @@
 | A06 | Vulnerable and Outdated Components | Partially mitigated *(downgraded from Gap — critical RCE resolved)* |
 | A07 | Identification and Authentication Failures | Partially mitigated *(upgraded from Gap — 3 of 4 issues fixed; only session revocation remains, an accepted trade-off)* |
 | A08 | Software and Data Integrity Failures | Partially mitigated |
-| A09 | Security Logging and Monitoring Failures | Partially mitigated *(upgraded from Gap in Oct 2026 — admin actions and bans are audited and reviewable; auth failures still unlogged)* |
+| A09 | Security Logging and Monitoring Failures | Partially mitigated *(upgraded from Gap in Oct 2026 — admin actions and bans are audited; auth failures, code lockouts, rate-limit hits and denied access are logged; no alerting yet)* |
 | A10 | Server-Side Request Forgery | **Mitigated** |
 
 **As of this update (commit `59b5de3`):** 4 fully mitigated, 4 partially mitigated, 2 real gaps — up from 2/5/3 in the original review. Five items from that review's "priorities if there's time" list have since landed: `npm audit fix`, JWT_SECRET rotation, the registration password-length check, the login enumeration fix, and `helmet()`. Items 6-7 (rate limiting, auth-failure logging) are still open, scoped for a separate pass. Each fixed finding below is marked **RESOLVED** in place, with the original finding kept intact underneath it — this document is an audit trail, not a snapshot that gets rewritten as if the gap never existed.
@@ -28,6 +28,8 @@
 **As of 2026-09-30:** item 6 (rate limiting on `/api/auth/*`) has also landed, moving A07 from Gap to Partially mitigated — now 4 fully mitigated, 5 partially mitigated, 1 real gap (A09, security-event logging).
 
 **As of October 2026 (admin role, branch `admin-role`):** an admin console with an append-only audit log moves A09 from Gap to Partially mitigated, and adds a new access-control boundary under A01 — now 4 fully mitigated, 6 partially mitigated, 0 outright gaps. Failed-login and OTP-exhaustion logging (priority item 7) is still open.
+
+**As of 2026-10-01 (branch `auth-failure-logging`):** priority item 7 has landed — failed sign-ins, wrong and locked codes, rate-limit hits, failed password re-checks and ownership/admin 403s each write a structured security log line. A09 stays Partially mitigated only because there is no alerting or log shipping; that is deployment work, not application code.
 
 ---
 
@@ -275,6 +277,8 @@ fix available via `npm audit fix --force` (installs autocannon@2.0.1, breaking)
 
 ## A09: Security Logging and Monitoring Failures — Partially mitigated (was Gap)
 
+**RESOLVED for the application (2026-10-01, branch `auth-failure-logging`):** [server/services/securityLog.js](../../server/services/securityLog.js) writes one JSON line per security event to the server log (`console.warn`, which Railway/Render keep): `LOGIN_FAILED` (unknown account or wrong password, with the account id when it exists), `OTP_FAILED` and `OTP_LOCKED` (registration or password reset, with the attempt count), `RATE_LIMITED` (route and limit), `PASSWORD_RECHECK_FAILED` (account deletion) and `ACCESS_DENIED` (ownership and admin-only 403s, via [server/middleware/logAccessDenied.js](../../server/middleware/logAccessDenied.js)). Each line carries the time, IP, method, route and user agent. Only allow-listed fields are written, so a password, code or token can never reach the log, and emails are masked (`j***@student.mseuf.edu.ph`) under RA 10173. HTTP responses are unchanged — the generic `INVALID_CREDENTIALS` still doesn't reveal whether an account exists; only the server log distinguishes. Covered by `server/services/__tests__/securityLog.test.js` and `server/__tests__/securityLogging.test.js`, and verified against the running API. Still open: alerting and log retention beyond what the host provides.
+
 **PARTLY RESOLVED (October 2026, admin role):** every admin action (ban, unban, report review or dismissal, trip cancellation, fuel-price change, promote, demote) and every automatic strike-ladder ban now writes an `AdminAction` row inside the same database transaction as the change — [server/services/adminActionService.js](../../server/services/adminActionService.js). Automatic bans are recorded with `actorId = null`, so a user's full ban history is complete. The log is reviewable by a human for the first time, in the admin console's Activity page and on each user's detail page, which answers the original finding that no surface existed to review this data. Still open: failed logins, failed and exhausted OTP attempts, and ownership-check 403s are not logged (priority item 7), and there is no alerting.
 
 **Original finding (2026-09-15), kept for the audit trail:**
@@ -312,6 +316,6 @@ Roughly in order of impact-per-effort, all individually small (S) except where n
 4. ~~**Fix the login enumeration inconsistency**~~ (A07) — **Done**, plus the timing side-channel it exposed, plus the frontend ripple (`login/page.tsx`'s dead-code UI branch).
 5. ~~**Add `helmet()`**~~ (A05) — **Done.** Verified live, headers present, CORS unaffected.
 6. ~~**Rate limiting on `/api/auth/*`**~~ (A07, M effort) — **Done (2026-09-30).** Per-route limits (5 or 10 per 15 min per IP), 429 `TOO_MANY_REQUESTS` with standard headers, friendly frontend message, dedicated tests, verified live. See A07.
-7. **Minimal security-event logging** (A09, M effort) — partly done (Oct 2026): admin actions and all bans are audited in `AdminAction`. Still open: log auth failures and exhausted OTP attempts with enough context to reconstruct an incident.
+7. ~~**Minimal security-event logging**~~ (A09, M effort) — **Done (2026-10-01).** Admin actions and bans are audited in `AdminAction` (Oct 2026); auth failures, code lockouts, rate-limit hits, failed password re-checks and ownership 403s are logged as structured JSON lines. See A09.
 
 Everything else in this document (server-side score recomputation, CI/CD, session revocation, the 7 remaining dev-tooling-only CVEs) is real but lower-severity or larger-effort, and reasonable to explicitly defer past the 30th rather than rush.

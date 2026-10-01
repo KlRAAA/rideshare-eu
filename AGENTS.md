@@ -143,3 +143,13 @@ Added at the research adviser's request. Spec and plan:
   the Nominatim usage policy. Tests use `createGeocoder` with a fake fetch.
 - `cancelPassengerMatch` gives an approved passenger's seat back and reopens a
   FULL trip; both passenger cancellation and account deletion use it.
+
+## Security event log (Oct 2026)
+
+- `server/services/securityLog.js` writes one JSON line (`"type":"security"`)
+  to stderr per `LOGIN_FAILED`, `OTP_FAILED`, `OTP_LOCKED`, `RATE_LIMITED`,
+  `PASSWORD_RECHECK_FAILED` and `ACCESS_DENIED` (ownership/admin 403s, via
+  `middleware/logAccessDenied.js`). Find them with `grep '"type":"security"'`.
+- Only allow-listed fields are kept (never passwords, codes or tokens); emails
+  are masked. Responses are unchanged.
+- Quiet under Jest; tests capture entries with `setSecurityLogSink`.

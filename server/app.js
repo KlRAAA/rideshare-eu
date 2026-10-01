@@ -15,6 +15,7 @@ const savedVehicleRoutes = require('./routes/savedVehicleRoutes');
 const { geocode } = require('./controllers/tripController');
 const { getOfficial: getOfficialFuelPrice } = require('./controllers/fuelPriceController');
 const { authenticate } = require('./middleware/authenticate');
+const { logAccessDenied } = require('./middleware/logAccessDenied');
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.use('/api/auth', authRoutes);
 // verifies it and sets req.user.id; controllers still trust the client-supplied
 // identity field until phase 2 migrates them.
 app.use('/api', authenticate);
+app.use('/api', logAccessDenied);
 
 app.get('/api/geocode', geocode);
 app.get('/api/fuel-price', getOfficialFuelPrice);
