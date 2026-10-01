@@ -143,3 +143,14 @@ Added at the research adviser's request. Spec and plan:
   the Nominatim usage policy. Tests use `createGeocoder` with a fake fetch.
 - `cancelPassengerMatch` gives an approved passenger's seat back and reopens a
   FULL trip; both passenger cancellation and account deletion use it.
+
+## PSGA ground-truth labeling (Oct 2026)
+
+- `validation/labeling/` builds the evaluator workbooks (`build_labeling_kit.py`),
+  merges them with a tiebreaker into `validation/ground_truth.json`
+  (`merge_labels.py`), and `validation/score_against_ground_truth.py` then
+  writes `precision_results.json`. Procedure: `docs/validation/human-labeling-protocol.md`.
+- Never generate or fill in judgments — they must come from the human evaluators.
+- Regenerate `validation/method_rankings.json` (`python validation/run_methods.py`)
+  whenever `validation/psga.py` or the dataset changes; it is deterministic.
+- Tests: `python -m unittest discover -s validation/labeling`.

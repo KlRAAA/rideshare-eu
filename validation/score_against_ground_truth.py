@@ -2,8 +2,10 @@
 Computes precision@1, recall, and mean rank of first acceptable match for
 PSGA and each baseline, against the human-labelled ground truth.
 
-Run this AFTER the ground truth review is done (see the review tool). It
-expects a file `ground_truth.json` in this same folder, shaped like:
+Run this AFTER the ground truth labeling is done (validation/labeling/ —
+see docs/validation/human-labeling-protocol.md). It expects a file
+`ground_truth.json` in this same folder, written by
+validation/labeling/merge_labels.py and shaped like:
 
     {
       "Q001-T1": true,
@@ -31,23 +33,27 @@ import os
 import sys
 from collections import defaultdict
 
-with open("dataset_500_pairs.json") as f:
+HERE = os.path.dirname(os.path.abspath(__file__))
+GROUND_TRUTH_PATH = os.path.join(HERE, "ground_truth.json")
+RESULTS_PATH = os.path.join(HERE, "precision_results.json")
+
+with open(os.path.join(HERE, "dataset_500_pairs.json")) as f:
     rows = json.load(f)
-with open("method_rankings.json") as f:
+with open(os.path.join(HERE, "method_rankings.json")) as f:
     rankings = json.load(f)
 
 by_query = defaultdict(list)
 for r in rows:
     by_query[r["queryId"]].append(r["tripId"])
 
-if not os.path.exists("ground_truth.json"):
+if not os.path.exists(GROUND_TRUTH_PATH):
     print("ground_truth.json not found yet.")
     print("This script is ready to run as soon as the evaluator labeling is done -")
-    print("export the results from the review tool into ground_truth.json in this folder,")
+    print("run validation/labeling/merge_labels.py to produce ground_truth.json,")
     print("then re-run this script.")
     sys.exit(0)
 
-with open("ground_truth.json") as f:
+with open(GROUND_TRUTH_PATH) as f:
     ground_truth = json.load(f)
 
 missing = [tid for tid in [r["tripId"] for r in rows] if tid not in ground_truth]
@@ -99,8 +105,14 @@ def evaluate(method_name):
     }
 
 
+results = {method: evaluate(method) for method in ["psga", "random", "routeOnly", "fifo"]}
+results_doc = {"labeled_pairs": len(rows) - len(missing), "total_pairs": len(rows), "methods": results}
+with open(RESULTS_PATH, "w") as f:
+    json.dump(results_doc, f, indent=2)
+
 print(f"{'method':<12} {'precision@1':<13} {'recall':<9} {'mean_rank':<11} {'n_queries'}")
-for method in ["psga", "random", "routeOnly", "fifo"]:
-    m = evaluate(method)
+for method, m in results.items():
     print(f"{method:<12} {m['precision@1']:<13} {m['recall']:<9} "
           f"{str(m['mean_rank_of_first_hit']):<11} {m['queries_evaluated']}")
+print()
+print(f"Saved to {os.path.relpath(RESULTS_PATH)}")
