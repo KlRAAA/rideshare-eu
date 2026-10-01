@@ -127,3 +127,19 @@ Added at the research adviser's request. Spec and plan:
   `server/services/vehicleValidation.js` (fuel efficiency 3–50 km/L).
 - `npm run import-saved-cars` (one-time, rerunnable) saves each host's most
   recently used car as their default when they have none.
+
+## Account deletion, geocoding, seats (Oct 2026)
+
+- `DELETE /api/users/me` (password re-check, rate-limited like sign-in)
+  anonymizes rather than hard-deletes: `accountDeletionService` erases name,
+  email, university ID, photo, saved cars, preferences, notifications, chat
+  messages, plates and home/meeting locations, cancels hosted trips and
+  releases held seats (notifying everyone), and sets `User.deletedAt`.
+  Ratings, reports and others' trip history keep pointing at "Deleted user".
+  `authenticate` returns 401 `ACCOUNT_DELETED` for such sessions. The only
+  remaining admin gets 409 `LAST_ADMIN`.
+- `geocodingService` caches Nominatim results (24 h, 1,000 entries), shares
+  identical in-flight lookups and spaces outgoing requests ≥ 1.1 s apart, per
+  the Nominatim usage policy. Tests use `createGeocoder` with a fake fetch.
+- `cancelPassengerMatch` gives an approved passenger's seat back and reopens a
+  FULL trip; both passenger cancellation and account deletion use it.
