@@ -28,6 +28,7 @@ import { useGeocodedAddress } from '@/lib/useGeocodedAddress';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import RouteMap from '@/components/RouteMap';
 import type { LatLng } from '@/lib/directions';
+import { searchFlexWindow } from '@/lib/searchWindow';
 
 interface Vehicle {
   make: string;
@@ -263,7 +264,7 @@ export default function SearchClient({
           destination: { lat: destinationGeo.lat, lng: destinationGeo.lng },
           departureMinutes,
           date,
-          flexWindowMinutes: flexibleTime ? 30 : 0,
+          flexWindowMinutes: searchFlexWindow(flexibleTime),
           genderPreference,
         }),
       });
@@ -304,7 +305,7 @@ export default function SearchClient({
           destination: searchGeo.destination,
           departureMinutes,
           date,
-          flexWindowMinutes: flexibleTime ? 30 : 0,
+          flexWindowMinutes: searchFlexWindow(flexibleTime),
           genderPreference,
         }),
       });
@@ -447,7 +448,10 @@ export default function SearchClient({
             </Select>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-600">Flexible Time (±30 min window)</span>
+            <span className="text-xs text-gray-600">
+              Flexible Time
+              <span className="block text-gray-400">Rides within ±{searchFlexWindow(flexibleTime)} min of your time</span>
+            </span>
             <button
               type="button"
               role="switch"
