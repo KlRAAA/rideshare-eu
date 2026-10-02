@@ -99,10 +99,16 @@ Added at the research adviser's request. Spec and plan:
 - Safety rules: no action on your own account (`CANNOT_TARGET_SELF`), including
   deciding a report about yourself; an admin must be demoted before being
   banned (`TARGET_IS_ADMIN`). Admins cannot read trip chats.
-- **Official fuel price is a cap.** `GET /api/fuel-price` (any signed-in user)
-  returns the newest `FuelPrice` row. `createTrip` rejects a higher host price
-  with 400 `FUEL_PRICE_ABOVE_OFFICIAL`; with no official price, the old
-  PHP 20–150 bounds apply. Posted trips keep their price.
+- **Official fuel prices are caps, one per fuel type** (`FuelType`: REGULAR,
+  PREMIUM, DIESEL). `GET /api/fuel-price` (any signed-in user) returns
+  `{ prices: { REGULAR, PREMIUM, DIESEL } }`, each the newest `FuelPrice` row of
+  that type or null. `PUT /api/admin/fuel-price` takes `{ fuelType, pricePerLiter }`
+  (400 `INVALID_FUEL_TYPE`). Every car (`Vehicle`, `SavedVehicle`) has a
+  `fuelType`, defaulting to REGULAR when a client omits it. `createTrip` caps the
+  host price by the trip car's type (400 `FUEL_PRICE_ABOVE_OFFICIAL` with
+  `officialPrice` and `fuelType`); with no price set for that type, the old
+  PHP 20–150 bounds apply. Posted trips keep their price. The admin page flags a
+  price older than 7 days and links the DOE weekly pump-price page.
 - Every admin write and every automatic ladder ban (`actorId` null) is recorded
   in `AdminAction`, in the same transaction as the change. The 403
   `ACCOUNT_SUSPENDED` body carries `byAdmin` so the suspended screen and ban
