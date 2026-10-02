@@ -13,7 +13,8 @@ import { fetchRoute, type FetchedRoute } from '@/lib/directions';
 import { FUEL_PRICE_PER_LITER, MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER } from '@/lib/constants';
 import ConfirmStructuralEditModal from '@/components/ConfirmStructuralEditModal';
 import VehicleFields from '@/components/VehicleFields';
-import { EMPTY_VEHICLE_FIELDS, vehicleFieldsError, type VehicleFieldValues } from '@/lib/vehicles';
+import { EMPTY_VEHICLE_FIELDS, toVehiclePayload, vehicleFieldsError, type VehicleFieldValues } from '@/lib/vehicles';
+import { DEFAULT_FUEL_TYPE, FUEL_TYPE_SHORT_LABELS, isFuelType, type FuelType, type OfficialFuelPrices } from '@/lib/fuelTypes';
 import VehicleSection from './VehicleSection';
 import { useGeocodedAddress, reverseGeocodeLabel } from '@/lib/useGeocodedAddress';
 import { useFormDraft } from '@/lib/useFormDraft';
@@ -89,7 +90,7 @@ export interface EditableTrip {
   meetingPointAddress: string | null;
   meetingPointLat: number | null;
   meetingPointLng: number | null;
-  vehicle: { make: string; model: string; color: string; plate: string | null; fuelEfficiencyKmL: number };
+  vehicle: { make: string; model: string; color: string; plate: string | null; fuelEfficiencyKmL: number; fuelType: FuelType };
 }
 
 export default function PostTripForm({ hostId, editTrip }: { hostId: string; editTrip?: EditableTrip }) {
@@ -123,19 +124,19 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
   // to a number on every keystroke turns a cleared field into 0 instead of
   // empty, so typing "85" after clearing produces "085".
   const [fuelPricePerLiter, setFuelPricePerLiter] = useState(String(FUEL_PRICE_PER_LITER));
-  // Admin-set cap (GET /api/fuel-price). Pre-fills the field; the host may go
-  // lower, never higher. Null when no official price has been set.
-  const [officialFuelPrice, setOfficialFuelPrice] = useState<number | null>(null);
+  // Admin-set caps, one per fuel type (GET /api/fuel-price). The car's own
+  // type picks which one pre-fills the field and caps it; the host may go
+  // lower, never higher.
+  const [officialFuelPrices, setOfficialFuelPrices] = useState<Partial<Record<FuelType, number | null>>>({});
   useEffect(() => {
     if (isEdit) return;
     let cancelled = false;
-    apiFetch<{ official: number | null }>('/api/fuel-price')
-      .then(({ official }) => {
-        if (cancelled || official == null) return;
-        setOfficialFuelPrice(official);
-        // Only replace the untouched default, never a price the host typed
-        // (or one restored from a draft).
-        setFuelPricePerLiter((prev) => (prev === String(FUEL_PRICE_PER_LITER) ? String(official) : prev));
+    apiFetch<{ prices: OfficialFuelPrices }>('/api/fuel-price')
+      .then(({ prices }) => {
+        if (cancelled) return;
+        setOfficialFuelPrices(
+          Object.fromEntries(Object.entries(prices).map(([type, p]) => [type, p ? p.pricePerLiter : null]))
+        );
       })
       .catch(() => {});
     return () => {
@@ -150,9 +151,27 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
           color: editTrip.vehicle.color,
           plate: editTrip.vehicle.plate ?? '',
           fuelEfficiency: String(editTrip.vehicle.fuelEfficiencyKmL),
+          fuelType: editTrip.vehicle.fuelType ?? DEFAULT_FUEL_TYPE,
         }
       : EMPTY_VEHICLE_FIELDS
   );
+  // Drafts saved before cars had a fuel type restore without one.
+  const carFuelType: FuelType = isFuelType(vehicle.fuelType) ? vehicle.fuelType : DEFAULT_FUEL_TYPE;
+  const officialFuelPrice = officialFuelPrices[carFuelType] ?? null;
+  // The last price this form filled in by itself. While the field still holds
+  // it (or the untouched default), switching to a car with another fuel type
+  // swaps in that type's official price; a price the host typed, or one
+  // restored from a draft, is never replaced.
+  const autoFilledPrice = useRef<string | null>(null);
+  useEffect(() => {
+    if (isEdit || officialFuelPrice == null) return;
+    const next = String(officialFuelPrice);
+    setFuelPricePerLiter((prev) => {
+      if (prev !== String(FUEL_PRICE_PER_LITER) && prev !== autoFilledPrice.current) return prev;
+      autoFilledPrice.current = next;
+      return next;
+    });
+  }, [isEdit, officialFuelPrice]);
   const [saveNewCar, setSaveNewCar] = useState(false);
   const [driverNotes, setDriverNotes] = useState(editTrip?.driverNotes ?? '');
   const [genderPreference, setGenderPreference] = useState<'ANY' | 'SAME_GENDER'>(editTrip?.genderPreference ?? 'ANY');
@@ -249,7 +268,7 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
     !isEdit && fuelPriceIsValidNumber && (fuelPriceValue < MIN_FUEL_PRICE_PER_LITER || fuelPriceValue > MAX_FUEL_PRICE_PER_LITER)
       ? `Enter a price between ₱${MIN_FUEL_PRICE_PER_LITER} and ₱${MAX_FUEL_PRICE_PER_LITER} per liter.`
       : !isEdit && fuelPriceIsValidNumber && officialFuelPrice != null && fuelPriceValue > officialFuelPrice
-        ? `The official price is ₱${officialFuelPrice.toFixed(2)}/L. You can enter less, not more.`
+        ? `The official ${FUEL_TYPE_SHORT_LABELS[carFuelType]} price is ₱${officialFuelPrice.toFixed(2)}/L. You can enter less, not more.`
         : null;
 
   // Preview of the fixed per-seat fuel share. The server computes and persists
@@ -373,13 +392,7 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
                   meetingPointLng: meetingCoords?.lng ?? null,
                 }
               : {}),
-            vehicle: {
-              make: vehicle.make,
-              model: vehicle.model,
-              color: vehicle.color,
-              plate: vehicle.plate || null,
-              fuelEfficiencyKmL: Number(vehicle.fuelEfficiency),
-            },
+            vehicle: toVehiclePayload({ ...vehicle, fuelType: carFuelType }),
           }),
         });
         setConfirmData(null);
@@ -388,13 +401,7 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
         return;
       }
 
-      const carPayload = {
-        make: vehicle.make,
-        model: vehicle.model,
-        color: vehicle.color,
-        plate: vehicle.plate,
-        fuelEfficiencyKmL: Number(vehicle.fuelEfficiency),
-      };
+      const carPayload = toVehiclePayload({ ...vehicle, fuelType: carFuelType });
       // Each trip keeps its own copy of the car, so a later edit to this trip
       // never changes other trips or the saved car.
       const { vehicle: tripVehicle } = await apiFetch<{ vehicle: { id: string } }>('/api/vehicles', {
@@ -457,8 +464,9 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
         setError(INVALID_TRIP_MESSAGES[String(err.body?.field)] ?? 'Some trip details aren’t valid. Check the fields above and try again.');
       } else if (err instanceof ApiError && err.code === 'FUEL_PRICE_ABOVE_OFFICIAL') {
         const cap = Number(err.body?.officialPrice);
-        setOfficialFuelPrice(cap);
-        setError(`The official price is now ₱${cap.toFixed(2)}/L. Lower your price and post again.`);
+        const type = isFuelType(err.body?.fuelType) ? err.body.fuelType : carFuelType;
+        setOfficialFuelPrices((prev) => ({ ...prev, [type]: cap }));
+        setError(`The official ${FUEL_TYPE_SHORT_LABELS[type]} price is now ₱${cap.toFixed(2)}/L. Lower your price and post again.`);
       } else {
         setError(isEdit ? 'Couldn’t save those changes. Try again in a moment.' : 'Couldn’t publish that trip. Check the fields above and try again.');
       }
@@ -668,7 +676,7 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
               />
               <p className="text-[11px] text-gray-400 mt-1">
                 {officialFuelPrice != null
-                  ? `Official price ₱${officialFuelPrice.toFixed(2)}/L. You can enter less, not more.`
+                  ? `Official ${FUEL_TYPE_SHORT_LABELS[carFuelType]} price ₱${officialFuelPrice.toFixed(2)}/L. You can enter less, not more.`
                   : "Today's pump price — used to compute the fuel share above. No live price feed, so enter it yourself."}
               </p>
               {fuelPriceError && <p className="text-xs text-red-600 mt-1">{fuelPriceError}</p>}

@@ -32,9 +32,9 @@ async function makeAdminUser(bag, opts) {
   return { ...user, isAdmin: true };
 }
 
-async function makeVehicle(bag, ownerId) {
+async function makeVehicle(bag, ownerId, { fuelType = 'REGULAR' } = {}) {
   const vehicle = await prisma.vehicle.create({
-    data: { ownerId, make: 'Test', model: 'Car', color: 'Blue', fuelEfficiencyKmL: 12 },
+    data: { ownerId, make: 'Test', model: 'Car', color: 'Blue', fuelEfficiencyKmL: 12, fuelType },
   });
   bag.vehicleIds.push(vehicle.id);
   return vehicle;

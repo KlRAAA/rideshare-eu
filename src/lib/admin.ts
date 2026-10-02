@@ -1,3 +1,5 @@
+import { FUEL_TYPE_SHORT_LABELS, isFuelType } from './fuelTypes';
+
 export interface AdminAction {
   id: string;
   actorId: string | null;
@@ -34,7 +36,12 @@ const ACTION_LABELS: Record<AdminAction['action'], string> = {
 
 export function describeAction(a: AdminAction): string {
   const actor = a.actorName ?? (a.details?.automatic ? 'Automatic strike ladder' : a.details?.via ? 'Server command' : 'System');
-  if (a.action === 'FUEL_PRICE_SET') return `${actor} set the official fuel price to ₱${Number(a.details?.to).toFixed(2)}/L`;
+  if (a.action === 'FUEL_PRICE_SET') {
+    // Entries from before per-type prices have no fuelType.
+    const fuelType = a.details?.fuelType;
+    const type = isFuelType(fuelType) ? `${FUEL_TYPE_SHORT_LABELS[fuelType]} ` : 'fuel ';
+    return `${actor} set the official ${type}price to ₱${Number(a.details?.to).toFixed(2)}/L`;
+  }
   return `${actor} ${ACTION_LABELS[a.action]} ${a.targetUserName ?? 'a deleted user'}`;
 }
 

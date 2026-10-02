@@ -1,5 +1,7 @@
 'use client';
 
+import Select from '@/components/Select';
+import { FUEL_TYPES, FUEL_TYPE_LABELS, isFuelType } from '@/lib/fuelTypes';
 import { MIN_FUEL_EFFICIENCY_KM_L, MAX_FUEL_EFFICIENCY_KM_L, type VehicleFieldValues } from '@/lib/vehicles';
 
 const LABEL = 'block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1';
@@ -38,6 +40,21 @@ export default function VehicleFields({ value, onChange, idPrefix }: VehicleFiel
       <p className="text-[11px] text-gray-400">
         The plate is only shown to riders you&apos;ve approved — never in public search results.
       </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label htmlFor={`${idPrefix}-fuel-type`} className={LABEL}>Fuel Type</label>
+        <Select
+          id={`${idPrefix}-fuel-type`}
+          value={value.fuelType}
+          onChange={(e) => isFuelType(e.target.value) && onChange({ ...value, fuelType: e.target.value })}
+          className={`${INPUT} pr-9`}
+        >
+          {FUEL_TYPES.map((t) => (
+            <option key={t} value={t}>{FUEL_TYPE_LABELS[t]}</option>
+          ))}
+        </Select>
+        <p className="text-[11px] text-gray-400 mt-1">Sets which official fuel price applies.</p>
+      </div>
       <div>
         <label htmlFor={`${idPrefix}-efficiency`} className={LABEL}>Fuel Efficiency (km/L)</label>
         <input
@@ -52,6 +69,7 @@ export default function VehicleFields({ value, onChange, idPrefix }: VehicleFiel
           className={INPUT}
         />
         <p className="text-[11px] text-gray-400 mt-1">Used to estimate each passenger&apos;s fuel share automatically.</p>
+      </div>
       </div>
     </div>
   );

@@ -101,9 +101,11 @@ async function createTrip(req, res) {
     }
     body.fuelPricePerLiter = price;
 
-    const official = await getOfficialFuelPrice();
+    // Capped by the official price for this car's fuel type; with none set
+    // for that type, only the sanity bounds above apply.
+    const official = await getOfficialFuelPrice(vehicle.fuelType);
     if (official && price > official.pricePerLiter) {
-      return res.status(400).json({ error: 'FUEL_PRICE_ABOVE_OFFICIAL', officialPrice: official.pricePerLiter });
+      return res.status(400).json({ error: 'FUEL_PRICE_ABOVE_OFFICIAL', officialPrice: official.pricePerLiter, fuelType: vehicle.fuelType });
     }
   }
 

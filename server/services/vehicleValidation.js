@@ -2,6 +2,8 @@ const MAX_LENGTH = { make: 40, model: 40, color: 30, plate: 15 };
 const REQUIRED_TEXT = ['make', 'model', 'color'];
 const MIN_FUEL_EFFICIENCY_KM_L = 3;
 const MAX_FUEL_EFFICIENCY_KM_L = 50;
+const FUEL_TYPES = ['REGULAR', 'PREMIUM', 'DIESEL'];
+const DEFAULT_FUEL_TYPE = 'REGULAR';
 
 // Validates and normalizes car fields. `partial` checks only the fields that
 // are present (for edits). Returns { data } or { field } naming the first bad one.
@@ -29,6 +31,15 @@ function validateVehicle(input, { partial = false } = {}) {
       return { field: 'fuelEfficiencyKmL' };
     }
     data.fuelEfficiencyKmL = efficiency;
+  }
+
+  // Optional on create so older clients keep working: a car sent without one
+  // counts as Regular, which is what the schema defaults existing cars to.
+  if ('fuelType' in src) {
+    if (!FUEL_TYPES.includes(src.fuelType)) return { field: 'fuelType' };
+    data.fuelType = src.fuelType;
+  } else if (!partial) {
+    data.fuelType = DEFAULT_FUEL_TYPE;
   }
 
   return { data };

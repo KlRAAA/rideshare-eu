@@ -533,8 +533,8 @@
                     "type": "text/javascript",
                     "exec": [
                       "pm.test('status is 200', () => pm.response.to.have.status(200));",
-                      "const { official } = pm.response.json();",
-                      "pm.test('official price is a number or null', () => pm.expect(official === null || typeof official === 'number').to.eql(true));",
+                      "const { prices } = pm.response.json();",
+                      "pm.test('one official price per fuel type', () => pm.expect(Object.keys(prices).sort()).to.eql(['DIESEL', 'PREMIUM', 'REGULAR']));\nconst official = prices.REGULAR ? prices.REGULAR.pricePerLiter : null;",
                       "const price = official == null ? 60 : Math.min(60, official);",
                       "pm.collectionVariables.set('tripFuelPrice', price);",
                       "pm.collectionVariables.set('expectedShare', Number(((12.5 / 12) * price / 3).toFixed(2)));"
@@ -546,7 +546,7 @@
                 "method": "GET",
                 "header": [],
                 "url": "{{baseUrl}}/api/fuel-price",
-                "description": "Posts use PHP 60 or the official price, whichever is lower, so the run passes under any cap an admin has set.",
+                "description": "Posts use PHP 60 or the official Regular price, whichever is lower, so the run passes under any cap an admin has set. The Postman car is sent without a fuel type, so it counts as Regular.",
                 "auth": {
                   "type": "bearer",
                   "bearer": [
@@ -2533,7 +2533,7 @@
               }
             },
             {
-              "name": "Set the official fuel price",
+              "name": "Set the official Regular fuel price",
               "event": [
                 {
                   "listen": "test",
@@ -2541,7 +2541,8 @@
                     "type": "text/javascript",
                     "exec": [
                       "pm.test('status is 200', () => pm.response.to.have.status(200));",
-                      "pm.test('price saved', () => pm.expect(pm.response.json().official).to.eql(Number(pm.collectionVariables.get('tripFuelPrice'))));"
+                      "pm.test('price saved', () => pm.expect(pm.response.json().official).to.eql(Number(pm.collectionVariables.get('tripFuelPrice'))));",
+                      "pm.test('saved for Regular', () => pm.expect(pm.response.json().fuelType).to.eql('REGULAR'));"
                     ]
                   }
                 }
@@ -2568,7 +2569,53 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"pricePerLiter\": {{tripFuelPrice}}\n}",
+                  "raw": "{\n  \"fuelType\": \"REGULAR\",\n  \"pricePerLiter\": {{tripFuelPrice}}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Set a price for an unknown fuel type",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "pm.test('error is INVALID_FUEL_TYPE', () => pm.expect(pm.response.json().error).to.eql('INVALID_FUEL_TYPE'));",
+                      "pm.test('responds in under 2 s', () => pm.expect(pm.response.responseTime).to.be.below(2000));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/fuel-price",
+                "description": "Re-sets the price already in effect for this run, so the cap other users see does not change.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fuelType\": \"KEROSENE\",\n  \"pricePerLiter\": 60\n}",
                   "options": {
                     "raw": {
                       "language": "json"

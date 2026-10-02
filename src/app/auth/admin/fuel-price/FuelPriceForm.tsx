@@ -4,8 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER } from '@/lib/constants';
+import { FUEL_TYPE_SHORT_LABELS, type FuelType } from '@/lib/fuelTypes';
 
-export default function FuelPriceForm({ current }: { current: number | null }) {
+export default function FuelPriceForm({ fuelType, current }: { fuelType: FuelType; current: number | null }) {
+  const name = FUEL_TYPE_SHORT_LABELS[fuelType];
+  const inputId = `official-fuel-price-${fuelType.toLowerCase()}`;
   const router = useRouter();
   const [value, setValue] = useState(current != null ? String(current) : '');
   const [busy, setBusy] = useState(false);
@@ -19,11 +22,11 @@ export default function FuelPriceForm({ current }: { current: number | null }) {
       setError(`Enter a price between ₱${MIN_FUEL_PRICE_PER_LITER} and ₱${MAX_FUEL_PRICE_PER_LITER}.`);
       return;
     }
-    if (!window.confirm(`Set the official price to ₱${price.toFixed(2)}/L for everyone?`)) return;
+    if (!window.confirm(`Set the official ${name} price to ₱${price.toFixed(2)}/L for everyone?`)) return;
     setBusy(true);
     setError(null);
     try {
-      await apiFetch('/api/admin/fuel-price', { method: 'PUT', body: JSON.stringify({ pricePerLiter: price }) });
+      await apiFetch('/api/admin/fuel-price', { method: 'PUT', body: JSON.stringify({ fuelType, pricePerLiter: price }) });
       setSaved(true);
       router.refresh();
     } catch {
@@ -34,11 +37,11 @@ export default function FuelPriceForm({ current }: { current: number | null }) {
   }
 
   return (
-    <form onSubmit={submit} className="mt-4 flex flex-col md:flex-row gap-2 md:items-end">
-      <label htmlFor="official-fuel-price" className="flex-1 text-xs font-semibold text-gray-700 uppercase tracking-wider">
-        New price (₱/liter)
+    <form onSubmit={submit} className="mt-4 flex flex-col gap-2">
+      <label htmlFor={inputId} className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+        New {name} price (₱/liter)
         <input
-          id="official-fuel-price"
+          id={inputId}
           type="number"
           step="0.01"
           min={MIN_FUEL_PRICE_PER_LITER}
@@ -52,10 +55,10 @@ export default function FuelPriceForm({ current }: { current: number | null }) {
         />
       </label>
       <button type="submit" disabled={busy} className="rsu-btn-primary disabled:opacity-60">
-        {busy ? 'Saving…' : 'Set official price'}
+        {busy ? 'Saving…' : `Set ${name} price`}
       </button>
-      {error && <p className="text-xs text-red-600 md:self-center">{error}</p>}
-      {saved && !error && <p className="text-xs text-green-700 md:self-center">Saved.</p>}
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      {saved && !error && <p className="text-xs text-green-700">Saved.</p>}
     </form>
   );
 }

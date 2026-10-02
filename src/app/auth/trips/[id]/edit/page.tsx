@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/session';
 import { apiFetch } from '@/lib/api-server';
 import { ApiError } from '@/lib/api';
 import PostTripForm, { type EditableTrip } from '@/app/auth/post/PostTripForm';
+import type { FuelType } from '@/lib/fuelTypes';
 
 interface TripApiShape {
   id: string;
@@ -35,7 +36,7 @@ interface TripApiShape {
   meetingPointLat: number | null;
   meetingPointLng: number | null;
   host: { id: string };
-  vehicle: { make: string; model: string; color: string; plate: string | null; fuelEfficiencyKmL: number };
+  vehicle: { make: string; model: string; color: string; plate: string | null; fuelEfficiencyKmL: number; fuelType: FuelType };
   matches: { status: string }[];
 }
 

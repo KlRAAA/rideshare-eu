@@ -19,7 +19,8 @@ function sameCar(a: VehicleFieldValues, b: VehicleFieldValues): boolean {
     a.model === b.model &&
     a.color === b.color &&
     a.plate === b.plate &&
-    Number(a.fuelEfficiency) === Number(b.fuelEfficiency)
+    Number(a.fuelEfficiency) === Number(b.fuelEfficiency) &&
+    a.fuelType === b.fuelType
   );
 }
 

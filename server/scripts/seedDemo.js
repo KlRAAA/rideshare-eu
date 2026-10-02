@@ -20,7 +20,10 @@ const { encryptField } = require('../services/encryptionService');
 
 const DEMO_PASSWORD = 'Demo-Ride-2026';
 const CAMPUS = { lat: 13.9490188, lng: 121.6202904, address: 'Manuel S. Enverga University Foundation, Lucena City' };
-const FUEL_PRICE = 64.5; // official cap set by the demo admin
+// Official caps set by the demo admin, one per fuel type.
+const FUEL_PRICES = { REGULAR: 74.8, PREMIUM: 78.5, DIESEL: 85.5 };
+// Diesel is backdated past a week so the admin page shows its stale-price reminder.
+const STALE_DIESEL_DAYS = 9;
 const TRIP_FUEL_PRICE = 62.75;
 
 const PLACES = {
@@ -242,12 +245,18 @@ async function main() {
     await wipe();
     const u = await createUsers();
 
-    await api(u.liza.id, 'PUT', '/api/admin/fuel-price', { pricePerLiter: FUEL_PRICE });
+    for (const [fuelType, pricePerLiter] of Object.entries(FUEL_PRICES)) {
+      await api(u.liza.id, 'PUT', '/api/admin/fuel-price', { fuelType, pricePerLiter });
+    }
+    await prisma.fuelPrice.updateMany({
+      where: { fuelType: 'DIESEL' },
+      data: { createdAt: new Date(Date.now() - STALE_DIESEL_DAYS * 86400 * 1000) },
+    });
 
     const cars = {
       juan: { make: 'Toyota', model: 'Vios', color: 'Silver', plate: 'DMO 1001', fuelEfficiencyKmL: 14 },
-      ana: { make: 'Honda', model: 'City', color: 'Pearl White', plate: 'DMO 1002', fuelEfficiencyKmL: 15 },
-      carlo: { make: 'Mitsubishi', model: 'Xpander', color: 'Graphite Gray', plate: 'DMO 1003', fuelEfficiencyKmL: 11 },
+      ana: { make: 'Honda', model: 'City', color: 'Pearl White', plate: 'DMO 1002', fuelEfficiencyKmL: 15, fuelType: 'PREMIUM' },
+      carlo: { make: 'Mitsubishi', model: 'Xpander', color: 'Graphite Gray', plate: 'DMO 1003', fuelEfficiencyKmL: 11, fuelType: 'DIESEL' },
       miguel: { make: 'Suzuki', model: 'Dzire', color: 'Red', plate: 'DMO 1004', fuelEfficiencyKmL: 18 },
     };
     const vehicleIds = {};

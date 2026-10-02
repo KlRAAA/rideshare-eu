@@ -55,6 +55,14 @@ enum ReportStatus {
   DISMISSED
 }
 
+// Pump grades at Philippine stations: Unleaded 91, Premium 95, Diesel. Each
+// has its own official price, and each car records which one it uses.
+enum FuelType {
+  REGULAR
+  PREMIUM
+  DIESEL
+}
+
 enum AdminActionType {
   BAN
   UNBAN
@@ -150,6 +158,7 @@ model Vehicle {
   color             String
   plate             String?
   fuelEfficiencyKmL Float
+  fuelType          FuelType @default(REGULAR)
   trips             Trip[]
 
   @@index([ownerId])
@@ -167,6 +176,7 @@ model SavedVehicle {
   color             String
   plate             String?
   fuelEfficiencyKmL Float
+  fuelType          FuelType @default(REGULAR)
   isDefault         Boolean  @default(false)
   createdAt         DateTime @default(now())
 
@@ -364,12 +374,14 @@ model Report {
 // price a host may enter when posting a trip; no rows means no cap.
 model FuelPrice {
   id            String   @id @default(cuid())
+  fuelType      FuelType @default(REGULAR) // rows from before per-type prices are Regular
   pricePerLiter Float
   setById       String
   setBy         User     @relation(fields: [setById], references: [id])
   createdAt     DateTime @default(now())
 
   @@index([createdAt])
+  @@index([fuelType, createdAt])
 }
 
 // Audit log of every admin action and every automatic ban (actorId null).

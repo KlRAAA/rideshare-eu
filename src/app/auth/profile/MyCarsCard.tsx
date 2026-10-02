@@ -10,6 +10,7 @@ import {
   EMPTY_VEHICLE_FIELDS,
   MAX_SAVED_VEHICLES,
   toFieldValues,
+  toVehiclePayload,
   vehicleFieldsError,
   vehicleSummary,
   type SavedVehicle,
@@ -18,10 +19,6 @@ import {
 
 // null = not editing; 'new' = adding a car; otherwise the id being edited.
 type Editing = null | 'new' | string;
-
-function toPayload(v: VehicleFieldValues) {
-  return { make: v.make, model: v.model, color: v.color, plate: v.plate, fuelEfficiencyKmL: Number(v.fuelEfficiency) };
-}
 
 export default function MyCarsCard() {
   const [cars, setCars] = useState<SavedVehicle[] | null>(null);
@@ -70,7 +67,7 @@ export default function MyCarsCard() {
       setError(problem);
       return;
     }
-    const body = JSON.stringify(toPayload(form));
+    const body = JSON.stringify(toVehiclePayload(form));
     run(() =>
       editing === 'new'
         ? apiFetch('/api/saved-vehicles', { method: 'POST', body })
