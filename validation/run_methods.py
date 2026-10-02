@@ -10,6 +10,7 @@ correctness judgment comes later, from the human evaluators.
 """
 
 import json
+import zlib
 from collections import defaultdict
 
 from psga import run_psga, baseline_random, baseline_route_only, baseline_fifo
@@ -49,7 +50,9 @@ for qid, pair_rows in by_query.items():
     psga_ranked = [x["tripId"] for x in run_psga(passenger, trips)]
     results[qid] = {
         "psga": psga_ranked,
-        "random": baseline_random(passenger, trips, seed=hash(qid) % (2**31)),
+        # crc32, not hash(): Python randomizes str hashes per process, so hash()
+        # gave a different "random" baseline on every run.
+        "random": baseline_random(passenger, trips, seed=zlib.crc32(qid.encode())),
         "routeOnly": baseline_route_only(passenger, trips),
         "fifo": baseline_fifo(passenger, trips),
     }

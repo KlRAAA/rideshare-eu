@@ -153,3 +153,14 @@ Added at the research adviser's request. Spec and plan:
 - Only allow-listed fields are kept (never passwords, codes or tokens); emails
   are masked. Responses are unchanged.
 - Quiet under Jest; tests capture entries with `setSecurityLogSink`.
+
+## PSGA ground-truth labeling (Oct 2026)
+
+- `validation/labeling/` builds the evaluator workbooks (`build_labeling_kit.py`),
+  merges them with a tiebreaker into `validation/ground_truth.json`
+  (`merge_labels.py`), and `validation/score_against_ground_truth.py` then
+  writes `precision_results.json`. Procedure: `docs/validation/human-labeling-protocol.md`.
+- Never generate or fill in judgments — they must come from the human evaluators.
+- Regenerate `validation/method_rankings.json` (`python validation/run_methods.py`)
+  whenever `validation/psga.py` or the dataset changes; it is deterministic.
+- Tests: `python -m unittest discover -s validation/labeling`.
