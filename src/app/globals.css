@@ -36,10 +36,14 @@
 	box-sizing: border-box;
 }
 
-a {
-	color: inherit;
-	text-decoration: none;
-	font-family: inherit;
+/* In @layer base, not unlayered: unlayered CSS beats every Tailwind utility,
+   so this used to override text-white / text-gray-* on any <Link>. */
+@layer base {
+	a {
+		color: inherit;
+		text-decoration: none;
+		font-family: inherit;
+	}
 }
 
 button {
@@ -433,6 +437,13 @@ h2 { font-size: 1.125rem; font-weight: 700; color: var(--color-text); }
 	/* ensure main content doesn't scroll under the nav */
 	main, .app-container, .app-desktop {
 		padding-bottom: calc(var(--rsu-bottom-height) + env(safe-area-inset-bottom));
+	}
+
+	/* The header's inner row is also .app-desktop; without this it inherited
+	   the 64px above, which squeezed its content box to 0 and pushed the logo
+	   and icons up against the top of the screen. */
+	header .app-desktop {
+		padding-bottom: 0;
 	}
 }
 
