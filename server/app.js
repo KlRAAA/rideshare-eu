@@ -12,6 +12,7 @@ const preferenceRoutes = require('./routes/preferenceRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const savedVehicleRoutes = require('./routes/savedVehicleRoutes');
+const supportRoutes = require('./routes/supportRoutes');
 const { geocode } = require('./controllers/tripController');
 const { getOfficial: getOfficialFuelPrice } = require('./controllers/fuelPriceController');
 const { authenticate } = require('./middleware/authenticate');
@@ -64,6 +65,7 @@ app.use('/api/trips', tripRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/saved-vehicles', savedVehicleRoutes);
+app.use('/api/support', supportRoutes);
 app.use('/api/preferences', preferenceRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api', matchRoutes); // exposes POST /api/matches/search and POST /api/matches
