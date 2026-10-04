@@ -5,6 +5,7 @@ const psgaConfig = require('../config/psgaConfig');
 const safeUserSelect = require('../config/safeUserSelect');
 const { checkJoinEligibility } = require('../services/joinRequestService');
 const { decryptUserFields, decryptTripFields } = require('../services/encryptionService');
+const { canJoin, normalizeGender, effectivePreference } = require('../services/riderRules');
 
 const MINUTES_IN_DAY = 1440;
 
@@ -93,57 +94,46 @@ async function loadSearchCandidates(passengerId, passengerRequest) {
     (t) => t.status === 'OPEN' && tripRunsOnSearchDate(t, passengerRequest.date)
   );
 
-  // genderMatchesHost/familiarWithHost are per-host facts (see psgaService's
-  // checkPreferenceMatch comment) — computed here from real data, not taken
-  // from client input, since a client could otherwise just always claim
-  // "true" and silently bypass the same-gender/familiar-riders safety
-  // filters the thesis frames as protecting female commuters specifically.
+  // Per-host familiarity comes from real completed rides, never client input,
+  // so a client can't claim it to get around familiar-riders-only.
   const hostIds = [...new Set(openTrips.map((t) => t.hostId))];
-  const hosts = await prisma.user.findMany({ where: { id: { in: hostIds } }, select: { id: true, gender: true } });
-  const hostGenderById = new Map(hosts.map((h) => [h.id, decryptUserFields(h).gender]));
-
   const priorCompletedMatches = await prisma.match.findMany({
     where: { passengerId, status: 'COMPLETED', trip: { hostId: { in: hostIds } } },
     select: { trip: { select: { hostId: true } } },
   });
   const familiarHostIds = new Set(priorCompletedMatches.map((m) => m.trip.hostId));
 
-  // Passenger-side symmetric filter: the search form's own Gender Preference
-  // control (thesis: "When a female user enables this setting, the PSGA
-  // applies it as a hard constraint"). Distinct from `trip.genderPreference`,
-  // which is the host's own setting — a passenger can want a same-gender
-  // ride even from a host who set "Any". This is a hard filter in BOTH the
-  // normal search and the "show all" fallback — the fallback never relaxes it.
-  const requireSameGender = passengerRequest.genderPreference === 'SAME_GENDER';
-  const eligibleTrips = requireSameGender
-    ? openTrips.filter((t) => {
-        const hostGender = hostGenderById.get(t.hostId);
-        return searcher.gender !== 'UNSPECIFIED' && hostGender !== 'UNSPECIFIED' && searcher.gender === hostGender;
-      })
-    : openTrips;
+  // Safety rules are pre-filters, applied before any scoring, in both the
+  // normal search and Show all (Women+ spec §5): a trip the searcher can't join
+  // never reaches PSGA, so its route and schedule are never revealed. The
+  // searcher's own "Women+ trips only" choice is a hard filter too. Only the
+  // trip's rule is used, never the host's gender (D6).
+  const rider = { gender: normalizeGender(searcher.gender) };
+  const womenPlusOnly = effectivePreference(passengerRequest.genderPreference, rider.gender) === 'WOMEN_PLUS';
+  const eligibleTrips = openTrips.filter(
+    (t) =>
+      canJoin(t, { ...rider, familiarWithHost: familiarHostIds.has(t.hostId) }) &&
+      (!womenPlusOnly || t.genderPreference === 'WOMEN_PLUS')
+  );
 
-  const candidates = eligibleTrips.map((t) => {
-    const hostGender = hostGenderById.get(t.hostId);
-    return {
-      id: t.id,
-      waypoints: t.routeWaypoints || [
-        { lat: t.originLat, lng: t.originLng },
-        { lat: t.destinationLat, lng: t.destinationLng },
-      ],
-      // Anchor point for the "show all" fallback's destination check.
-      destination: { lat: t.destinationLat, lng: t.destinationLng },
-      // Thesis §5.1.4 (Data Pre-Processing): "All time arithmetic in the PSGA
-      // operates in UTC to avoid conversion errors" — .getHours() would use
-      // the server process's local timezone instead, which is wrong here.
-      departureMinutes: t.departureTime.getUTCHours() * 60 + t.departureTime.getUTCMinutes(),
-      genderPreference: t.genderPreference,
-      familiarRidersOnly: t.familiarRidersOnly,
-      filledSeats: t.filledSeats,
-      totalSeats: t.totalSeats,
-      genderMatchesHost: searcher.gender !== 'UNSPECIFIED' && hostGender !== 'UNSPECIFIED' && searcher.gender === hostGender,
-      familiarWithHost: familiarHostIds.has(t.hostId),
-    };
-  });
+  const candidates = eligibleTrips.map((t) => ({
+    id: t.id,
+    waypoints: t.routeWaypoints || [
+      { lat: t.originLat, lng: t.originLng },
+      { lat: t.destinationLat, lng: t.destinationLng },
+    ],
+    // Anchor point for the "show all" fallback's destination check.
+    destination: { lat: t.destinationLat, lng: t.destinationLng },
+    // Thesis §5.1.4 (Data Pre-Processing): "All time arithmetic in the PSGA
+    // operates in UTC to avoid conversion errors" — .getHours() would use
+    // the server process's local timezone instead, which is wrong here.
+    departureMinutes: t.departureTime.getUTCHours() * 60 + t.departureTime.getUTCMinutes(),
+    genderPreference: t.genderPreference,
+    familiarRidersOnly: t.familiarRidersOnly,
+    filledSeats: t.filledSeats,
+    totalSeats: t.totalSeats,
+    riderEligible: true, // every trip left passed canJoin above
+  }));
 
   return { candidates };
 }

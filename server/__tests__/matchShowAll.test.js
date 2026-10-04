@@ -10,7 +10,7 @@ const { encryptField } = require('../services/encryptionService');
 //     overlap + schedule
 //   - still anchors on the destination (a trip elsewhere never shows)
 //   - still enforces the safety constraints the fallback must NOT relax:
-//     the host's same-gender requirement and familiar-riders-only
+//     Women+ trips and familiar-riders-only
 // Skips (not fails) when no database is reachable, like tripEditDetail.test.js.
 
 let server;
@@ -100,16 +100,16 @@ afterAll(async () => {
 });
 
 describe('POST /api/matches/show-all — Find a Ride empty-state fallback', () => {
-  test('relaxes route/schedule but keeps destination + gender + familiar constraints', async () => {
+  test('relaxes route/schedule but keeps destination + Women+ + familiar constraints', async () => {
     if (!dbUp) {
       console.warn('[matchShowAll.test] DB unavailable — assertions not exercised this run');
       return;
     }
 
     const stamp = Date.now();
-    const maleHost = await makeUser('Male Host', `T-${stamp}-MH`, 'MALE');
-    const femaleHost = await makeUser('Female Host', `T-${stamp}-FH`, 'FEMALE');
-    const passenger = await makeUser('Male Passenger', `T-${stamp}-P`, 'MALE');
+    const maleHost = await makeUser('Male Host', `T-${stamp}-MH`, 'MAN');
+    const femaleHost = await makeUser('Female Host', `T-${stamp}-FH`, 'WOMAN');
+    const passenger = await makeUser('Male Passenger', `T-${stamp}-P`, 'MAN');
 
     const maleVehicle = await makeVehicle(maleHost.id);
     const femaleVehicle = await makeVehicle(femaleHost.id);
@@ -121,8 +121,8 @@ describe('POST /api/matches/show-all — Find a Ride empty-state fallback', () =
       destinationLat: FAR_AWAY.lat,
       destinationLng: FAR_AWAY.lng,
     });
-    // Should NOT appear: female host requires same-gender, passenger is male.
-    const tSameGender = await makeTrip(femaleHost.id, femaleVehicle.id, { genderPreference: 'SAME_GENDER' });
+    // Should NOT appear: a Women+ trip, and the passenger is a man.
+    const tWomenPlus = await makeTrip(femaleHost.id, femaleVehicle.id, { genderPreference: 'WOMEN_PLUS' });
     // Should NOT appear: host requires familiar riders, passenger has no history.
     const tFamiliarOnly = await makeTrip(maleHost.id, maleVehicle.id, { familiarRidersOnly: true });
 
@@ -155,7 +155,7 @@ describe('POST /api/matches/show-all — Find a Ride empty-state fallback', () =
     const ids = fallback.matches.map((m) => m.tripId);
     expect(ids).toContain(tShowable.id);
     expect(ids).not.toContain(tFarDest.id); // destination anchor kept
-    expect(ids).not.toContain(tSameGender.id); // gender constraint NOT relaxed
+    expect(ids).not.toContain(tWomenPlus.id); // Women+ rule NOT relaxed
     expect(ids).not.toContain(tFamiliarOnly.id); // familiar-riders constraint NOT relaxed
   });
 });

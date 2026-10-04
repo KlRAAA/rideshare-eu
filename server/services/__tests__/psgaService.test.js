@@ -69,24 +69,19 @@ describe('computeScheduleAlignment', () => {
 });
 
 describe('checkPreferenceMatch', () => {
-  // genderMatchesHost/familiarWithHost live on `trip` (the per-candidate
-  // view the caller builds), not on `passenger` — a single search spans
-  // many hosts, so these are per-candidate facts, not one flat value.
-  const trip = { genderPreference: 'ANY', familiarRidersOnly: false, filledSeats: 1, totalSeats: 3 };
-  test('passes when no hard constraints conflict and seats available', () => {
-    expect(checkPreferenceMatch({}, { ...trip, familiarWithHost: false })).toBe(true);
+  // riderEligible lives on `trip` (the per-candidate view the caller builds
+  // with riderRules), not on `passenger` — a single search spans many trips
+  // with different rules, so eligibility is a per-candidate fact.
+  const trip = { genderPreference: 'ANY', familiarRidersOnly: false, filledSeats: 1, totalSeats: 3, riderEligible: true };
+  test('passes when the rider is eligible and seats are available', () => {
+    expect(checkPreferenceMatch({}, trip)).toBe(true);
   });
   test('fails when seats are full', () => {
     expect(checkPreferenceMatch({}, { ...trip, filledSeats: 3 })).toBe(false);
   });
-  test('fails when host requires same-gender and passenger does not match', () => {
-    expect(checkPreferenceMatch({}, { ...trip, genderPreference: 'SAME_GENDER', genderMatchesHost: false })).toBe(false);
-  });
-  test('passes when host requires same-gender and passenger does match', () => {
-    expect(checkPreferenceMatch({}, { ...trip, genderPreference: 'SAME_GENDER', genderMatchesHost: true })).toBe(true);
-  });
-  test('fails when host requires familiar riders only and passenger is not familiar', () => {
-    expect(checkPreferenceMatch({}, { ...trip, familiarRidersOnly: true, familiarWithHost: false })).toBe(false);
+  test('fails closed when the rider is not eligible (Women+ or familiar riders only)', () => {
+    expect(checkPreferenceMatch({}, { ...trip, genderPreference: 'WOMEN_PLUS', riderEligible: false })).toBe(false);
+    expect(checkPreferenceMatch({}, { ...trip, familiarRidersOnly: true, riderEligible: false })).toBe(false);
   });
 });
 
@@ -176,21 +171,17 @@ describe('runShowAllFallback', () => {
   });
 
   // The constraint that must NOT be relaxed by the fallback.
-  test('still excludes a trip when the host requires same-gender and the passenger does not match', () => {
-    const host = { ...baseTrip, id: 'sg', genderPreference: 'SAME_GENDER', genderMatchesHost: false };
-    expect(runShowAllFallback(passenger, [host], config).status).toBe('NO_MATCH');
+  test('still excludes a trip the rider is not eligible for', () => {
+    const womenPlus = { ...baseTrip, id: 'wp', genderPreference: 'WOMEN_PLUS', riderEligible: false };
+    const familiar = { ...baseTrip, id: 'fam', familiarRidersOnly: true, riderEligible: false };
+    expect(runShowAllFallback(passenger, [womenPlus, familiar], config).status).toBe('NO_MATCH');
   });
 
-  test('still excludes a trip when the host requires familiar riders only and the passenger is not familiar', () => {
-    const host = { ...baseTrip, id: 'fam', familiarRidersOnly: true, familiarWithHost: false };
-    expect(runShowAllFallback(passenger, [host], config).status).toBe('NO_MATCH');
-  });
-
-  test('keeps a same-gender-required trip when the passenger does match the host', () => {
-    const host = { ...baseTrip, id: 'sg-ok', genderPreference: 'SAME_GENDER', genderMatchesHost: true };
-    const result = runShowAllFallback(passenger, [host], config);
+  test('keeps a Women+ trip for an eligible rider', () => {
+    const womenPlus = { ...baseTrip, id: 'wp-ok', genderPreference: 'WOMEN_PLUS', riderEligible: true };
+    const result = runShowAllFallback(passenger, [womenPlus], config);
     expect(result.status).toBe('MATCHED');
-    expect(result.matches[0].tripId).toBe('sg-ok');
+    expect(result.matches[0].tripId).toBe('wp-ok');
   });
 
   test('excludes a full trip', () => {

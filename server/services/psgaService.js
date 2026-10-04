@@ -106,16 +106,14 @@ function departureTimeDiff(passengerMinutes, tripMinutes) {
   return Math.abs(passengerMinutes - tripMinutes);
 }
 
-// genderMatchesHost/familiarWithHost are read from `trip`, not `passenger`,
-// deliberately: a single search spans many candidate trips with different
-// hosts, so "does this passenger match THIS host's gender" and "has this
-// passenger ridden with THIS host before" are per-candidate facts, not one
-// flat value for the whole request. The caller (matchController.search)
-// computes them per host before candidates ever reach this function.
+// Seats, plus the rider-eligibility flag the caller computed server-side with
+// riderRules (Women+ and familiar-riders-only). matchController removes
+// ineligible trips before scoring, so for every scored trip this is met; the
+// check stays as a backstop so a candidate built without that pre-filter still
+// fails closed.
 function checkPreferenceMatch(passenger, trip) {
   if (trip.filledSeats >= trip.totalSeats) return false;
-  if (trip.genderPreference === 'SAME_GENDER' && trip.genderMatchesHost === false) return false;
-  if (trip.familiarRidersOnly && trip.familiarWithHost === false) return false;
+  if (trip.riderEligible === false) return false;
   return true;
 }
 
@@ -157,13 +155,12 @@ function runPSGA(passengerRequest, candidateTrips, config) {
 //
 // Everything the PSGA design treats as a safety constraint stays hard:
 //
-//   - the searcher's own "same-gender only" preference is already applied by
-//     the caller (matchController.loadSearchCandidates → eligibleTrips) before
-//     candidates ever reach this function
-//   - the host's genderPreference / familiarRidersOnly — which normal matching
-//     only feeds into the 20%-weight preferenceMatch score — are promoted here
-//     to HARD filters via checkPreferenceMatch, so this view is never a way
-//     around them
+//   - Women+ trips, familiar-riders-only trips and the searcher's own
+//     "Women+ trips only" choice are applied by the caller
+//     (matchController.loadSearchCandidates) before candidates ever reach
+//     this function, exactly as for runPSGA; checkPreferenceMatch re-checks
+//     seats and the eligibility flag here, so this view is never a way around
+//     them
 //   - the destination anchor: a candidate is kept only if its destination is
 //     within config.destinationAnchorMeters of the searcher's destination, so
 //     "show all" means "all trips going where you're going," not every trip.
@@ -177,7 +174,7 @@ function runShowAllFallback(passengerRequest, candidateTrips, config) {
     if (!trip.destination) return false;
     const destGap = haversineMeters(passengerRequest.destination, trip.destination);
     if (destGap > destinationAnchorMeters) return false;
-    // Hard safety gate — seats, host gender preference, familiar-riders-only.
+    // Hard safety gate — seats and rider eligibility.
     return checkPreferenceMatch(passengerRequest, trip);
   });
 
