@@ -23,4 +23,15 @@ if (process.env.NODE_ENV !== 'test') {
   cron.schedule('*/5 * * * *', () => {
     sendDueReminders().catch((err) => console.error(`[reminders] run failed: ${err.message}`));
   });
+
+  // Keep a database copy of security events for the admin console (no IP or
+  // email), and delete copies older than 30 days every night.
+  const { addSecurityLogSink } = require('./services/securityLog');
+  const { storeSecurityEvent, purgeOldSecurityEvents } = require('./services/securityEventStore');
+  addSecurityLogSink((entry) => {
+    storeSecurityEvent(entry);
+  });
+  cron.schedule('30 3 * * *', () => {
+    purgeOldSecurityEvents().catch((err) => console.error(`[security-events] purge failed: ${err.message}`));
+  });
 }
