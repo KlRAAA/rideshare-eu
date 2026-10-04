@@ -10,6 +10,8 @@ const { encryptField, decryptUserFields, decryptTripFields } = require('../servi
 const { MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER, getOfficialFuelPrice } = require('../services/fuelPriceService');
 const { cancelWholeTrip, cancelPassengerMatch, ACTIVE_MATCH_STATUSES } = require('../services/tripCancellationService');
 const { validateNewTrip } = require('../services/tripValidation');
+const { GENDER_PREFERENCES, canHostWomenPlus, isWomenPlusEligible } = require('../services/riderRules');
+const { riderFacts } = require('../services/riderFacts');
 
 // For a recurring trip, an APPROVED match never reaches COMPLETED (it's a
 // standing rider across every occurrence), so `ratedByMe` — a lifetime "have
@@ -88,6 +90,11 @@ async function createTrip(req, res) {
   const vehicle = typeof body.vehicleId === 'string' ? await prisma.vehicle.findUnique({ where: { id: body.vehicleId } }) : null;
   if (!vehicle) return res.status(400).json({ error: 'VEHICLE_REQUIRED' });
   if (vehicle.ownerId !== req.user.id) return res.status(403).json({ error: 'VEHICLE_NOT_OWNED' });
+
+  // Only a Women+ host may post a Women+ trip (Women+ spec D5).
+  if (body.genderPreference === 'WOMEN_PLUS' && !canHostWomenPlus(await riderFacts(prisma, req.user.id, req.user.id))) {
+    return res.status(403).json({ error: 'WOMEN_PLUS_HOST_NOT_ELIGIBLE' });
+  }
 
   // The host's own typed retail price, not a fixed app-wide default (no
   // reliable free PH fuel-price API exists — see AGENTS.md). Rejected outright
@@ -228,6 +235,20 @@ function canViewPlate(trip, userId) {
   return trip.matches.some((m) => m.passengerId === userId && ['APPROVED', 'COMPLETED'].includes(m.status));
 }
 
+// A shared link must not expose a Women+ trip's route and schedule to someone
+// who can't join it (Women+ spec S2): they get the same 404 as a missing trip,
+// so the response doesn't confirm it exists. The host and riders already on
+// the trip keep access, even after a gender change (D2).
+async function canOpenTrip(trip, userId) {
+  if (trip.genderPreference !== 'WOMEN_PLUS' || trip.hostId === userId) return true;
+  const onTrip = trip.matches.some(
+    (m) => m.passengerId === userId && ['PENDING', 'APPROVED', 'COMPLETED'].includes(m.status)
+  );
+  if (onTrip) return true;
+  const viewer = await riderFacts(prisma, userId, trip.hostId);
+  return viewer != null && isWomenPlusEligible(viewer.gender);
+}
+
 async function getById(req, res) {
   const userId = req.user.id;
   const tripRaw = await prisma.trip.findUnique({
@@ -239,6 +260,7 @@ async function getById(req, res) {
     },
   });
   if (!tripRaw) return res.status(404).json({ error: 'Trip not found' });
+  if (!(await canOpenTrip(tripRaw, userId))) return res.status(404).json({ error: 'Trip not found' });
   await applyLazyCompletion([tripRaw]);
 
   const trip = {
@@ -461,6 +483,31 @@ const EDITABLE_TRIP_FIELDS = [
 const EDITABLE_VEHICLE_FIELDS = ['make', 'model', 'color', 'plate', 'fuelEfficiencyKmL'];
 const LATLNG_FIELDS = new Set(['originLat', 'originLng', 'destinationLat', 'destinationLng', 'meetingPointLat', 'meetingPointLng']);
 
+// "Who can join" (Women+ spec D3, D5, S13): only a Women+ host may choose
+// Women+, and the rule can't change once a rider is approved, since riders
+// agreed to the trip as it was. Switching to Women+ declines pending riders who
+// can't join; they get the ordinary "declined" notification, which says
+// nothing about gender. Returns { status, body } to refuse, or { declines }.
+async function checkWhoCanJoinChange(trip, incoming, approvedCount, hostId) {
+  if (!('genderPreference' in incoming) || incoming.genderPreference === trip.genderPreference) return { declines: [] };
+  if (!GENDER_PREFERENCES.includes(incoming.genderPreference)) {
+    return { status: 400, body: { error: 'INVALID_TRIP', field: 'genderPreference' } };
+  }
+  if (approvedCount > 0) return { status: 409, body: { error: 'WHO_CAN_JOIN_LOCKED' } };
+  if (incoming.genderPreference !== 'WOMEN_PLUS') return { declines: [] };
+  if (!canHostWomenPlus(await riderFacts(prisma, hostId, hostId))) {
+    return { status: 403, body: { error: 'WOMEN_PLUS_HOST_NOT_ELIGIBLE' } };
+  }
+  const pending = trip.matches.filter((m) => m.status === 'PENDING');
+  if (pending.length === 0) return { declines: [] };
+  const riders = await prisma.user.findMany({
+    where: { id: { in: pending.map((m) => m.passengerId) } },
+    select: { id: true, gender: true },
+  });
+  const eligible = new Set(riders.filter((u) => isWomenPlusEligible(decryptUserFields(u).gender)).map((u) => u.id));
+  return { declines: pending.filter((m) => !eligible.has(m.passengerId)) };
+}
+
 // Host-only edit of a posted trip. Which fields changed is decided here from the
 // stored values, never from a client flag. A structural change (route, schedule,
 // seats, vehicle) on a trip that already has an approved passenger needs a
@@ -493,6 +540,9 @@ async function updateTrip(req, res) {
   if (changed.length === 0) return res.json({ trip });
 
   const approvedCount = trip.matches.filter((m) => m.status === 'APPROVED').length;
+
+  const whoCanJoin = await checkWhoCanJoinChange(trip, incoming, approvedCount, userId);
+  if (whoCanJoin.body) return res.status(whoCanJoin.status).json(whoCanJoin.body);
 
   if ('totalSeats' in incoming && Number(incoming.totalSeats) < trip.filledSeats) {
     return res.status(409).json({ error: 'SEAT_COUNT_BELOW_FILLED', filledSeats: trip.filledSeats });
@@ -579,6 +629,20 @@ async function updateTrip(req, res) {
     ops.push(
       prisma.notification.create({
         data: { userId: m.passengerId, type: 'TRIP_UPDATED', message: notifMessage, relatedMatchId: m.id, relatedTripId: trip.id },
+      })
+    );
+  }
+  for (const m of whoCanJoin.declines) {
+    ops.push(prisma.match.update({ where: { id: m.id }, data: { status: 'DECLINED', respondedAt: new Date() } }));
+    ops.push(
+      prisma.notification.create({
+        data: {
+          userId: m.passengerId,
+          type: 'APPROVAL',
+          message: `Your request to join the trip to ${trip.destinationAddress} was declined.`,
+          relatedMatchId: m.id,
+          relatedTripId: trip.id,
+        },
       })
     );
   }
