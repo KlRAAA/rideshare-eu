@@ -5,7 +5,8 @@ const psgaConfig = require('../config/psgaConfig');
 const safeUserSelect = require('../config/safeUserSelect');
 const { checkJoinEligibility } = require('../services/joinRequestService');
 const { decryptUserFields, decryptTripFields } = require('../services/encryptionService');
-const { canJoin, normalizeGender, effectivePreference } = require('../services/riderRules');
+const { canJoin, joinBlockReason, normalizeGender, effectivePreference } = require('../services/riderRules');
+const { riderFacts } = require('../services/riderFacts');
 
 const MINUTES_IN_DAY = 1440;
 
@@ -225,6 +226,13 @@ async function create(req, res) {
   const eligibility = checkJoinEligibility({ trip, passengerId, existingMatches: trip ? trip.matches : [] });
   if (!eligibility.ok) return res.status(eligibility.status).json({ error: eligibility.error });
 
+  // The trip's rule (Women+, familiar riders only), checked against facts read
+  // from the DB — search hides such trips, but the join endpoint is the gate.
+  const rider = await riderFacts(prisma, passengerId, trip.hostId);
+  if (!rider) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+  const blocked = joinBlockReason(trip, rider);
+  if (blocked) return res.status(403).json({ error: blocked });
+
   const matchRaw = await prisma.match.create({
     data: {
       tripId,
@@ -261,6 +269,31 @@ async function create(req, res) {
   res.status(201).json({ match });
 }
 
+// Backstop for a rider who became ineligible after requesting (Women+ spec
+// S22); changing gender normally withdraws such requests first (D8).
+async function stillEligible(match) {
+  const rider = await riderFacts(prisma, match.passengerId, match.trip.hostId);
+  return rider != null && joinBlockReason(match.trip, rider) === null;
+}
+
+// Declined with the ordinary notification, which says nothing about why.
+async function declineIneligible(match) {
+  const declined = await prisma.match.update({
+    where: { id: match.id },
+    data: { status: 'DECLINED', respondedAt: new Date() },
+    include: { trip: true },
+  });
+  await prisma.notification.create({
+    data: {
+      userId: declined.passengerId,
+      type: 'APPROVAL',
+      message: `Your request to join the trip to ${decryptTripFields(declined.trip).destinationAddress} was declined.`,
+      relatedMatchId: declined.id,
+      relatedTripId: declined.tripId,
+    },
+  });
+}
+
 // Host approves/declines a join request. Thesis: "Hosts approve manually."
 // Approving increments the trip's filledSeats and notifies the passenger;
 // declining just notifies them, seats are untouched.
@@ -278,10 +311,14 @@ async function updateStatus(req, res) {
 
   const existing = await prisma.match.findUnique({
     where: { id },
-    include: { trip: { select: { hostId: true, totalSeats: true } } },
+    include: { trip: { select: { hostId: true, totalSeats: true, genderPreference: true, familiarRidersOnly: true } } },
   });
   if (!existing) return res.status(404).json({ error: 'MATCH_NOT_FOUND' });
   if (existing.trip.hostId !== req.user.id) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
+  if (status === 'APPROVED' && !(await stillEligible(existing))) {
+    await declineIneligible(existing);
+    return res.status(409).json({ error: 'RIDER_NO_LONGER_ELIGIBLE' });
+  }
 
   let match;
   let autoDeclinedMatches = []; // [{ id, passengerId }] — only set when this approval fills the last seat
