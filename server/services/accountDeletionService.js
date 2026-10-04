@@ -91,6 +91,10 @@ async function deleteAccount(userId) {
     await tx.preference.deleteMany({ where: { userId } });
     await tx.notification.deleteMany({ where: { userId } });
     await tx.message.deleteMany({ where: { senderId: userId } });
+    // Support requests often contain personal details and aren't needed for
+    // anyone else's records (messages cascade with their ticket).
+    await tx.supportMessage.deleteMany({ where: { authorId: userId } });
+    await tx.supportTicket.deleteMany({ where: { userId } });
     await tx.emailVerification.deleteMany({ where: { email: user.email } });
 
     await tx.user.update({
