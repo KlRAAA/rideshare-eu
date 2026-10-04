@@ -133,6 +133,11 @@ export default function LoginPage() {
         </div>
 
         <p className="text-xs text-gray-400 text-center mt-6">For verified university community members only.</p>
+        <p className="text-xs text-center mt-2">
+          <Link href="/help" className="font-semibold text-gray-500 hover:underline">
+            Help &amp; emergency numbers
+          </Link>
+        </p>
       </div>
     </div>
   );

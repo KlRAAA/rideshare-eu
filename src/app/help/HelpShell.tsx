@@ -1,0 +1,40 @@
+import React from 'react';
+import Link from 'next/link';
+import Header from '@/components/Header';
+import BottomNav from '@/components/BottomNav';
+import Logo from '@/components/Logo';
+
+interface HelpShellProps {
+  signedIn: boolean;
+  children: React.ReactNode;
+}
+
+// The Help pages are public, so a signed-out visitor gets a plain top bar
+// instead of the app's navigation.
+export default function HelpShell({ signedIn, children }: HelpShellProps) {
+  if (signedIn) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-24">
+        <Header active="help" />
+        <main className="app-desktop w-full pt-2 md:pt-4 max-w-3xl">{children}</main>
+        <BottomNav active="profile" />
+      </div>
+    );
+  }
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b border-gray-100">
+        <div className="app-desktop h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3">
+            <Logo size={36} />
+            <span className="font-extrabold text-gray-900">RideShareEU</span>
+          </Link>
+          <Link href="/login" className="text-sm font-semibold text-[color:var(--rsu-color-primary)] hover:underline">
+            Sign in
+          </Link>
+        </div>
+      </header>
+      <main className="app-desktop w-full py-6 max-w-3xl">{children}</main>
+    </div>
+  );
+}

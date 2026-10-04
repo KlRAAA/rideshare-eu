@@ -16,6 +16,8 @@ const ROUTABLE_TYPES = new Set(['MATCH_REQUEST', 'APPROVAL', 'CANCELLATION', 'RA
 // still the switch so a future type that needs a different destination is a
 // one-line change here, not a new handler at the call site.
 export function notificationHref(n: NotificationRef): string | null {
+  // An admin replied to one of the user's Help requests.
+  if (n.type === 'SUPPORT_REPLY') return '/help/requests';
   if (!n.relatedTripId || !ROUTABLE_TYPES.has(n.type)) return null;
   const base = `/auth/trips/${n.relatedTripId}`;
   return n.relatedMatchId ? `${base}?requestId=${n.relatedMatchId}` : base;

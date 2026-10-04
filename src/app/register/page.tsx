@@ -386,6 +386,10 @@ export default function RegisterPage() {
           <Link href="/login" className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline">
             Log in
           </Link>
+          {' · '}
+          <Link href="/help" className="font-semibold text-gray-500 hover:underline">
+            Help
+          </Link>
         </p>
       </div>
     </div>
