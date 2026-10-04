@@ -5,6 +5,7 @@ const { setOfficial, history } = require('../controllers/fuelPriceController');
 const users = require('../controllers/admin/userController');
 const reports = require('../controllers/admin/reportController');
 const { cancelTripAsAdmin } = require('../controllers/admin/tripController');
+const support = require('../controllers/admin/supportController');
 
 const router = express.Router();
 router.use(requireAdmin);
@@ -25,5 +26,10 @@ router.get('/reports', reports.listReports);
 router.patch('/reports/:id', reports.reviewReport);
 
 router.patch('/trips/:id/cancel', cancelTripAsAdmin);
+
+router.get('/support', support.listTickets);
+router.get('/support/:id', support.getTicket);
+router.post('/support/:id/messages', support.replyToTicket);
+router.patch('/support/:id/close', support.closeTicket);
 
 module.exports = router;
