@@ -1,5 +1,7 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Card from '@/components/Card';
+import { categoryLabel, SUPPORT_STATUS_LABELS, type SupportStatus } from '@/lib/support';
 import Badge from '@/components/Badge';
 import { adminFetch } from '@/app/auth/admin/adminFetch';
 import { ApiError } from '@/lib/api';
@@ -38,7 +40,18 @@ interface UserDetail {
   reportsFiledCount: number;
   reportsReceived: { id: string; category: string; status: string; description: string | null; createdAt: string }[];
   banHistory: AdminAction[];
+  supportTickets: { id: string; subject: string; category: string; status: SupportStatus; createdAt: string; updatedAt: string }[];
+  securityCounts30d: Record<string, number>;
 }
+
+const SECURITY_LABELS: Record<string, string> = {
+  LOGIN_FAILED: 'Failed sign-ins',
+  OTP_FAILED: 'Wrong codes',
+  OTP_LOCKED: 'Code lockouts',
+  RATE_LIMITED: 'Rate-limit hits',
+  PASSWORD_RECHECK_FAILED: 'Failed password checks',
+  ACCESS_DENIED: 'Denied access attempts',
+};
 
 function banHistoryLabel(a: AdminAction): string {
   if (a.action === 'UNBAN') return 'Ban lifted';
@@ -56,7 +69,8 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
-  const { user, hostedTrips, joinedMatches, ratings, reportsFiledCount, reportsReceived, banHistory } = data;
+  const { user, hostedTrips, joinedMatches, ratings, reportsFiledCount, reportsReceived, banHistory, supportTickets, securityCounts30d } = data;
+  const securityRows = Object.entries(securityCounts30d ?? {}).filter(([, n]) => n > 0);
   const banned = user.bannedUntil != null && new Date(user.bannedUntil) > new Date();
   const isSelf = (await getSessionUserId()) === user.id;
 
@@ -181,6 +195,42 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
               </li>
             ))}
           </ul>
+        )}
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-bold text-gray-900 mb-2">Support requests</h3>
+        {supportTickets.length === 0 ? (
+          <p className="text-sm text-gray-500">No requests to the admins.</p>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {supportTickets.map((t) => (
+              <li key={t.id} className="py-2 text-sm">
+                <Link href={`/auth/admin/support/${t.id}`} className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline">
+                  {t.subject}
+                </Link>
+                <span className="block text-xs text-gray-400">
+                  {categoryLabel(t.category)} · {SUPPORT_STATUS_LABELS[t.status]} · {formatDateTime(t.createdAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-bold text-gray-900 mb-2">Security events (last 30 days)</h3>
+        {securityRows.length === 0 ? (
+          <p className="text-sm text-gray-500">Nothing unusual.</p>
+        ) : (
+          <dl className="divide-y divide-gray-100 text-sm">
+            {securityRows.map(([event, n]) => (
+              <div key={event} className="flex justify-between py-1.5">
+                <dt className="text-gray-600">{SECURITY_LABELS[event] ?? event}</dt>
+                <dd className="font-semibold tabular-nums">{n}</dd>
+              </div>
+            ))}
+          </dl>
         )}
       </Card>
     </div>
