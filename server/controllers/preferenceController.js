@@ -1,4 +1,11 @@
 const prisma = require('../config/db');
+const { decryptField } = require('../services/encryptionService');
+const { GENDER_PREFERENCES, effectivePreference, isWomenPlusEligible } = require('../services/riderRules');
+
+async function genderOf(userId) {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { gender: true } });
+  return user ? decryptField(user.gender) : null;
+}
 
 // Preferences are a resource owned by a specific user: the :userId in the path
 // must be the verified caller (phase 2). A request for someone else's :userId
@@ -26,13 +33,21 @@ async function getByUser(req, res) {
       liveLocationSharing: false,
     };
   }
-  res.json({ preference });
+  // A stale or ineligible "Trips I see" value reads as All trips (Women+ spec S24).
+  const genderPreference = effectivePreference(preference.genderPreference, await genderOf(userId));
+  res.json({ preference: { ...preference, genderPreference } });
 }
 
 async function upsert(req, res) {
   if (!requireSelf(req, res)) return;
   const { userId } = req.params;
   const { genderPreference, flexWindowMinutes, familiarRidersOnly, liveLocationSharing } = req.body;
+  if (genderPreference !== undefined && !GENDER_PREFERENCES.includes(genderPreference)) {
+    return res.status(400).json({ error: 'INVALID_PREFERENCE' });
+  }
+  if (genderPreference === 'WOMEN_PLUS' && !isWomenPlusEligible(await genderOf(userId))) {
+    return res.status(403).json({ error: 'WOMEN_PLUS_NOT_ELIGIBLE' });
+  }
 
   const preference = await prisma.preference.upsert({
     where: { userId },

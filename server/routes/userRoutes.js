@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const router = express.Router();
-const { getById, getRatings, uploadAvatar, completeOnboarding, deleteMe } = require('../controllers/userController');
+const { getById, getRatings, uploadAvatar, completeOnboarding, deleteMe, updateGender } = require('../controllers/userController');
 const { authAttemptLimiter } = require('../middleware/rateLimit');
 
 // In-memory so the bytes can be inspected before anything is written to disk.
@@ -21,6 +21,7 @@ router.get('/:id', getById);
 router.get('/:id/ratings', getRatings); // public rating summary + reviews for the profile page
 router.post('/me/avatar', acceptAvatar, uploadAvatar);
 router.patch('/me/onboarding', completeOnboarding);
+router.patch('/me/gender', updateGender); // your own gender; Women+ eligibility only
 router.delete('/me', authAttemptLimiter(), deleteMe); // password re-check, so rate-limited like sign-in
 
 module.exports = router;

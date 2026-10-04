@@ -9,6 +9,7 @@ const bcrypt = require('bcrypt');
 const { deleteAccount, AccountDeletionError } = require('../services/accountDeletionService');
 const { logSecurityEvent } = require('../services/securityLog');
 const { normalizeGender } = require('../services/riderRules');
+const { changeGender } = require('../services/genderChangeService');
 
 const AVATAR_DIR = path.join(__dirname, '..', '..', 'public', 'uploads', 'avatars');
 const AVATAR_URL_PREFIX = '/uploads/avatars';
@@ -174,4 +175,12 @@ async function deleteMe(req, res) {
   res.json({ status: 'ACCOUNT_DELETED' });
 }
 
-module.exports = { getById, getRatings, uploadAvatar, completeOnboarding, deleteMe };
+// The user's own gender (Women+ spec D2, D7, D8). `confirm: true` is the
+// second submit after the "this will withdraw N requests" warning.
+async function updateGender(req, res) {
+  const result = await changeGender(req.user.id, req.body?.gender, { confirm: req.body?.confirm === true });
+  if (!result.ok) return res.status(result.status).json(result.body);
+  res.json({ gender: result.gender, withdrawn: result.withdrawn });
+}
+
+module.exports = { getById, getRatings, uploadAvatar, completeOnboarding, deleteMe, updateGender };
