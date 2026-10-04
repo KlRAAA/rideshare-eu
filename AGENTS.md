@@ -170,3 +170,36 @@ Added at the research adviser's request. Spec and plan:
 - Regenerate `validation/method_rankings.json` (`python validation/run_methods.py`)
   whenever `validation/psga.py` or the dataset changes; it is deterministic.
 - Tests: `python -m unittest discover -s validation/labeling`.
+
+## Help, support and admin monitoring (Oct 2026)
+
+Spec and plan: `docs/superpowers/specs/2026-10-04-help-and-admin-monitoring-design.md`,
+`docs/superpowers/plans/2026-10-04-help-and-admin-monitoring.md`.
+
+- `/help` is public: emergency guidance first (911; campus number only if
+  `NEXT_PUBLIC_CAMPUS_SECURITY_PHONE` is set), how to report, and the
+  contact-admin form for signed-in users. `/help/requests` lists the user's
+  requests and their conversations.
+- Support API: `POST/GET /api/support`, `GET /api/support/:id`,
+  `POST /api/support/:id/messages` (reopens an answered request),
+  `PATCH /api/support/:id/close`. Limits: 5 open requests, 10 a day
+  (429 `TOO_MANY_TICKETS`). A request may link only the user's own trip
+  (403 `TRIP_NOT_YOURS`). Suspended users can't reach it (authenticate blocks
+  them); their screen links to `/help` and keeps the appeal email.
+- Admin inbox `/api/admin/support*`: safety first, then oldest. A reply sets
+  ANSWERED, notifies the user (`SUPPORT_REPLY`) and writes `SUPPORT_REPLIED`;
+  closing writes `SUPPORT_CLOSED`. An admin can't handle their own request
+  (`CANNOT_TARGET_SELF`).
+- Announcements: `POST /api/admin/announcements` notifies every non-deleted
+  user (`ANNOUNCEMENT`) and writes `ANNOUNCEMENT_POSTED`; the dashboard banner
+  reads `GET /api/announcements/active`. Tests and `seed:postman` remove the
+  fan-out notifications they create.
+- Monitoring: `SecurityEvent` stores security log entries without IP or email
+  (installed in `server.js`, purged after 30 days by a 3:30 AM cron). The
+  overview adds queues, today, security counts and `watchlistCount`;
+  `/api/admin/watchlist` flags (never acts on) ≥3 approved rides cancelled by
+  the passenger, ≥2 trips cancelled by the host after approval (admin
+  cancellations excluded), ≥2 reports, all in 30 days. `ADMIN_ERRORS_URL`
+  shows an error-reports link when set.
+- Deleting an account deletes the user's support requests.
+- Data requests from the police follow `docs/policy/law-enforcement-data-requests.md`.
