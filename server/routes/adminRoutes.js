@@ -6,6 +6,7 @@ const users = require('../controllers/admin/userController');
 const reports = require('../controllers/admin/reportController');
 const { cancelTripAsAdmin } = require('../controllers/admin/tripController');
 const support = require('../controllers/admin/supportController');
+const announcements = require('../controllers/announcementController');
 
 const router = express.Router();
 router.use(requireAdmin);
@@ -31,5 +32,9 @@ router.get('/support', support.listTickets);
 router.get('/support/:id', support.getTicket);
 router.post('/support/:id/messages', support.replyToTicket);
 router.patch('/support/:id/close', support.closeTicket);
+
+router.get('/announcements', announcements.listAll);
+router.post('/announcements', announcements.post);
+router.patch('/announcements/:id/end', announcements.end);
 
 module.exports = router;

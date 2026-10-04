@@ -15,6 +15,7 @@ const savedVehicleRoutes = require('./routes/savedVehicleRoutes');
 const supportRoutes = require('./routes/supportRoutes');
 const { geocode } = require('./controllers/tripController');
 const { getOfficial: getOfficialFuelPrice } = require('./controllers/fuelPriceController');
+const { listActive: activeAnnouncements } = require('./controllers/announcementController');
 const { authenticate } = require('./middleware/authenticate');
 const { logAccessDenied } = require('./middleware/logAccessDenied');
 
@@ -61,6 +62,7 @@ app.use('/api', logAccessDenied);
 
 app.get('/api/geocode', geocode);
 app.get('/api/fuel-price', getOfficialFuelPrice);
+app.get('/api/announcements/active', activeAnnouncements);
 app.use('/api/trips', tripRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/vehicles', vehicleRoutes);
