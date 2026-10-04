@@ -59,6 +59,10 @@ function assertDemoDatabase() {
 
 async function wipe() {
   // Children before parents.
+  await prisma.supportMessage.deleteMany();
+  await prisma.supportTicket.deleteMany();
+  await prisma.announcement.deleteMany();
+  await prisma.securityEvent.deleteMany();
   await prisma.rating.deleteMany();
   await prisma.report.deleteMany();
   await prisma.message.deleteMany();
@@ -341,6 +345,36 @@ async function main() {
     await api(u.miguel.id, 'POST', '/api/reports', {
       matchId: ricoMatch.id, category: 'INAPPROPRIATE_BEHAVIOR',
       description: 'Arrived 25 minutes late to the pickup point and was rude when I reminded him about the schedule.',
+    });
+
+    // A second report, so Rico shows up on the admin watch list.
+    const ricoPending = await prisma.match.findFirst({ where: { tripId: homeTrip.id, passengerId: u.rico.id } });
+    await api(u.juan.id, 'POST', '/api/reports', {
+      matchId: ricoPending.id, category: 'OTHER',
+      description: 'Kept messaging me late at night about rides after I said I was full.',
+    });
+
+    // A safety request from Bea that an admin has already answered.
+    const { ticket } = await api(u.bea.id, 'POST', '/api/support', {
+      category: 'SAFETY',
+      subject: 'Car smelled of smoke and the driver drove fast',
+      body: 'On my last ride the car smelled strongly of cigarettes and we went very fast on the highway. I felt uneasy.',
+      relatedTripId: anaTrip.id,
+    });
+    await api(u.liza.id, 'POST', `/api/admin/support/${ticket.id}/messages`, {
+      body: 'Thank you for letting us know, Bea. We have reminded the driver about the no-smoking rule and safe speeds. Tell us if it happens again.',
+    });
+    await api(u.paolo.id, 'POST', '/api/support', {
+      category: 'APP_PROBLEM',
+      subject: 'Map is blank on my old phone',
+      body: 'The map on the ride details page stays grey on my Android 9 phone.',
+    });
+
+    // An active announcement for the dashboard banner.
+    await api(u.liza.id, 'POST', '/api/admin/announcements', {
+      title: 'Welcome to the RideShareEU pilot',
+      body: 'Thank you for testing! Post your regular commute to campus and tell us what you think through Help.',
+      endsAt: new Date(Date.now() + 14 * 86400 * 1000).toISOString(),
     });
 
     console.log('Demo data ready. Accounts (password for all: see DEMO_PASSWORD in this file):');
