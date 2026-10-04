@@ -159,7 +159,7 @@ async function seedHostAndTrip(index) {
       email: `loadtest-host-${index}-${Date.now()}@test.local`,
       passwordHash: 'x',
       role: 'STUDENT',
-      gender: index % 2 === 0 ? 'MALE' : 'FEMALE',
+      gender: index % 2 === 0 ? 'MAN' : 'WOMAN',
       verified: true,
     },
   });
@@ -208,7 +208,7 @@ async function seed() {
       email: `loadtest-passenger-${Date.now()}@test.local`,
       passwordHash: 'x',
       role: 'STUDENT',
-      gender: 'MALE',
+      gender: 'MAN',
       verified: true,
     },
   });

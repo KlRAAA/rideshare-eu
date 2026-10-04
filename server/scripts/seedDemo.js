@@ -35,15 +35,15 @@ const PLACES = {
 };
 
 const PEOPLE = {
-  juan: { fullName: 'Juan Dela Cruz', gender: 'MALE', role: 'STUDENT', universityId: '2023-10001' },
-  maria: { fullName: 'Maria Santos', gender: 'FEMALE', role: 'STUDENT', universityId: '2023-10002' },
-  ana: { fullName: 'Ana Reyes', gender: 'FEMALE', role: 'STUDENT', universityId: '2022-10003' },
-  carlo: { fullName: 'Carlo Mendoza', gender: 'MALE', role: 'FACULTY', universityId: 'FAC-10004' },
-  miguel: { fullName: 'Miguel Torres', gender: 'MALE', role: 'STUDENT', universityId: '2024-10005' },
-  bea: { fullName: 'Bea Villanueva', gender: 'FEMALE', role: 'STUDENT', universityId: '2024-10006' },
-  paolo: { fullName: 'Paolo Garcia', gender: 'MALE', role: 'STUDENT', universityId: '2023-10007' },
-  rico: { fullName: 'Rico Bautista', gender: 'MALE', role: 'STUDENT', universityId: '2025-10008' },
-  liza: { fullName: 'Liza Ramos', gender: 'FEMALE', role: 'FACULTY', universityId: 'FAC-10009', isAdmin: true },
+  juan: { fullName: 'Juan Dela Cruz', gender: 'MAN', role: 'STUDENT', universityId: '2023-10001' },
+  maria: { fullName: 'Maria Santos', gender: 'WOMAN', role: 'STUDENT', universityId: '2023-10002' },
+  ana: { fullName: 'Ana Reyes', gender: 'WOMAN', role: 'STUDENT', universityId: '2022-10003' },
+  carlo: { fullName: 'Carlo Mendoza', gender: 'MAN', role: 'FACULTY', universityId: 'FAC-10004' },
+  miguel: { fullName: 'Miguel Torres', gender: 'MAN', role: 'STUDENT', universityId: '2024-10005' },
+  bea: { fullName: 'Bea Villanueva', gender: 'NON_BINARY', role: 'STUDENT', universityId: '2024-10006' },
+  paolo: { fullName: 'Paolo Garcia', gender: 'MAN', role: 'STUDENT', universityId: '2023-10007' },
+  rico: { fullName: 'Rico Bautista', gender: 'MAN', role: 'STUDENT', universityId: '2025-10008' },
+  liza: { fullName: 'Liza Ramos', gender: 'WOMAN', role: 'FACULTY', universityId: 'FAC-10009', isAdmin: true },
 };
 
 const emailFor = (key) =>
@@ -272,7 +272,10 @@ async function main() {
       make: 'Honda', model: 'Click 125', color: 'Black', plate: 'DMO 2001', fuelEfficiencyKmL: 45,
     });
     await api(u.ana.id, 'PATCH', `/api/preferences/${u.ana.id}`, {
-      genderPreference: 'SAME_GENDER', flexWindowMinutes: 15, familiarRidersOnly: false, liveLocationSharing: true,
+      genderPreference: 'WOMEN_PLUS', flexWindowMinutes: 15, familiarRidersOnly: false, liveLocationSharing: true,
+    });
+    await api(u.maria.id, 'PATCH', `/api/preferences/${u.maria.id}`, {
+      genderPreference: 'WOMEN_PLUS', flexWindowMinutes: 15, familiarRidersOnly: false, liveLocationSharing: false,
     });
     await api(u.juan.id, 'PATCH', `/api/preferences/${u.juan.id}`, {
       genderPreference: 'ANY', flexWindowMinutes: 15, familiarRidersOnly: false, liveLocationSharing: true,
@@ -307,8 +310,8 @@ async function main() {
       driverNotes: 'Passing by the highway, can pick up along the way.',
     });
     const anaTrip = await postTrip(api, u.ana.id, vehicleIds.ana, {
-      from: PLACES.tayabas, to: CAMPUS, departureTime: nextWeekdayAt('06:50'), genderPreference: 'SAME_GENDER', totalSeats: 3,
-      driverNotes: 'Female riders only. Meet at the basilica parking.',
+      from: PLACES.tayabas, to: CAMPUS, departureTime: nextWeekdayAt('06:50'), genderPreference: 'WOMEN_PLUS', totalSeats: 3,
+      driverNotes: 'Meet at the basilica parking. Message me if you are running late.',
     });
     await postTrip(api, u.carlo.id, vehicleIds.carlo, {
       from: PLACES.lucban, to: CAMPUS, departureTime: nextWeekdayAt('06:15'), recurrenceType: 'WEEKDAYS', totalSeats: 4,

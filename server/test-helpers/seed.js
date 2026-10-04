@@ -9,7 +9,7 @@ const { encryptField } = require('../services/encryptionService');
 // — encrypted here too, mirroring what completeRegistration now does, so a
 // controller that decrypts a seeded row back out doesn't throw on plaintext
 // that was never actually encrypted.
-async function makeUser(bag, { fullName = 'Test User', gender = 'MALE' } = {}) {
+async function makeUser(bag, { fullName = 'Test User', gender = 'MAN' } = {}) {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const user = await prisma.user.create({
     data: {

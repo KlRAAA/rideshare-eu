@@ -14,7 +14,7 @@ enum Role {
 
 enum GenderPreference {
   ANY
-  SAME_GENDER
+  WOMEN_PLUS
 }
 
 enum RecurrenceType {
@@ -110,14 +110,13 @@ model User {
   passwordHash String   // bcrypt — there is no ICTD/Workspace SSO to hand off to
   // fullName and gender are AES-256-GCM ciphertext at rest (iv:authTag:data,
   // base64 — server/services/encryptionService.js), encrypted/decrypted in
-  // application code, never filtered or sorted on at the DB level. gender was
-  // a native Postgres enum (MALE/FEMALE/UNSPECIFIED) before this — now a
-  // String holding ciphertext of one of those same three plaintext values;
-  // UNSPECIFIED is the safe default for the SAME_GENDER hard constraint to
-  // fail closed on, unchanged from before.
+  // application code, never filtered or sorted on at the DB level. gender is
+  // self-declared: WOMAN / MAN / NON_BINARY / PREFER_NOT_TO_SAY (the safe
+  // default). It only decides Women+ eligibility (server/services/riderRules.js)
+  // and is never shown to other users.
   fullName     String
   role         Role
-  gender       String   // drives the SAME_GENDER hard constraint (Task 10)
+  gender       String   // Women+ eligibility only — see riderRules.js
   verified     Boolean  @default(false) // true once registration's OTP + domain whitelist checks pass
   avatarUrl    String?  // /uploads/avatars/<uuid>.<ext>, served from Next's public/; null = show initials
   trustScore   Float    @default(5.0)

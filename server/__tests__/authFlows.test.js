@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const app = require('../app');
 const prisma = require('../config/db');
 const { MAX_ATTEMPTS } = require('../services/otpService');
-const { encryptField } = require('../services/encryptionService');
+const { encryptField, decryptField } = require('../services/encryptionService');
 
 // authController.js (registration, login, forgot/reset-password) is the most
 // security-sensitive surface in the app and had zero test coverage before this
@@ -106,7 +106,7 @@ async function createVerifiedUser({ email, password = 'OriginalPass123!', role =
       fullName: encryptField('Existing User'),
       universityId: `AUTHFLOW-${uniqueSuffix()}`,
       role,
-      gender: encryptField('UNSPECIFIED'),
+      gender: encryptField('PREFER_NOT_TO_SAY'),
       verified: true,
     },
   });
@@ -197,7 +197,7 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       password: 'NewPass123!',
       fullName: 'Student Person',
       universityId: `SID-${uniqueSuffix()}`,
-      gender: 'MALE',
+      gender: 'MAN',
       termsAccepted: true,
     });
     expect(completeRes.status).toBe(201);
@@ -224,13 +224,35 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       password: 'NewPass123!',
       fullName: 'Staff Person',
       universityId: `FID-${uniqueSuffix()}`,
-      gender: 'FEMALE',
+      gender: 'WOMAN',
       termsAccepted: true,
     });
     expect(completeRes.status).toBe(201);
     const body = await completeRes.json();
     expect(body.user.role).toBe('FACULTY');
     createdUserIds.push(body.user.id);
+    const stored = await prisma.user.findUnique({ where: { id: body.user.id }, select: { gender: true } });
+    expect(decryptField(stored.gender)).toBe('WOMAN');
+  });
+
+  test('an old client sending FEMALE is stored as Prefer not to say (Women+ spec §4)', async () => {
+    if (guard()) return;
+    const email = studentEmail();
+    const { otp } = await startRegistrationAndGetOtp(email);
+    const { verificationTicket } = await (await post('/api/auth/register/verify-otp', { email, otp })).json();
+    const completeRes = await post('/api/auth/register/complete', {
+      verificationTicket,
+      password: 'NewPass123!',
+      fullName: 'Legacy Client',
+      universityId: `LID-${uniqueSuffix()}`,
+      gender: 'FEMALE',
+      termsAccepted: true,
+    });
+    expect(completeRes.status).toBe(201);
+    const body = await completeRes.json();
+    createdUserIds.push(body.user.id);
+    const stored = await prisma.user.findUnique({ where: { id: body.user.id }, select: { gender: true } });
+    expect(decryptField(stored.gender)).toBe('PREFER_NOT_TO_SAY');
   });
 
   test('wrong OTP → 401 INVALID_OTP and increments the attempt counter', async () => {
@@ -281,7 +303,7 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       password: 'NewPass123!',
       fullName: 'Nobody',
       universityId: `X-${uniqueSuffix()}`,
-      gender: 'MALE',
+      gender: 'MAN',
     });
     expect(res.status).toBe(401);
     expect((await res.json()).error).toBe('INVALID_OR_EXPIRED_TICKET');
@@ -299,7 +321,7 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       password: 'NewPass123!',
       fullName: 'Confused Person',
       universityId: `X-${uniqueSuffix()}`,
-      gender: 'MALE',
+      gender: 'MAN',
     });
     expect(res.status).toBe(401);
     expect((await res.json()).error).toBe('INVALID_OR_EXPIRED_TICKET');
@@ -315,7 +337,7 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       password: 'NewPass123!',
       fullName: '   ',
       universityId: `X-${uniqueSuffix()}`,
-      gender: 'MALE',
+      gender: 'MAN',
     });
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('EMPTY_FULL_NAME');
@@ -331,7 +353,7 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       password: 'NewPass123!',
       fullName: 'Al',
       universityId: `X-${uniqueSuffix()}`,
-      gender: 'MALE',
+      gender: 'MAN',
     });
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('FULL_NAME_TOO_SHORT');
@@ -348,7 +370,7 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       password: 'NewPass123!',
       fullName: sameValue,
       universityId: sameValue,
-      gender: 'MALE',
+      gender: 'MAN',
     });
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('FULL_NAME_MATCHES_ID');
@@ -364,7 +386,7 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       password: 'short1',
       fullName: 'Short Password Person',
       universityId: `X-${uniqueSuffix()}`,
-      gender: 'MALE',
+      gender: 'MAN',
     });
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('PASSWORD_TOO_SHORT');
@@ -380,7 +402,7 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       password: 'exactly8',
       fullName: 'Boundary Password Person',
       universityId: `X-${uniqueSuffix()}`,
-      gender: 'MALE',
+      gender: 'MAN',
       termsAccepted: true,
     });
     expect(res.status).toBe(201);
@@ -397,7 +419,7 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       password: 'NewPass123!',
       fullName: 'No Consent Person',
       universityId: `X-${uniqueSuffix()}`,
-      gender: 'MALE',
+      gender: 'MAN',
       // termsAccepted deliberately omitted — this is the case a direct API
       // call (bypassing the frontend checkbox entirely) would send.
     });
@@ -418,7 +440,7 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       password: 'NewPass123!',
       fullName: 'Unchecked Box Person',
       universityId: `X-${uniqueSuffix()}`,
-      gender: 'MALE',
+      gender: 'MAN',
       termsAccepted: false,
     });
     expect(res.status).toBe(400);
@@ -435,7 +457,7 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       password: 'NewPass123!',
       fullName: 'String True Person',
       universityId: `X-${uniqueSuffix()}`,
-      gender: 'MALE',
+      gender: 'MAN',
       termsAccepted: 'true',
     });
     expect(res.status).toBe(400);

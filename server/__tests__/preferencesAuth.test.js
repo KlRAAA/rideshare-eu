@@ -24,7 +24,7 @@ beforeAll(async () => {
   server = app.listen(0);
   base = `http://127.0.0.1:${server.address().port}`;
   if (!dbUp) return;
-  alice = await makeUser(bag, { fullName: 'Alice P' });
+  alice = await makeUser(bag, { fullName: 'Alice P', gender: 'WOMAN' });
   bob = await makeUser(bag, { fullName: 'Bob P' });
   bag.preferenceUserIds.push(alice.id, bob.id);
 });
@@ -73,20 +73,20 @@ describe('PATCH /api/preferences/:userId', () => {
   test('your own → 200 and persists', async () => {
     if (guard()) return;
     const res = await pref('PATCH', alice.id, alice.id, {
-      genderPreference: 'SAME_GENDER',
+      genderPreference: 'WOMEN_PLUS',
       flexWindowMinutes: 30,
       familiarRidersOnly: true,
       liveLocationSharing: false,
     });
     expect(res.status).toBe(200);
     const fresh = await prisma.preference.findUnique({ where: { userId: alice.id } });
-    expect(fresh.genderPreference).toBe('SAME_GENDER');
+    expect(fresh.genderPreference).toBe('WOMEN_PLUS');
   });
 
   test("writing someone else's → 403, their prefs untouched", async () => {
     if (guard()) return;
     const res = await pref('PATCH', bob.id, alice.id, {
-      genderPreference: 'SAME_GENDER',
+      genderPreference: 'WOMEN_PLUS',
       flexWindowMinutes: 60,
       familiarRidersOnly: true,
       liveLocationSharing: true,

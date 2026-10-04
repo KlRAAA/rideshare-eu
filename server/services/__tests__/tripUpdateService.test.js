@@ -82,7 +82,7 @@ describe('classifyTripChanges', () => {
   });
 
   test('preferences change is cosmetic', () => {
-    const r = classifyTripChanges(current, { genderPreference: 'SAME_GENDER', flexibleDeparture: true });
+    const r = classifyTripChanges(current, { genderPreference: 'WOMEN_PLUS', flexibleDeparture: true });
     expect(r.cosmetic).toEqual(['preferences']);
     expect(r.structural).toEqual([]);
   });

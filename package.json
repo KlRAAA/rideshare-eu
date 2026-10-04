@@ -12,6 +12,7 @@
     "test:web": "jest -c jest.web.config.mjs",
     "make-admin": "node server/scripts/makeAdmin.js",
     "import-saved-cars": "node server/scripts/importSavedVehicles.js",
+    "migrate-women-plus": "node server/scripts/migrateWomenPlus.js",
     "seed:postman": "node server/scripts/seedPostman.js",
     "seed:demo": "node server/scripts/seedDemo.js",
     "test:api": "newman run postman/RideShareEU.postman_collection.json -e postman/local.postman_environment.json --folder Automated --reporters cli,json --reporter-json-export postman/results/last-run.json"

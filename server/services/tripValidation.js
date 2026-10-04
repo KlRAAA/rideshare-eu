@@ -8,7 +8,7 @@ const MIN_SEATS = 1;
 const MAX_SEATS = 6;
 const MAX_FLEX_WINDOW_MINUTES = 120;
 const RECURRENCE_TYPES = ['ONE_TIME', 'DAILY', 'WEEKDAYS', 'CUSTOM'];
-const GENDER_PREFERENCES = ['ANY', 'SAME_GENDER'];
+const { GENDER_PREFERENCES } = require('./riderRules');
 
 const isText = (v, max) => typeof v === 'string' && v.trim() !== '' && v.length <= max;
 const isLat = (v) => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= 90;

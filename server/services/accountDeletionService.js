@@ -101,7 +101,7 @@ async function deleteAccount(userId) {
       where: { id: userId },
       data: {
         fullName: encryptField(DELETED_NAME),
-        gender: encryptField('UNSPECIFIED'),
+        gender: encryptField('PREFER_NOT_TO_SAY'),
         email: `deleted-${userId}@deleted.invalid`,
         universityId: `deleted-${userId}`,
         passwordHash: unusablePasswordHash,

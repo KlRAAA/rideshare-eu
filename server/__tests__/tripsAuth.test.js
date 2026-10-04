@@ -120,6 +120,7 @@ describe('POST /api/trips', () => {
     [{ totalSeats: '3' }, 'totalSeats'],
     [{ totalSeats: 2.5 }, 'totalSeats'],
     [{ genderPreference: 'MALE_ONLY' }, 'genderPreference'],
+    [{ genderPreference: 'SAME_GENDER' }, 'genderPreference'], // S23: retired value
     [{ flexWindowMinutes: 500 }, 'flexWindowMinutes'],
     [{ flexibleDeparture: 'yes' }, 'flexibleDeparture'],
     [{ driverNotes: 'x'.repeat(501) }, 'driverNotes'],

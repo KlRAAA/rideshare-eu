@@ -5,6 +5,7 @@ const { generateOtp, hashOtp, verifyOtp, otpExpiryDate, MAX_ATTEMPTS } = require
 const { sendOtpEmail } = require('../services/emailService');
 const { encryptField, decryptField } = require('../services/encryptionService');
 const { logSecurityEvent } = require('../services/securityLog');
+const { GENDERS } = require('../services/riderRules');
 
 const STUDENT_DOMAIN = '@student.mseuf.edu.ph';
 const STAFF_DOMAIN = '@mseuf.edu.ph';
@@ -136,7 +137,7 @@ async function completeRegistration(req, res) {
       fullName: encryptField(trimmedFullName),
       universityId: trimmedUniversityId || emailPrefix,
       role,
-      gender: encryptField(gender === 'MALE' || gender === 'FEMALE' ? gender : 'UNSPECIFIED'),
+      gender: encryptField(GENDERS.includes(gender) ? gender : 'PREFER_NOT_TO_SAY'),
       verified: true,
       termsAcceptedAt: new Date(),
       termsVersion: CURRENT_TERMS_VERSION,

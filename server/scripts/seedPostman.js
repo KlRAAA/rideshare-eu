@@ -96,7 +96,7 @@ async function createUser({ email, password, fullName, universityId }) {
       universityId,
       passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS),
       fullName: encryptField(fullName),
-      gender: encryptField('MALE'),
+      gender: encryptField('MAN'),
       role: 'STUDENT',
       verified: true,
       tripCount: 0,
