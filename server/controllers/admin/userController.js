@@ -3,8 +3,13 @@ const safeUserSelect = require('../../config/safeUserSelect');
 const { decryptField, decryptUserFields, decryptTripFields } = require('../../services/encryptionService');
 const { banUser, notifyBan, unbanUser, setAdmin, sendAdminError } = require('../../services/adminModerationService');
 
+const { securityCounts } = require('../../services/securityEventStore');
+
 const SEARCH_LIMIT = 50;
 const DETAIL_LIMIT = 20;
+const SECURITY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+const userSecurityCounts = (userId) => securityCounts(new Date(Date.now() - SECURITY_WINDOW_MS), userId);
 
 // Names are AES-GCM with a random IV, so SQL can't match them — decrypt and
 // filter in memory. One university's user count keeps this cheap.
@@ -31,7 +36,7 @@ async function getUserDetail(req, res) {
   if (!userRaw) return res.status(404).json({ error: 'USER_NOT_FOUND' });
 
   const tripSelect = { id: true, destinationAddress: true, departureTime: true, status: true, filledSeats: true, totalSeats: true };
-  const [hostedTrips, joinedMatches, ratings, reportsFiledCount, reportsReceived, banHistory] = await Promise.all([
+  const [hostedTrips, joinedMatches, ratings, reportsFiledCount, reportsReceived, banHistory, supportTickets, securityCounts30d] = await Promise.all([
     prisma.trip.findMany({ where: { hostId: id }, orderBy: { departureTime: 'desc' }, take: DETAIL_LIMIT, select: tripSelect }),
     prisma.match.findMany({
       where: { passengerId: id },
@@ -57,6 +62,13 @@ async function getUserDetail(req, res) {
       orderBy: { createdAt: 'desc' },
       take: DETAIL_LIMIT,
     }),
+    prisma.supportTicket.findMany({
+      where: { userId: id },
+      orderBy: { updatedAt: 'desc' },
+      take: DETAIL_LIMIT,
+      select: { id: true, subject: true, category: true, status: true, createdAt: true, updatedAt: true },
+    }),
+    userSecurityCounts(id),
   ]);
 
   res.json({
@@ -67,6 +79,8 @@ async function getUserDetail(req, res) {
     reportsFiledCount,
     reportsReceived,
     banHistory,
+    supportTickets,
+    securityCounts30d,
   });
 }
 

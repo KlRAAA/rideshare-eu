@@ -29,11 +29,12 @@ async function purgeOldSecurityEvents(now = new Date()) {
   return count;
 }
 
-// { LOGIN_FAILED: n, OTP_FAILED: n, … } since the given time; 0 for quiet events.
-async function securityCounts(since) {
+// { LOGIN_FAILED: n, OTP_FAILED: n, … } since the given time; 0 for quiet
+// events. Pass a userId to count one account only.
+async function securityCounts(since, userId) {
   const rows = await prisma.securityEvent.groupBy({
     by: ['event'],
-    where: { createdAt: { gte: since } },
+    where: { createdAt: { gte: since }, ...(userId ? { userId } : {}) },
     _count: { _all: true },
   });
   const counts = Object.fromEntries(EVENTS.map((e) => [e, 0]));
