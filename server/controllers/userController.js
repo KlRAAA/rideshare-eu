@@ -8,6 +8,7 @@ const { decryptUserFields } = require('../services/encryptionService');
 const bcrypt = require('bcrypt');
 const { deleteAccount, AccountDeletionError } = require('../services/accountDeletionService');
 const { logSecurityEvent } = require('../services/securityLog');
+const { normalizeGender } = require('../services/riderRules');
 
 const AVATAR_DIR = path.join(__dirname, '..', '..', 'public', 'uploads', 'avatars');
 const AVATAR_URL_PREFIX = '/uploads/avatars';
@@ -15,7 +16,7 @@ const AVATAR_URL_PREFIX = '/uploads/avatars';
 async function getById(req, res) {
   const userRaw = await prisma.user.findUnique({
     where: { id: req.params.id },
-    select: { ...safeUserSelect, isAdmin: true },
+    select: { ...safeUserSelect, isAdmin: true, gender: true },
   });
   if (!userRaw) return res.status(404).json({ error: 'USER_NOT_FOUND' });
   const user = decryptUserFields(userRaw);
@@ -27,10 +28,11 @@ async function getById(req, res) {
 
   // Email is only returned on your own record — the public profile page reads
   // this endpoint for any user and only needs name/avatar/role/trustScore.
-  // Every other safeUserSelect field stays visible to any authenticated caller.
-  const { email, isAdmin, ...rest } = user;
+  // So is gender (Women+ spec §6). Every other safeUserSelect field stays
+  // visible to any authenticated caller.
+  const { email, isAdmin, gender, ...rest } = user;
   const isOwnProfile = req.user.id === req.params.id;
-  const visible = isOwnProfile ? user : rest;
+  const visible = isOwnProfile ? { ...user, gender: normalizeGender(gender) } : rest;
 
   // "Report user" is only offered post-match — same visibility rule the app
   // already applies to sensitive matched-context info (canViewPlate/

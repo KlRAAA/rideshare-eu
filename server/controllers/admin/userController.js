@@ -4,6 +4,7 @@ const { decryptField, decryptUserFields, decryptTripFields } = require('../../se
 const { banUser, notifyBan, unbanUser, setAdmin, sendAdminError } = require('../../services/adminModerationService');
 
 const { securityCounts } = require('../../services/securityEventStore');
+const { normalizeGender } = require('../../services/riderRules');
 
 const SEARCH_LIMIT = 50;
 const DETAIL_LIMIT = 20;
@@ -31,7 +32,7 @@ async function getUserDetail(req, res) {
   const { id } = req.params;
   const userRaw = await prisma.user.findUnique({
     where: { id },
-    select: { ...safeUserSelect, isAdmin: true, bannedUntil: true, banReason: true, banSeverity: true, createdAt: true },
+    select: { ...safeUserSelect, gender: true, isAdmin: true, bannedUntil: true, banReason: true, banSeverity: true, createdAt: true },
   });
   if (!userRaw) return res.status(404).json({ error: 'USER_NOT_FOUND' });
 
@@ -71,8 +72,10 @@ async function getUserDetail(req, res) {
     userSecurityCounts(id),
   ]);
 
+  // Declared gender is shown to admins only, for reviewing Women+ reports (D10).
+  const user = decryptUserFields(userRaw);
   res.json({
-    user: decryptUserFields(userRaw),
+    user: { ...user, gender: normalizeGender(user.gender) },
     hostedTrips: hostedTrips.map(decryptTripFields),
     joinedMatches: joinedMatches.map((m) => ({ ...m, trip: decryptTripFields(m.trip) })),
     ratings,

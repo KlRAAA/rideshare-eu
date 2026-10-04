@@ -9,12 +9,14 @@
 // non-matched user browsing search results never sees it embedded in a
 // response that doesn't need it (callers choose per-query whether to use
 // this select at all).
+//
+// `gender` is deliberately absent: it's returned only on your own profile and
+// to admins (Women+ spec §6), so trips and search never reveal anyone's gender.
 module.exports = {
   id: true,
   email: true,
   fullName: true,
   role: true,
-  gender: true,
   universityId: true,
   trustScore: true,
   tripCount: true,
