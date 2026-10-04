@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen, FaCommentDots } from 'react-icons/fa';
+import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen, FaCommentDots, FaLifeRing, FaBullhorn } from 'react-icons/fa';
 import Card from '@/components/Card';
 import { apiFetch } from '@/lib/api';
 import { formatDateTimeAgo } from '@/lib/format';
@@ -10,7 +10,16 @@ import { notificationHref } from '@/lib/notificationLink';
 
 export interface NotificationItem {
   id: string;
-  type: 'MATCH_REQUEST' | 'APPROVAL' | 'REMINDER' | 'RATING_PROMPT' | 'CANCELLATION' | 'TRIP_UPDATED' | 'MESSAGE';
+  type:
+    | 'MATCH_REQUEST'
+    | 'APPROVAL'
+    | 'REMINDER'
+    | 'RATING_PROMPT'
+    | 'CANCELLATION'
+    | 'TRIP_UPDATED'
+    | 'MESSAGE'
+    | 'SUPPORT_REPLY'
+    | 'ANNOUNCEMENT';
   message: string;
   isRead: boolean;
   createdAt: string;
@@ -26,6 +35,8 @@ const TYPE_ICON: Record<NotificationItem['type'], React.ComponentType<{ classNam
   CANCELLATION: FaBan,
   TRIP_UPDATED: FaPen,
   MESSAGE: FaCommentDots,
+  SUPPORT_REPLY: FaLifeRing,
+  ANNOUNCEMENT: FaBullhorn,
 };
 
 interface NotificationsClientProps {

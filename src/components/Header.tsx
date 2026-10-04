@@ -6,7 +6,7 @@ import { FaBell } from 'react-icons/fa';
 import Logo from './Logo';
 import ThemeToggle from './ThemeToggle';
 
-export type ActiveRoute = 'dashboard' | 'trips' | 'search' | 'post' | 'notifications' | 'profile';
+export type ActiveRoute = 'dashboard' | 'trips' | 'search' | 'post' | 'notifications' | 'profile' | 'help';
 
 interface HeaderProps {
   active: ActiveRoute;
@@ -18,6 +18,7 @@ const NAV_ITEMS: { key: ActiveRoute; href: string; label: string }[] = [
   { key: 'trips', href: '/auth/trips', label: 'My Trips' },
   { key: 'notifications', href: '/auth/notifications', label: 'Notifications' },
   { key: 'profile', href: '/auth/profile', label: 'Profile' },
+  { key: 'help', href: '/help', label: 'Help' },
 ];
 
 export default function Header({ active, unreadCount = 0 }: HeaderProps) {

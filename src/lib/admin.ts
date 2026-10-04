@@ -4,7 +4,18 @@ export interface AdminAction {
   id: string;
   actorId: string | null;
   actorName: string | null;
-  action: 'BAN' | 'UNBAN' | 'REPORT_REVIEWED' | 'REPORT_DISMISSED' | 'TRIP_CANCELLED' | 'FUEL_PRICE_SET' | 'PROMOTE' | 'DEMOTE';
+  action:
+    | 'BAN'
+    | 'UNBAN'
+    | 'REPORT_REVIEWED'
+    | 'REPORT_DISMISSED'
+    | 'TRIP_CANCELLED'
+    | 'FUEL_PRICE_SET'
+    | 'PROMOTE'
+    | 'DEMOTE'
+    | 'SUPPORT_REPLIED'
+    | 'SUPPORT_CLOSED'
+    | 'ANNOUNCEMENT_POSTED';
   targetUserId: string | null;
   targetUserName: string | null;
   targetTripId: string | null;
@@ -32,6 +43,9 @@ const ACTION_LABELS: Record<AdminAction['action'], string> = {
   FUEL_PRICE_SET: 'set the official fuel price',
   PROMOTE: 'made an admin:',
   DEMOTE: 'removed admin from',
+  SUPPORT_REPLIED: 'replied to a support request from',
+  SUPPORT_CLOSED: 'closed a support request from',
+  ANNOUNCEMENT_POSTED: 'posted an announcement',
 };
 
 export function describeAction(a: AdminAction): string {
@@ -41,6 +55,10 @@ export function describeAction(a: AdminAction): string {
     const fuelType = a.details?.fuelType;
     const type = isFuelType(fuelType) ? `${FUEL_TYPE_SHORT_LABELS[fuelType]} ` : 'fuel ';
     return `${actor} set the official ${type}price to ₱${Number(a.details?.to).toFixed(2)}/L`;
+  }
+  if (a.action === 'ANNOUNCEMENT_POSTED') {
+    const title = typeof a.details?.title === 'string' ? `: "${a.details.title}"` : '';
+    return `${actor} posted an announcement${title}`;
   }
   return `${actor} ${ACTION_LABELS[a.action]} ${a.targetUserName ?? 'a deleted user'}`;
 }
@@ -64,3 +82,14 @@ export const CATEGORY_OPTIONS = [
   { value: 'SAFETY', label: 'Safety concern' },
   { value: 'OTHER', label: 'Other' },
 ] as const;
+
+const HOUR_MS = 60 * 60 * 1000;
+
+// "waiting 5 hours", "waiting 2 days" — how long a report or request has sat in a queue.
+export function waitingLabel(sinceIso: string, now: number = Date.now()): string {
+  const hours = Math.floor((now - new Date(sinceIso).getTime()) / HOUR_MS);
+  if (hours < 1) return 'waiting under an hour';
+  if (hours < 24) return `waiting ${hours} hour${hours === 1 ? '' : 's'}`;
+  const days = Math.floor(hours / 24);
+  return `waiting ${days} day${days === 1 ? '' : 's'}`;
+}

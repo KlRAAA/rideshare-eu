@@ -114,3 +114,28 @@ describe('logAccessDenied middleware', () => {
     expect(captured).toEqual([]);
   });
 });
+
+describe('extra sinks', () => {
+  const { addSecurityLogSink } = require('../securityLog');
+
+  test('every extra sink receives the entry, and removing one stops it', () => {
+    const extra = [];
+    const remove = addSecurityLogSink((entry) => extra.push(entry));
+    logSecurityEvent(fakeReq(), 'RATE_LIMITED', { limit: 10 });
+    expect(extra).toEqual([expect.objectContaining({ event: 'RATE_LIMITED', limit: 10 })]);
+    expect(captured).toHaveLength(1);
+
+    remove();
+    logSecurityEvent(fakeReq(), 'RATE_LIMITED');
+    expect(extra).toHaveLength(1);
+  });
+
+  test('a failing extra sink never breaks the request or the main sink', () => {
+    const remove = addSecurityLogSink(() => {
+      throw new Error('db down');
+    });
+    expect(() => logSecurityEvent(fakeReq(), 'LOGIN_FAILED')).not.toThrow();
+    expect(captured).toHaveLength(1);
+    remove();
+  });
+});

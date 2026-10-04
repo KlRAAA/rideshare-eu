@@ -45,6 +45,9 @@ export default function BannedScreen({ suspension, appealEmail }: BannedScreenPr
         <a href={`mailto:${appealEmail}`} className="rsu-btn-secondary w-full mt-5 inline-block">
           Request a review — {appealEmail}
         </a>
+        <a href="/help" className="block text-xs font-semibold text-gray-500 hover:underline mt-3">
+          Help &amp; emergency numbers
+        </a>
       </div>
     </div>
   );

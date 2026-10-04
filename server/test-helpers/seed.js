@@ -134,6 +134,12 @@ async function cleanup(bag) {
   });
   await prisma.fuelPrice.deleteMany({ where: { setById: { in: bag.userIds } } });
   await prisma.savedVehicle.deleteMany({ where: { ownerId: { in: bag.userIds } } });
+  await prisma.supportMessage.deleteMany({
+    where: { OR: [{ authorId: { in: bag.userIds } }, { ticket: { userId: { in: bag.userIds } } }] },
+  });
+  await prisma.supportTicket.deleteMany({ where: { userId: { in: bag.userIds } } });
+  await prisma.announcement.deleteMany({ where: { createdById: { in: bag.userIds } } });
+  await prisma.securityEvent.deleteMany({ where: { userId: { in: bag.userIds } } });
   await prisma.user.deleteMany({ where: { id: { in: bag.userIds } } });
 }
 

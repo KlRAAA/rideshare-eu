@@ -136,6 +136,23 @@ describe('DELETE /api/users/me', () => {
     expect((await prisma.user.findUnique({ where: { id: first.id } })).isAdmin).toBe(false);
   });
 
+  test('removes the user’s support tickets and their messages', async () => {
+    if (guard()) return;
+    const user = await withPassword(await makeUser(bag));
+    const created = await call('POST', '/api/support', user.id, {
+      category: 'ACCOUNT',
+      subject: 'Please help',
+      body: 'My phone number is 0917 000 0000.',
+    });
+    expect(created.status).toBe(201);
+    const { ticket } = await created.json();
+
+    const res = await call('DELETE', '/api/users/me', user.id, { password: PASSWORD });
+    expect(res.status).toBe(200);
+    expect(await prisma.supportTicket.count({ where: { userId: user.id } })).toBe(0);
+    expect(await prisma.supportMessage.count({ where: { ticketId: ticket.id } })).toBe(0);
+  });
+
   test('requires a password', async () => {
     if (guard()) return;
     const user = await withPassword(await makeUser(bag));

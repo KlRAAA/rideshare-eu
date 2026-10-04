@@ -41,6 +41,14 @@ function setSecurityLogSink(nextSink) {
   return previous;
 }
 
+// Additional destinations (e.g. the database copy for admin monitoring).
+// Returns a function that removes the sink again.
+const extraSinks = new Set();
+function addSecurityLogSink(fn) {
+  extraSinks.add(fn);
+  return () => extraSinks.delete(fn);
+}
+
 function logSecurityEvent(req, event, details = {}) {
   if (!EVENTS.has(event)) throw new Error(`Unknown security event: ${event}`);
 
@@ -59,11 +67,14 @@ function logSecurityEvent(req, event, details = {}) {
     if (details[key] !== undefined) entry[key] = details[key];
   }
 
-  try {
-    sink(entry);
-  } catch {
-    // Logging must never turn a 401 into a 500.
+  // Logging must never turn a 401 into a 500, so each sink is isolated.
+  for (const target of [sink, ...extraSinks]) {
+    try {
+      target(entry);
+    } catch {
+      // ignore
+    }
   }
 }
 
-module.exports = { logSecurityEvent, setSecurityLogSink, maskEmail };
+module.exports = { logSecurityEvent, setSecurityLogSink, addSecurityLogSink, maskEmail };

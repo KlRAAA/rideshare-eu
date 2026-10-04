@@ -73,6 +73,15 @@ async function removeExisting(emails) {
   });
   await prisma.fuelPrice.deleteMany({ where: { setById: { in: userIds } } });
   await prisma.savedVehicle.deleteMany({ where: { ownerId: { in: userIds } } });
+  await prisma.supportTicket.deleteMany({ where: { userId: { in: userIds } } });
+  await prisma.supportMessage.deleteMany({ where: { authorId: { in: userIds } } });
+  // The Postman admin's announcements notified every user; remove those copies too.
+  const announcements = await prisma.announcement.findMany({ where: { createdById: { in: userIds } }, select: { title: true } });
+  for (const { title } of announcements) {
+    await prisma.notification.deleteMany({ where: { type: 'ANNOUNCEMENT', message: { startsWith: `${title}: ` } } });
+  }
+  await prisma.announcement.deleteMany({ where: { createdById: { in: userIds } } });
+  await prisma.securityEvent.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 
   for (const { avatarUrl } of users) {
