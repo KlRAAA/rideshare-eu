@@ -2,6 +2,7 @@ const prisma = require('../../config/db');
 const { record } = require('../../services/adminActionService');
 const { decryptField } = require('../../services/encryptionService');
 const { AdminError, normalizeNote, banUser, notifyBan, sendAdminError } = require('../../services/adminModerationService');
+const { issueWarning, notifyWarning } = require('../../services/warningService');
 
 const PAGE_SIZE = 20;
 const STATUSES = ['OPEN', 'REVIEWED', 'DISMISSED'];
@@ -40,13 +41,14 @@ async function listReports(req, res) {
 }
 
 async function reviewReport(req, res) {
-  const { status, note, ban } = req.body || {};
+  const { status, note, ban, warn } = req.body || {};
   if (status !== 'REVIEWED' && status !== 'DISMISSED') return res.status(400).json({ error: 'INVALID_STATUS' });
-  if (ban && status !== 'REVIEWED') return res.status(400).json({ error: 'BAN_REQUIRES_REVIEWED' });
+  if (ban && warn) return res.status(400).json({ error: 'WARN_OR_BAN' });
+  if ((ban || warn) && status !== 'REVIEWED') return res.status(400).json({ error: 'BAN_REQUIRES_REVIEWED' });
 
   try {
     const reviewNote = normalizeNote(note, { required: true });
-    const banResult = await prisma.$transaction(async (tx) => {
+    const outcome = await prisma.$transaction(async (tx) => {
       const report = await tx.report.findUnique({ where: { id: req.params.id } });
       if (!report) throw new AdminError(404, 'REPORT_NOT_FOUND');
       // Conflict of interest: a report about an admin is decided by another admin.
@@ -64,9 +66,19 @@ async function reviewReport(req, res) {
         targetReportId: report.id,
         details: { note: reviewNote },
       });
-      if (!ban) return null;
+      if (!ban && !warn) return {};
       if (!report.reportedUserId) throw new AdminError(400, 'NO_REPORTED_USER');
-      return banUser(tx, {
+      if (warn) {
+        const warning = await issueWarning(tx, {
+          actorId: req.user.id,
+          targetId: report.reportedUserId,
+          reason: warn.reason,
+          note: warn.note,
+          reportId: report.id,
+        });
+        return { warning };
+      }
+      const banned = await banUser(tx, {
         actorId: req.user.id,
         targetId: report.reportedUserId,
         duration: ban.duration,
@@ -74,9 +86,11 @@ async function reviewReport(req, res) {
         note: reviewNote,
         reportId: report.id,
       });
+      return { banned };
     });
-    if (banResult) await notifyBan(banResult);
-    return res.json({ status, banned: Boolean(banResult) });
+    if (outcome.banned) await notifyBan(outcome.banned);
+    if (outcome.warning) await notifyWarning(outcome.warning);
+    return res.json({ status, banned: Boolean(outcome.banned), warned: Boolean(outcome.warning) });
   } catch (err) {
     return sendAdminError(res, err);
   }

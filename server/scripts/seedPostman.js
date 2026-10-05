@@ -82,6 +82,9 @@ async function removeExisting(emails) {
   }
   await prisma.announcement.deleteMany({ where: { createdById: { in: userIds } } });
   await prisma.securityEvent.deleteMany({ where: { userId: { in: userIds } } });
+  await prisma.userWarning.deleteMany({
+    where: { OR: [{ userId: { in: userIds } }, { issuedById: { in: userIds } }] },
+  });
   await prisma.dataRequest.deleteMany({
     where: { OR: [{ createdById: { in: userIds } }, { subjectUserId: { in: userIds } }] },
   });

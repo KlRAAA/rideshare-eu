@@ -8,6 +8,7 @@ import Badge from '@/components/Badge';
 import { apiFetch, ApiError } from '@/lib/api';
 import { reportCategoryLabel } from '@/lib/format';
 import { BAN_DURATION_OPTIONS, formatDateTime } from '@/lib/admin';
+import { WARNING_REASONS } from '@/lib/warnings';
 
 interface Person {
   id: string;
@@ -36,12 +37,18 @@ const ERRORS: Record<string, string> = {
   REPORT_ALREADY_RESOLVED: 'Another admin already resolved this report. Refresh the list.',
   TARGET_IS_ADMIN: 'This user is an admin. Remove their admin role before banning them.',
   CANNOT_TARGET_SELF: 'This report is about you, so another admin has to decide it.',
+  INVALID_REASON: 'Choose the reason for the warning.',
 };
+
+// The "Action" menu: nothing, an official warning, or a ban of some length.
+const WARN = 'WARN';
 
 export default function ReportCard({ report }: { report: AdminReport }) {
   const router = useRouter();
   const [note, setNote] = useState('');
   const [banDuration, setBanDuration] = useState('');
+  const [warnReason, setWarnReason] = useState('');
+  const warning = banDuration === WARN;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +61,8 @@ export default function ReportCard({ report }: { report: AdminReport }) {
         body: JSON.stringify({
           status,
           note,
-          ...(status === 'REVIEWED' && banDuration ? { ban: { duration: banDuration } } : {}),
+          ...(status === 'REVIEWED' && warning ? { warn: { reason: warnReason } } : {}),
+          ...(status === 'REVIEWED' && banDuration && !warning ? { ban: { duration: banDuration } } : {}),
         }),
       });
       router.refresh();
@@ -105,7 +113,7 @@ export default function ReportCard({ report }: { report: AdminReport }) {
             className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
           />
           <label htmlFor={`ban-${report.id}`} className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
-            Ban the reported user (optional)
+            Action on the reported user (optional)
           </label>
           <select
             id={`ban-${report.id}`}
@@ -113,13 +121,30 @@ export default function ReportCard({ report }: { report: AdminReport }) {
             onChange={(e) => setBanDuration(e.target.value)}
             className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-sm"
           >
-            <option value="">No ban</option>
+            <option value="">No action</option>
+            <option value={WARN}>Send an official warning</option>
             {BAN_DURATION_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
           </select>
+          {warning && (
+            <select
+              id={`warn-reason-${report.id}`}
+              aria-label="Reason for the warning"
+              value={warnReason}
+              onChange={(e) => setWarnReason(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-sm"
+            >
+              <option value="">Choose the reason for the warning</option>
+              {WARNING_REASONS.filter((r) => r.value !== 'OTHER').map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          )}
           {error && <p className="text-xs text-red-600">{error}</p>}
           <div className="flex gap-2">
             <button
@@ -128,7 +153,7 @@ export default function ReportCard({ report }: { report: AdminReport }) {
               onClick={() => resolve('REVIEWED')}
               className="rsu-btn-primary flex-1 disabled:opacity-60"
             >
-              {banDuration ? 'Review and ban' : 'Mark reviewed'}
+              {warning ? 'Review and warn' : banDuration ? 'Review and ban' : 'Mark reviewed'}
             </button>
             <button
               type="button"

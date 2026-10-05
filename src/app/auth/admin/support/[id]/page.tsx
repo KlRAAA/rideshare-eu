@@ -5,11 +5,19 @@ import { formatDateTime } from '@/lib/admin';
 import { formatDateTimeAgo } from '@/lib/format';
 import { categoryLabel, SUPPORT_STATUS_LABELS, type SupportMessage, type SupportTicket } from '@/lib/support';
 import AdminTicketReply from './AdminTicketReply';
+import WarnUserForm from '../../WarnUserForm';
 
 interface AdminTicket extends SupportTicket {
   user: { id: string; fullName: string | null; email: string };
   messages: SupportMessage[];
-  relatedTrip: { id: string; destinationAddress: string; departureTime: string; status: string } | null;
+  relatedTrip: {
+    id: string;
+    destinationAddress: string;
+    departureTime: string;
+    status: string;
+    hostId: string;
+    hostName: string | null;
+  } | null;
 }
 
 export default async function AdminTicketPage({ params }: { params: Promise<{ id: string }> }) {
@@ -56,6 +64,19 @@ export default async function AdminTicketPage({ params }: { params: Promise<{ id
             </div>
           )}
         </dl>
+        {ticket.relatedTrip && ticket.relatedTrip.hostId !== ticket.user.id && (
+          <div className="mt-4 border-t border-[color:var(--color-border)] pt-3">
+            <p className="text-sm font-semibold text-gray-900">Warn the driver</p>
+            <p className="text-xs text-gray-500 mb-2">
+              {ticket.relatedTrip.hostName ?? 'The driver'} drove this trip. They won’t see who contacted us.
+            </p>
+            <WarnUserForm
+              userId={ticket.relatedTrip.hostId}
+              userName={ticket.relatedTrip.hostName ?? 'the driver'}
+              ticketId={ticket.id}
+            />
+          </div>
+        )}
       </Card>
 
       <Card>

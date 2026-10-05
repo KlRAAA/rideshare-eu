@@ -146,6 +146,9 @@ async function cleanup(bag) {
   await prisma.supportTicket.deleteMany({ where: { userId: { in: bag.userIds } } });
   await prisma.announcement.deleteMany({ where: { createdById: { in: bag.userIds } } });
   await prisma.securityEvent.deleteMany({ where: { userId: { in: bag.userIds } } });
+  await prisma.userWarning.deleteMany({
+    where: { OR: [{ userId: { in: bag.userIds } }, { issuedById: { in: bag.userIds } }] },
+  });
   await prisma.dataRequest.deleteMany({
     where: { OR: [{ createdById: { in: bag.userIds } }, { subjectUserId: { in: bag.userIds } }] },
   });

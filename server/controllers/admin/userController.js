@@ -5,6 +5,7 @@ const { banUser, notifyBan, unbanUser, setAdmin, sendAdminError } = require('../
 
 const { securityCounts } = require('../../services/securityEventStore');
 const { normalizeGender } = require('../../services/riderRules');
+const { issueWarning, notifyWarning } = require('../../services/warningService');
 
 const SEARCH_LIMIT = 50;
 const DETAIL_LIMIT = 20;
@@ -39,7 +40,7 @@ async function getUserDetail(req, res) {
   const tripSelect = { id: true, destinationAddress: true, departureTime: true, status: true, filledSeats: true, totalSeats: true };
   // Open trips only, so an admin can cancel one. Past and joined trips are
   // released only through a recorded data request (superadmin spec D8).
-  const [hostedTrips, ratings, reportsFiledCount, reportsReceived, banHistory, supportTickets, securityCounts30d] = await Promise.all([
+  const [hostedTrips, ratings, reportsFiledCount, reportsReceived, banHistory, supportTickets, securityCounts30d, warnings] = await Promise.all([
     prisma.trip.findMany({
       where: { hostId: id, status: { in: ['OPEN', 'FULL'] } },
       orderBy: { departureTime: 'asc' },
@@ -71,6 +72,7 @@ async function getUserDetail(req, res) {
       select: { id: true, subject: true, category: true, status: true, createdAt: true, updatedAt: true },
     }),
     userSecurityCounts(id),
+    prisma.userWarning.findMany({ where: { userId: id }, orderBy: { createdAt: 'desc' }, take: DETAIL_LIMIT }),
   ]);
 
   // Declared gender is shown to admins only, for reviewing Women+ reports (D10).
@@ -84,7 +86,29 @@ async function getUserDetail(req, res) {
     banHistory,
     supportTickets,
     securityCounts30d,
+    warnings: await withIssuerNames(warnings),
   });
+}
+
+async function withIssuerNames(warnings) {
+  const ids = [...new Set(warnings.map((w) => w.issuedById))];
+  const issuers = ids.length ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, fullName: true } }) : [];
+  const nameById = new Map(issuers.map((u) => [u.id, decryptField(u.fullName)]));
+  return warnings.map((w) => ({ ...w, issuedByName: nameById.get(w.issuedById) ?? null }));
+}
+
+// POST /api/admin/users/:id/warnings — an official warning (spec W1).
+async function warn(req, res) {
+  const { reason, note, ticketId, reportId } = req.body || {};
+  try {
+    const result = await prisma.$transaction((tx) =>
+      issueWarning(tx, { actorId: req.user.id, targetId: req.params.id, reason, note, ticketId, reportId })
+    );
+    await notifyWarning(result);
+    return res.status(201).json({ warning: result.warning });
+  } catch (err) {
+    return sendAdminError(res, err);
+  }
 }
 
 async function ban(req, res) {
@@ -120,4 +144,4 @@ function adminToggle(makeAdmin) {
   };
 }
 
-module.exports = { searchUsers, getUserDetail, ban, unban, promote: adminToggle(true), demote: adminToggle(false) };
+module.exports = { searchUsers, getUserDetail, warn, ban, unban, promote: adminToggle(true), demote: adminToggle(false) };

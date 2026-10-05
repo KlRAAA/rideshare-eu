@@ -10,6 +10,8 @@ import { reportCategoryLabel } from '@/lib/format';
 import { formatDateTime, type AdminAction } from '@/lib/admin';
 import { GENDER_OPTIONS } from '@/lib/riderRules';
 import UserActions from './UserActions';
+import WarnUserForm from '../../WarnUserForm';
+import { warningReasonLabel, type AdminWarning } from '@/lib/warnings';
 import CancelTripButton from './CancelTripButton';
 
 interface TripRow {
@@ -44,6 +46,7 @@ interface UserDetail {
   banHistory: AdminAction[];
   supportTickets: { id: string; subject: string; category: string; status: SupportStatus; createdAt: string; updatedAt: string }[];
   securityCounts30d: Record<string, number>;
+  warnings: AdminWarning[];
 }
 
 const SECURITY_LABELS: Record<string, string> = {
@@ -71,7 +74,7 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
-  const { user, hostedTrips, ratings, reportsFiledCount, reportsReceived, banHistory, supportTickets, securityCounts30d } = data;
+  const { user, hostedTrips, warnings, ratings, reportsFiledCount, reportsReceived, banHistory, supportTickets, securityCounts30d } = data;
   const securityRows = Object.entries(securityCounts30d ?? {}).filter(([, n]) => n > 0);
   const banned = user.bannedUntil != null && new Date(user.bannedUntil) > new Date();
   const viewer = await getCurrentUser();
@@ -141,6 +144,30 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
             ))}
           </ul>
         )}
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-bold text-gray-900 mb-1">Warnings</h3>
+        <p className="text-xs text-gray-500 mb-2">
+          The step before a suspension. The user gets a notification, an email and a banner, and never sees who reported them.
+        </p>
+        {warnings.length === 0 ? (
+          <p className="text-sm text-gray-500">None.</p>
+        ) : (
+          <ul className="divide-y divide-[color:var(--color-border)] mb-3">
+            {warnings.map((w) => (
+              <li key={w.id} className="py-2 text-sm">
+                <span className="font-semibold text-gray-900">{warningReasonLabel(w.reason)}</span>
+                {w.note && <span className="text-gray-700"> · “{w.note}”</span>}
+                <span className="block text-xs text-gray-500">
+                  {formatDateTime(w.createdAt)} · by {w.issuedByName ?? 'an admin'} ·{' '}
+                  {w.acknowledgedAt ? `acknowledged ${formatDateTime(w.acknowledgedAt)}` : 'not acknowledged yet'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {!isSelf && <WarnUserForm userId={user.id} userName={user.fullName} />}
       </Card>
 
       <Card>

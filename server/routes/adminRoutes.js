@@ -23,6 +23,7 @@ router.get('/fuel-price/history', history);
 
 router.get('/users', users.searchUsers);
 router.get('/users/:id', users.getUserDetail);
+router.post('/users/:id/warnings', users.warn);
 router.post('/users/:id/ban', users.ban);
 router.post('/users/:id/unban', users.unban);
 // Only the superadmin appoints or removes admins (superadmin spec D6).

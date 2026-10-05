@@ -43,7 +43,7 @@ async function getTicket(req, res) {
   const trip = ticket.relatedTripId
     ? await prisma.trip.findUnique({
         where: { id: ticket.relatedTripId },
-        select: { id: true, destinationAddress: true, departureTime: true, status: true },
+        select: { id: true, destinationAddress: true, departureTime: true, status: true, hostId: true, host: { select: { fullName: true } } },
       })
     : null;
 
@@ -52,7 +52,9 @@ async function getTicket(req, res) {
       ...ticket,
       user: { ...ticket.user, fullName: nameOf(ticket.user) },
       messages: ticket.messages.map(({ author, ...m }) => ({ ...m, authorName: nameOf(author) })),
-      relatedTrip: trip ? { ...trip, destinationAddress: decryptField(trip.destinationAddress) } : null,
+      relatedTrip: trip
+        ? (({ host, ...t }) => ({ ...t, destinationAddress: decryptField(t.destinationAddress), hostName: nameOf(host) }))(trip)
+        : null,
     },
   });
 }

@@ -73,4 +73,20 @@ async function sendBanNotificationEmail(email, { categoryLabel, permanent, banne
   });
 }
 
-module.exports = { sendOtpEmail, sendBanNotificationEmail, isUndeliverableAddress };
+// An official warning. Names the reason and the admin's note, never the reporter.
+async function sendWarningEmail(email, { reasonLabel, note }) {
+  const appealEmail = process.env.REPORT_APPEAL_EMAIL || 'support@rideshareeu.local';
+  const body =
+    `You have received an official warning from a RideShareEU administrator for: ${reasonLabel}.\n\n` +
+    (note ? `Note from the administrator: ${note}\n\n` : '') +
+    `Your account is still active. Repeated issues can lead to a suspension. ` +
+    `If you believe this was a mistake, contact us through Help in the app or at ${appealEmail}.`;
+  await deliver({
+    to: email,
+    subject: 'An official warning about your RideShareEU account',
+    text: body,
+    devLog: `Warning notification for ${email}:\n${body}`,
+  });
+}
+
+module.exports = { sendOtpEmail, sendBanNotificationEmail, sendWarningEmail, isUndeliverableAddress };

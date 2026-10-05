@@ -277,3 +277,24 @@ Spec and plan: `docs/superpowers/specs/2026-10-05-superadmin-data-requests-desig
   superadmin's overview).
 - Demo: Liza is the superadmin, Carlo a regular admin. Postman: the admin
   account is the superadmin; folder "16. Data requests".
+
+## Official warnings (Oct 2026)
+
+Spec: `docs/superpowers/specs/2026-10-06-user-warnings-design.md`.
+
+- A `UserWarning` is the step before a suspension. `issueWarning` (in
+  `server/services/warningService.js`) writes the warning, a `WARNING`
+  notification and a `WARNING_ISSUED` audit entry in one transaction; the
+  controller then sends the email. Reasons: SMOKING, UNSAFE_DRIVING,
+  LATE_OR_NO_SHOW, DISRESPECTFUL, OTHER (OTHER needs a note, 400 `NOTE_REQUIRED`).
+- Three ways to issue one: `POST /api/admin/users/:id/warnings` (user page,
+  or a support request's "Warn the driver" with `ticketId`), and report review
+  with `warn: { reason, note }` (can't be combined with a ban, 400 `WARN_OR_BAN`).
+  A linked ticket's trip host or a report's reported user must be the target
+  (400 `WARNING_TARGET_MISMATCH`).
+- The user sees a dashboard banner until they press "I understand"
+  (`GET /api/warnings/active`, `PATCH /api/warnings/:id/acknowledge`). Their
+  view never includes the issuer, report or ticket, so they can't tell who
+  reported them.
+- The watch list flags ≥2 warnings in 30 days. A notification type the
+  notifications page doesn't know falls back to a bell icon instead of crashing.

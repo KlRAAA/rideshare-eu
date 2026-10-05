@@ -1,5 +1,6 @@
 import { FUEL_TYPE_SHORT_LABELS, isFuelType } from './fuelTypes';
 import { basisLabel } from './dataRequests';
+import { warningReasonLabel } from './warnings';
 
 export interface AdminAction {
   id: string;
@@ -20,7 +21,8 @@ export interface AdminAction {
     | 'DATA_RELEASED'
     | 'DATA_RELEASE_VIEWED'
     | 'DATA_PAPERWORK_RECEIVED'
-    | 'SUPERADMIN_SET';
+    | 'SUPERADMIN_SET'
+    | 'WARNING_ISSUED';
   targetUserId: string | null;
   targetUserName: string | null;
   targetTripId: string | null;
@@ -55,6 +57,7 @@ const ACTION_LABELS: Record<AdminAction['action'], string> = {
   DATA_RELEASE_VIEWED: 'reopened a release',
   DATA_PAPERWORK_RECEIVED: 'recorded paperwork',
   SUPERADMIN_SET: 'made the superadmin:',
+  WARNING_ISSUED: 'warned',
 };
 
 export function describeAction(a: AdminAction): string {
@@ -73,6 +76,9 @@ export function describeAction(a: AdminAction): string {
   }
   if (a.action === 'DATA_RELEASE_VIEWED') return `${actor} reopened the release for data request ${ref}`;
   if (a.action === 'DATA_PAPERWORK_RECEIVED') return `${actor} recorded the written request for data request ${ref}`;
+  if (a.action === 'WARNING_ISSUED') {
+    return `${actor} warned ${a.targetUserName ?? 'a deleted user'} (${warningReasonLabel(String(a.details?.reason))})`;
+  }
   if (a.action === 'SUPERADMIN_SET') return `${actor} made ${a.targetUserName ?? 'a deleted user'} the superadmin`;
   if (a.action === 'ANNOUNCEMENT_POSTED') {
     const title = typeof a.details?.title === 'string' ? `: "${a.details.title}"` : '';

@@ -49,6 +49,7 @@ enum NotificationType {
   MESSAGE
   SUPPORT_REPLY
   ANNOUNCEMENT
+  WARNING
 }
 
 enum ReportStatus {
@@ -81,6 +82,34 @@ enum AdminActionType {
   DATA_RELEASE_VIEWED
   DATA_PAPERWORK_RECEIVED
   SUPERADMIN_SET
+  WARNING_ISSUED
+}
+
+enum WarningReason {
+  SMOKING
+  UNSAFE_DRIVING
+  LATE_OR_NO_SHOW
+  DISRESPECTFUL
+  OTHER
+}
+
+// An official warning from an admin: the step before a suspension. The warned
+// user sees a notification, an email and a dashboard banner until they
+// acknowledge it. Never names the reporter. Ids are plain, like AdminAction's,
+// so the record survives account deletion.
+model UserWarning {
+  id             String        @id @default(cuid())
+  userId         String
+  issuedById     String
+  reason         WarningReason
+  note           String?
+  reportId       String?
+  ticketId       String?
+  tripId         String?
+  createdAt      DateTime      @default(now())
+  acknowledgedAt DateTime?
+
+  @@index([userId, createdAt])
 }
 
 enum DataRequestBasis {

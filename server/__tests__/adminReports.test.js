@@ -91,7 +91,7 @@ describe('PATCH /api/admin/reports/:id', () => {
     const { host, report } = await makeReport();
     const res = await call('PATCH', `/api/admin/reports/${report.id}`, admin.id, { status: 'REVIEWED', note: 'Confirmed', ban: { duration: '7D' } });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: 'REVIEWED', banned: true });
+    expect(await res.json()).toEqual({ status: 'REVIEWED', banned: true, warned: false });
     const banned = await prisma.user.findUnique({ where: { id: host.id }, select: { banReason: true, bannedUntil: true } });
     expect(banned.banReason).toBe('NO_SHOW');
     expect(banned.bannedUntil > new Date()).toBe(true);

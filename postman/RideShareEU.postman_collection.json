@@ -132,6 +132,10 @@
     {
       "key": "dataRequestId",
       "value": ""
+    },
+    {
+      "key": "warningId",
+      "value": ""
     }
   ],
   "item": [
@@ -2114,7 +2118,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "pm.test('status is 200', () => pm.response.to.have.status(200));",
-                      "pm.test('report dismissed without a ban', () => pm.expect(pm.response.json()).to.eql({ status: 'DISMISSED', banned: false }));"
+                      "pm.test('report dismissed without a ban', () => pm.expect(pm.response.json()).to.eql({ status: 'DISMISSED', banned: false, warned: false }));"
                     ]
                   }
                 }
@@ -3998,6 +4002,267 @@
                     {
                       "key": "token",
                       "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "17. Warnings",
+          "description": "Official warnings: the step before a suspension. The warned user sees a notification and a dashboard banner until they acknowledge it, and never sees who reported them.",
+          "item": [
+            {
+              "name": "Admin warns the passenger",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                      "const { warning } = pm.response.json();",
+                      "pm.test('warning is for the passenger', () => pm.expect(warning.userId).to.eql(pm.collectionVariables.get('passengerId')));",
+                      "pm.collectionVariables.set('warningId', warning.id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/users/{{passengerId}}/warnings",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"LATE_OR_NO_SHOW\",\n  \"note\": \"Please be at the pickup point on time.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "OTHER needs a note",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "pm.test('error is NOTE_REQUIRED', () => pm.expect(pm.response.json().error).to.eql('NOTE_REQUIRED'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/users/{{passengerId}}/warnings",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"OTHER\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "An admin cannot warn themselves",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "pm.test('error is CANNOT_TARGET_SELF', () => pm.expect(pm.response.json().error).to.eql('CANNOT_TARGET_SELF'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/users/{{adminId}}/warnings",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"SMOKING\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "The passenger sees the warning",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const { warnings } = pm.response.json();",
+                      "pm.test('the warning is active', () => pm.expect(warnings.map((w) => w.id)).to.include(pm.collectionVariables.get('warningId')));",
+                      "pm.test('it never says who issued or reported it', () => pm.expect(JSON.stringify(warnings)).to.not.match(/issuedById|reportId|ticketId/));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/warnings/active",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Someone else cannot acknowledge it",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": "{{baseUrl}}/api/warnings/{{warningId}}/acknowledge",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "The passenger acknowledges it",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('acknowledged', () => pm.expect(pm.response.json().warning.acknowledgedAt).to.be.a('string'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": "{{baseUrl}}/api/warnings/{{warningId}}/acknowledge",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "The banner list is empty again",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('no active warnings', () => pm.expect(pm.response.json().warnings.map((w) => w.id)).to.not.include(pm.collectionVariables.get('warningId')));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/warnings/active",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
                       "type": "string"
                     }
                   ]

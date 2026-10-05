@@ -7,6 +7,7 @@ import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import OnboardingTour from '@/components/OnboardingTour';
 import AnnouncementBanner from '@/components/AnnouncementBanner';
+import WarningBanner from '@/components/WarningBanner';
 import { getCurrentUser } from '@/lib/session';
 import { apiFetch } from '@/lib/api-server';
 import { formatDate, formatTime, formatDateTimeAgo, recurrenceLabel, roleLabel } from '@/lib/format';
@@ -71,6 +72,7 @@ export default async function DashboardPage() {
       <Header active="dashboard" unreadCount={unreadCount} />
 
       <main className="app-desktop w-full p-0 pt-2 md:pt-4 space-y-6 flex-grow">
+        <WarningBanner />
         <AnnouncementBanner />
         <section>
           <div className="flex justify-between items-start">

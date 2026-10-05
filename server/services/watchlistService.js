@@ -6,6 +6,7 @@ const { decryptField } = require('./encryptionService');
 const PASSENGER_CANCEL_MIN = 3; // approved rides later cancelled by the passenger
 const HOST_CANCEL_MIN = 2; // trips the host cancelled after approving riders
 const REPORTS_MIN = 2; // reports received, any status
+const WARNINGS_MIN = 2; // official warnings received
 
 // Passenger cancellations: the match was approved (respondedAt set) and later
 // cancelled while the trip itself stayed on. Withdrawing a pending request is
@@ -53,18 +54,29 @@ async function reportsReceived(since) {
   return new Map(rows.filter((r) => r._count._all >= REPORTS_MIN).map((r) => [r.reportedUserId, r._count._all]));
 }
 
+async function warningsReceived(since) {
+  const rows = await prisma.userWarning.groupBy({
+    by: ['userId'],
+    where: { createdAt: { gte: since } },
+    _count: { _all: true },
+  });
+  return new Map(rows.filter((r) => r._count._all >= WARNINGS_MIN).map((r) => [r.userId, r._count._all]));
+}
+
 // [{ userId, fullName, reasons: [plain sentences] }], most reasons first.
 async function buildWatchlist(since) {
-  const [passenger, host, reports] = await Promise.all([
+  const [passenger, host, reports, warnings] = await Promise.all([
     passengerCancellations(since),
     hostCancellations(since),
     reportsReceived(since),
+    warningsReceived(since),
   ]);
   const reasonsById = new Map();
   const add = (id, text) => reasonsById.set(id, [...(reasonsById.get(id) || []), text]);
   for (const [id, n] of passenger) add(id, `${n} rides cancelled after approval (as passenger)`);
   for (const [id, n] of host) add(id, `${n} trips cancelled after riders were approved`);
   for (const [id, n] of reports) add(id, `${n} reports received`);
+  for (const [id, n] of warnings) add(id, `${n} warnings`);
   if (reasonsById.size === 0) return [];
 
   const users = await prisma.user.findMany({
@@ -76,4 +88,4 @@ async function buildWatchlist(since) {
     .sort((a, b) => b.reasons.length - a.reasons.length || a.fullName.localeCompare(b.fullName));
 }
 
-module.exports = { buildWatchlist, PASSENGER_CANCEL_MIN, HOST_CANCEL_MIN, REPORTS_MIN };
+module.exports = { buildWatchlist, PASSENGER_CANCEL_MIN, HOST_CANCEL_MIN, REPORTS_MIN, WARNINGS_MIN };

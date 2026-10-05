@@ -75,6 +75,7 @@ async function wipe() {
   await prisma.preference.deleteMany();
   await prisma.adminAction.deleteMany();
   await prisma.dataRequest.deleteMany();
+  await prisma.userWarning.deleteMany();
   await prisma.fuelPrice.deleteMany();
   await prisma.emailVerification.deleteMany();
   await prisma.user.deleteMany();
@@ -367,8 +368,15 @@ async function main() {
       body: 'On my last ride the car smelled strongly of cigarettes and we went very fast on the highway. I felt uneasy.',
       relatedTripId: anaTrip.id,
     });
+    // The driver of that trip gets an official warning linked to Bea's request;
+    // they never see that Bea was the one who wrote in.
+    await api(u.liza.id, 'POST', `/api/admin/users/${u.ana.id}/warnings`, {
+      reason: 'SMOKING',
+      note: 'Please keep the car smoke-free and stick to safe speeds on the highway.',
+      ticketId: ticket.id,
+    });
     await api(u.liza.id, 'POST', `/api/admin/support/${ticket.id}/messages`, {
-      body: 'Thank you for letting us know, Bea. We have reminded the driver about the no-smoking rule and safe speeds. Tell us if it happens again.',
+      body: 'Thank you for letting us know, Bea. We have sent the driver an official warning about smoking and safe speeds. Tell us if it happens again.',
     });
     await api(u.paolo.id, 'POST', '/api/support', {
       category: 'APP_PROBLEM',

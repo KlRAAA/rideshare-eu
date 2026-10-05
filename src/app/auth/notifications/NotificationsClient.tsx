@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen, FaCommentDots, FaLifeRing, FaBullhorn } from 'react-icons/fa';
+import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen, FaCommentDots, FaLifeRing, FaBullhorn, FaExclamationTriangle, FaBell } from 'react-icons/fa';
 import Card from '@/components/Card';
 import { apiFetch } from '@/lib/api';
 import { formatDateTimeAgo } from '@/lib/format';
@@ -19,7 +19,8 @@ export interface NotificationItem {
     | 'TRIP_UPDATED'
     | 'MESSAGE'
     | 'SUPPORT_REPLY'
-    | 'ANNOUNCEMENT';
+    | 'ANNOUNCEMENT'
+    | 'WARNING';
   message: string;
   isRead: boolean;
   createdAt: string;
@@ -37,6 +38,7 @@ const TYPE_ICON: Record<NotificationItem['type'], React.ComponentType<{ classNam
   MESSAGE: FaCommentDots,
   SUPPORT_REPLY: FaLifeRing,
   ANNOUNCEMENT: FaBullhorn,
+  WARNING: FaExclamationTriangle,
 };
 
 interface NotificationsClientProps {
@@ -120,7 +122,8 @@ export default function NotificationsClient({ initialNotifications, initialNextC
       ) : (
         <div className="space-y-3 max-w-2xl">
           {notifications.map((n) => {
-            const Icon = TYPE_ICON[n.type];
+            // A type added on the server before this map would otherwise crash the page.
+            const Icon = TYPE_ICON[n.type] ?? FaBell;
             const href = notificationHref(n);
 
             const inner = (

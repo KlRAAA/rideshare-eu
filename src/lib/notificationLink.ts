@@ -18,6 +18,8 @@ const ROUTABLE_TYPES = new Set(['MATCH_REQUEST', 'APPROVAL', 'CANCELLATION', 'RA
 export function notificationHref(n: NotificationRef): string | null {
   // An admin replied to one of the user's Help requests.
   if (n.type === 'SUPPORT_REPLY') return '/help/requests';
+  // An official warning: the dashboard shows it until the user acknowledges it.
+  if (n.type === 'WARNING') return '/auth/dashboard';
   if (!n.relatedTripId || !ROUTABLE_TYPES.has(n.type)) return null;
   const base = `/auth/trips/${n.relatedTripId}`;
   return n.relatedMatchId ? `${base}?requestId=${n.relatedMatchId}` : base;
