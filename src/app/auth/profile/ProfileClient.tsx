@@ -14,6 +14,8 @@ import DeleteAccountPanel from './DeleteAccountPanel';
 import { apiFetch, clearSessionCookie, API_BASE } from '@/lib/api';
 import { roleLabel } from '@/lib/format';
 import type { CurrentUser } from '@/lib/session';
+import { isWomenPlusEligible, TRIPS_I_SEE_OPTIONS, type GenderPreference } from '@/lib/riderRules';
+import GenderCard from './GenderCard';
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -24,7 +26,7 @@ const AVATAR_ERROR_COPY: Record<string, string> = {
 };
 
 export interface Preference {
-  genderPreference: 'ANY' | 'SAME_GENDER';
+  genderPreference: GenderPreference;
   flexWindowMinutes: number;
   familiarRidersOnly: boolean;
   liveLocationSharing: boolean;
@@ -36,6 +38,7 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [preference, setPreference] = useState(initialPreference);
+  const womenPlusEligible = isWomenPlusEligible(user.gender);
   const [saving, setSaving] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [showReportHistory, setShowReportHistory] = useState(false);
@@ -167,6 +170,7 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
       </div>
 
       <div className="space-y-4">
+        <GenderCard initialGender={user.gender ?? 'PREFER_NOT_TO_SAY'} />
         <Card>
           <div className="flex items-center justify-between mb-1">
             <h3 className="text-sm font-bold text-gray-900">Matching Preferences</h3>
@@ -181,18 +185,25 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                Co-rider Gender Preference
+                Trips I See
               </label>
               <Select
-                disabled={!editing}
+                disabled={!editing || !womenPlusEligible}
                 value={preference.genderPreference}
-                onChange={(e) => setPreference((p) => ({ ...p, genderPreference: e.target.value as Preference['genderPreference'] }))}
+                onChange={(e) => setPreference((p) => ({ ...p, genderPreference: e.target.value as GenderPreference }))}
                 className="w-full pl-3 pr-9 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm disabled:text-gray-500"
               >
-                <option value="ANY">Any</option>
-                <option value="SAME_GENDER">Same-gender only</option>
+                {TRIPS_I_SEE_OPTIONS.filter((o) => womenPlusEligible || o.value === 'ANY').map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
               </Select>
-              <p className="text-[11px] text-gray-400 mt-1">This will be your default when posting or searching for rides</p>
+              <p className="text-[11px] text-gray-400 mt-1">
+                {womenPlusEligible
+                  ? 'Your default filter on Find a Ride'
+                  : 'Women+ trips are for women and non-binary riders. Choose a gender above to use them.'}
+              </p>
             </div>
 
             <div>

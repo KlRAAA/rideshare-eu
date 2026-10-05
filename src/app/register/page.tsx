@@ -10,6 +10,7 @@ import OtpInput from '@/components/OtpInput';
 import { apiFetch, ApiError, setSessionCookie } from '@/lib/api';
 import { useFormDraft } from '@/lib/useFormDraft';
 import DraftRestoredBar from '@/components/DraftRestoredBar';
+import { GENDER_HELP, GENDER_OPTIONS, isGender, type Gender } from '@/lib/riderRules';
 
 type Step = 'EMAIL' | 'OTP' | 'PASSWORD';
 
@@ -53,7 +54,7 @@ export default function RegisterPage() {
   const [verificationTicket, setVerificationTicket] = useState('');
   const [fullName, setFullName] = useState('');
   const [universityId, setUniversityId] = useState('');
-  const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'UNSPECIFIED'>('UNSPECIFIED');
+  const [gender, setGender] = useState<Gender>('PREFER_NOT_TO_SAY');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -154,7 +155,7 @@ export default function RegisterPage() {
         if (typeof d.email === 'string') setEmail(d.email);
         if (typeof d.fullName === 'string') setFullName(d.fullName);
         if (typeof d.universityId === 'string') setUniversityId(d.universityId);
-        if (d.gender === 'MALE' || d.gender === 'FEMALE' || d.gender === 'UNSPECIFIED') setGender(d.gender);
+        if (isGender(d.gender)) setGender(d.gender);
         if (d.resumeStep === 'OTP' && typeof d.email === 'string' && d.email) setStep('OTP');
       },
     }
@@ -283,16 +284,16 @@ export default function RegisterPage() {
                   <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Gender</label>
                   <Select
                     value={gender}
-                    onChange={(e) => setGender(e.target.value as 'MALE' | 'FEMALE' | 'UNSPECIFIED')}
+                    onChange={(e) => setGender(e.target.value as Gender)}
                     className="w-full pl-3 pr-9 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm"
                   >
-                    <option value="UNSPECIFIED">Prefer not to say</option>
-                    <option value="MALE">Male</option>
-                    <option value="FEMALE">Female</option>
+                    {GENDER_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
                   </Select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Used only for the optional same-gender co-rider matching preference.
-                  </p>
+                  <p className="text-xs text-gray-500 mt-1">{GENDER_HELP}</p>
                 </div>
 
                 <div>

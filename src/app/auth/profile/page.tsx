@@ -19,7 +19,8 @@ export default async function ProfilePage() {
           <h1 className="text-2xl font-bold text-gray-900">Profile &amp; Preferences</h1>
           <p className="text-sm text-gray-500 mt-0.5">Manage your account and ride preferences</p>
         </div>
-        <ProfileClient user={user} initialPreference={preference} />
+        {/* Remounts after a gender change, which can reset the Women+ preference. */}
+        <ProfileClient key={user.gender} user={user} initialPreference={preference} />
       </main>
       <BottomNav active="profile" />
     </div>

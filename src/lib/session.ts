@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import { apiFetch } from './api-server';
 import { ApiError } from './api';
+import type { Gender } from './riderRules';
 
 const COOKIE_NAME = 'rsu_session';
 
@@ -20,6 +21,7 @@ export interface CurrentUser {
   tripsJoined: number;
   hasSeenOnboarding: boolean;
   isAdmin?: boolean;
+  gender?: Gender; // your own record only
 }
 
 export async function getSessionUserId(): Promise<string | null> {
