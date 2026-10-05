@@ -10,6 +10,9 @@ let dbUp = false;
 const bag = newBag();
 // Posting notifies every user in the database, not just this file's users,
 // so every title here carries this tag and afterAll removes those notifications.
+// For the same reason `npm run test:server` runs this file on its own, after
+// the others: run alongside them, it adds notifications to their users, which
+// breaks their counts and their cleanup.
 const TAG = `[test-${Date.now()}]`;
 
 beforeAll(async () => {

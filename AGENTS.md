@@ -193,7 +193,9 @@ Spec and plan: `docs/superpowers/specs/2026-10-04-help-and-admin-monitoring-desi
   (`CANNOT_TARGET_SELF`).
 - Announcements: `POST /api/admin/announcements` notifies every non-deleted
   user (`ANNOUNCEMENT`) and writes `ANNOUNCEMENT_POSTED`; the dashboard banner
-  reads `GET /api/announcements/active`. Tests and `seed:postman` remove the
+  reads `GET /api/announcements/active`. Because posting notifies every user,
+  `npm run test:server` runs `announcements.test.js` alone, after the other
+  server tests (don't use a bare `jest server`). Tests and `seed:postman` remove the
   fan-out notifications they create.
 - Monitoring: `SecurityEvent` stores security log entries without IP or email
   (installed in `server.js`, purged after 30 days by a 3:30 AM cron). The
