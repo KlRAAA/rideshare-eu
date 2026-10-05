@@ -111,3 +111,56 @@ export function waitingLabel(sinceIso: string, now: number = Date.now()): string
   const days = Math.floor(hours / 24);
   return `waiting ${days} day${days === 1 ? '' : 's'}`;
 }
+
+// How a work queue is coloured on the overview: red when something urgent is
+// waiting (harassment or safety), amber when anything else is, clear otherwise.
+export function queueTone(count: number, urgent: number): 'danger' | 'warning' | 'clear' {
+  if (count > 0 && urgent > 0) return 'danger';
+  return count > 0 ? 'warning' : 'clear';
+}
+
+export type AdminBadgeKey = 'openReports' | 'openTickets' | 'overdueDataPaperwork';
+
+export interface AdminNavItem {
+  href: string;
+  label: string;
+  badge?: AdminBadgeKey;
+}
+
+export interface AdminNavGroup {
+  label: string;
+  items: AdminNavItem[];
+}
+
+// The admin console's sections, grouped by job. Data requests is the
+// superadmin's alone; the API refuses everyone else regardless.
+export function adminNavGroups(isSuperAdmin: boolean): AdminNavGroup[] {
+  return [
+    {
+      label: 'Moderation',
+      items: [
+        { href: '/auth/admin', label: 'Overview' },
+        { href: '/auth/admin/reports', label: 'Reports', badge: 'openReports' },
+        { href: '/auth/admin/support', label: 'Support', badge: 'openTickets' },
+        { href: '/auth/admin/watchlist', label: 'Watch list' },
+      ],
+    },
+    { label: 'People', items: [{ href: '/auth/admin/users', label: 'Users' }] },
+    {
+      label: 'Platform',
+      items: [
+        { href: '/auth/admin/announcements', label: 'Announcements' },
+        { href: '/auth/admin/fuel-price', label: 'Fuel price' },
+      ],
+    },
+    {
+      label: 'Records',
+      items: [
+        ...(isSuperAdmin
+          ? [{ href: '/auth/admin/data-requests', label: 'Data requests', badge: 'overdueDataPaperwork' as const }]
+          : []),
+        { href: '/auth/admin/activity', label: 'Activity' },
+      ],
+    },
+  ];
+}

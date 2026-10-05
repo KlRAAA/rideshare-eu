@@ -118,7 +118,7 @@ describe('admin overview monitoring', () => {
     expect(data.queues.openTickets).toBeGreaterThanOrEqual(1);
     expect(data.queues.safetyTickets).toBeGreaterThanOrEqual(1);
     expect(data.queues.oldestTicketAt).toEqual(expect.any(String));
-    expect(data.today).toEqual({ ridesToday: expect.any(Number), newUsers24h: expect.any(Number), activeBans: expect.any(Number) });
+    expect(data.today).toEqual({ ridesToday: expect.any(Number), ridesAvg7d: expect.any(Number), newUsers24h: expect.any(Number), activeBans: expect.any(Number) });
     expect(data.security.counts).toHaveProperty('LOGIN_FAILED');
     expect(typeof data.watchlistCount).toBe('number');
   });

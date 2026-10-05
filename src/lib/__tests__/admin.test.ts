@@ -1,5 +1,5 @@
 import { describe, test, expect } from '@jest/globals';
-import { waitingLabel, describeAction, type AdminAction } from '../admin';
+import { waitingLabel, describeAction, queueTone, adminNavGroups, type AdminAction } from '../admin';
 
 const NOW = Date.parse('2026-10-04T12:00:00Z');
 const hoursAgo = (h: number) => new Date(NOW - h * 3600 * 1000).toISOString();
@@ -65,5 +65,23 @@ describe('describeAction for data requests and the superadmin', () => {
     expect(
       describeAction({ ...base, actorName: null, action: 'SUPERADMIN_SET', targetUserName: 'Maria Santos', details: { via: 'make-superadmin script' } })
     ).toBe('Server command made Maria Santos the superadmin');
+  });
+});
+
+describe('queueTone', () => {
+  test('urgent items are red, other waiting items amber, nothing waiting is clear', () => {
+    expect(queueTone(2, 1)).toBe('danger');
+    expect(queueTone(2, 0)).toBe('warning');
+    expect(queueTone(0, 0)).toBe('clear');
+  });
+});
+
+describe('adminNavGroups', () => {
+  test('groups the sections; Data requests only for the superadmin', () => {
+    const labels = (sa: boolean) => adminNavGroups(sa).flatMap((g) => g.items.map((i) => i.label));
+    expect(adminNavGroups(false).map((g) => g.label)).toEqual(['Moderation', 'People', 'Platform', 'Records']);
+    expect(labels(false)).not.toContain('Data requests');
+    expect(labels(true)).toContain('Data requests');
+    expect(labels(false)).toEqual(['Overview', 'Reports', 'Support', 'Watch list', 'Users', 'Announcements', 'Fuel price', 'Activity']);
   });
 });
