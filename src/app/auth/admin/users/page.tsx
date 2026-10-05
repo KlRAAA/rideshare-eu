@@ -10,6 +10,7 @@ interface AdminUserRow {
   fullName: string;
   role: string;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   isBanned: boolean;
   trustScore: number;
 }
@@ -51,7 +52,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                     <span className="block text-xs text-gray-500 truncate">{u.email}</span>
                   </span>
                   <span className="flex flex-wrap justify-end gap-1 shrink-0">
-                    {u.isAdmin && <Badge tone="primary">Admin</Badge>}
+                    {u.isSuperAdmin ? <Badge tone="primary">Superadmin</Badge> : u.isAdmin && <Badge tone="primary">Admin</Badge>}
                     {u.isBanned && <Badge tone="warning">Banned</Badge>}
                     <Badge tone="neutral">{u.role.toLowerCase()}</Badge>
                   </span>

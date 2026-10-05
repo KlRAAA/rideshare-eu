@@ -1,4 +1,5 @@
 import { FUEL_TYPE_SHORT_LABELS, isFuelType } from './fuelTypes';
+import { basisLabel } from './dataRequests';
 
 export interface AdminAction {
   id: string;
@@ -15,7 +16,11 @@ export interface AdminAction {
     | 'DEMOTE'
     | 'SUPPORT_REPLIED'
     | 'SUPPORT_CLOSED'
-    | 'ANNOUNCEMENT_POSTED';
+    | 'ANNOUNCEMENT_POSTED'
+    | 'DATA_RELEASED'
+    | 'DATA_RELEASE_VIEWED'
+    | 'DATA_PAPERWORK_RECEIVED'
+    | 'SUPERADMIN_SET';
   targetUserId: string | null;
   targetUserName: string | null;
   targetTripId: string | null;
@@ -46,6 +51,10 @@ const ACTION_LABELS: Record<AdminAction['action'], string> = {
   SUPPORT_REPLIED: 'replied to a support request from',
   SUPPORT_CLOSED: 'closed a support request from',
   ANNOUNCEMENT_POSTED: 'posted an announcement',
+  DATA_RELEASED: 'released records',
+  DATA_RELEASE_VIEWED: 'reopened a release',
+  DATA_PAPERWORK_RECEIVED: 'recorded paperwork',
+  SUPERADMIN_SET: 'made the superadmin:',
 };
 
 export function describeAction(a: AdminAction): string {
@@ -56,6 +65,15 @@ export function describeAction(a: AdminAction): string {
     const type = isFuelType(fuelType) ? `${FUEL_TYPE_SHORT_LABELS[fuelType]} ` : 'fuel ';
     return `${actor} set the official ${type}price to ₱${Number(a.details?.to).toFixed(2)}/L`;
   }
+  const ref = typeof a.details?.referenceNumber === 'string' ? a.details.referenceNumber : 'unknown';
+  if (a.action === 'DATA_RELEASED') {
+    // Regular admins get this entry without the person (superadmin spec D11).
+    const about = a.targetUserName ? ` about ${a.targetUserName}` : '';
+    return `${actor} released records${about} for data request ${ref} (${a.details?.agency}, ${basisLabel(String(a.details?.legalBasis))})`;
+  }
+  if (a.action === 'DATA_RELEASE_VIEWED') return `${actor} reopened the release for data request ${ref}`;
+  if (a.action === 'DATA_PAPERWORK_RECEIVED') return `${actor} recorded the written request for data request ${ref}`;
+  if (a.action === 'SUPERADMIN_SET') return `${actor} made ${a.targetUserName ?? 'a deleted user'} the superadmin`;
   if (a.action === 'ANNOUNCEMENT_POSTED') {
     const title = typeof a.details?.title === 'string' ? `: "${a.details.title}"` : '';
     return `${actor} posted an announcement${title}`;

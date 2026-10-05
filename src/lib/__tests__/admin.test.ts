@@ -36,3 +36,34 @@ describe('describeAction for support and announcements', () => {
     ).toBe('Liza Ramos posted an announcement: "No classes tomorrow"');
   });
 });
+
+describe('describeAction for data requests and the superadmin', () => {
+  const base: AdminAction = {
+    id: 'a2',
+    actorId: 'sa',
+    actorName: 'Liza Ramos',
+    action: 'DATA_RELEASED',
+    targetUserId: null,
+    targetUserName: null,
+    targetTripId: null,
+    targetReportId: null,
+    details: { agency: 'PNP Lucena', referenceNumber: 'BLT-1', legalBasis: 'WARRANT' },
+    createdAt: hoursAgo(1),
+  };
+
+  test('reads like a sentence and leaves the person out when hidden', () => {
+    expect(describeAction(base)).toBe(
+      'Liza Ramos released records for data request BLT-1 (PNP Lucena, Warrant to Disclose Computer Data)'
+    );
+    expect(describeAction({ ...base, targetUserName: 'Maria Santos' })).toBe(
+      'Liza Ramos released records about Maria Santos for data request BLT-1 (PNP Lucena, Warrant to Disclose Computer Data)'
+    );
+    expect(describeAction({ ...base, action: 'DATA_RELEASE_VIEWED' })).toBe('Liza Ramos reopened the release for data request BLT-1');
+    expect(describeAction({ ...base, action: 'DATA_PAPERWORK_RECEIVED' })).toBe(
+      'Liza Ramos recorded the written request for data request BLT-1'
+    );
+    expect(
+      describeAction({ ...base, actorName: null, action: 'SUPERADMIN_SET', targetUserName: 'Maria Santos', details: { via: 'make-superadmin script' } })
+    ).toBe('Server command made Maria Santos the superadmin');
+  });
+});

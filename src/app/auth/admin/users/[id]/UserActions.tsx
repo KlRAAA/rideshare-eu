@@ -8,12 +8,23 @@ import { BAN_DURATION_OPTIONS, CATEGORY_OPTIONS } from '@/lib/admin';
 const ERRORS: Record<string, string> = {
   CANNOT_TARGET_SELF: 'You can’t do that to your own account.',
   TARGET_IS_ADMIN: 'Remove this user’s admin role before banning them.',
+  TARGET_IS_SUPERADMIN: 'The superadmin can’t be banned or removed here.',
+  SUPERADMIN_ONLY: 'Only the superadmin can change who is an admin.',
   NOTE_TOO_LONG: 'Keep the note under 500 characters.',
 };
 
 const FIELD = 'mt-1 w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-sm';
 
-export default function UserActions({ userId, isAdmin, isBanned }: { userId: string; isAdmin: boolean; isBanned: boolean }) {
+interface UserActionsProps {
+  userId: string;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
+  isBanned: boolean;
+  // Only the superadmin appoints or removes admins (superadmin spec D6).
+  canManageAdmins: boolean;
+}
+
+export default function UserActions({ userId, isAdmin, isSuperAdmin, isBanned, canManageAdmins }: UserActionsProps) {
   const router = useRouter();
   const [duration, setDuration] = useState('24H');
   const [reason, setReason] = useState('OTHER');
@@ -88,7 +99,7 @@ export default function UserActions({ userId, isAdmin, isBanned }: { userId: str
             Ban user
           </button>
         )}
-        {isAdmin ? (
+        {canManageAdmins && !isSuperAdmin && isAdmin && (
           <button
             type="button"
             disabled={busy}
@@ -97,7 +108,8 @@ export default function UserActions({ userId, isAdmin, isBanned }: { userId: str
           >
             Remove admin
           </button>
-        ) : (
+        )}
+        {canManageAdmins && !isAdmin && (
           <button
             type="button"
             disabled={busy}

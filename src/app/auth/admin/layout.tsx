@@ -18,7 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <h1 className="text-2xl font-bold text-gray-900">Admin console</h1>
           <p className="text-sm text-gray-500 mt-0.5">Safety, moderation and system settings</p>
         </div>
-        <AdminNav />
+        <AdminNav showDataRequests={user.isSuperAdmin === true} />
         <div className="mt-4">{children}</div>
       </main>
       <BottomNav active="profile" />

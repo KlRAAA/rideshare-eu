@@ -18,6 +18,7 @@ interface Overview {
     flaggedAccounts: { userId: string; fullName: string | null; count: number }[];
   };
   watchlistCount: number;
+  overdueDataPaperwork: number | null;
   errorsUrl: string | null;
   recentActions: AdminAction[];
 }
@@ -58,10 +59,15 @@ function QueueLine({ href, count, noun, oldest, extra }: { href: string; count: 
 
 export default async function AdminOverviewPage() {
   const data = await adminFetch<Overview>('/api/admin/overview');
-  const { counts, queues, today, security, watchlistCount, errorsUrl, recentActions } = data;
+  const { counts, queues, today, security, watchlistCount, overdueDataPaperwork, errorsUrl, recentActions } = data;
 
   return (
     <div className="space-y-4">
+      {overdueDataPaperwork != null && overdueDataPaperwork > 0 && (
+        <Link href="/auth/admin/data-requests" className="block rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 hover:border-amber-300">
+          {overdueDataPaperwork} emergency release{overdueDataPaperwork === 1 ? '' : 's'} still waiting for the written request
+        </Link>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <h2 className="text-sm font-bold text-gray-900">Needs attention</h2>
