@@ -38,12 +38,13 @@ const PEOPLE = {
   juan: { fullName: 'Juan Dela Cruz', gender: 'MAN', role: 'STUDENT', universityId: '2023-10001' },
   maria: { fullName: 'Maria Santos', gender: 'WOMAN', role: 'STUDENT', universityId: '2023-10002' },
   ana: { fullName: 'Ana Reyes', gender: 'WOMAN', role: 'STUDENT', universityId: '2022-10003' },
-  carlo: { fullName: 'Carlo Mendoza', gender: 'MAN', role: 'FACULTY', universityId: 'FAC-10004' },
+  carlo: { fullName: 'Carlo Mendoza', gender: 'MAN', role: 'FACULTY', universityId: 'FAC-10004', isAdmin: true },
   miguel: { fullName: 'Miguel Torres', gender: 'MAN', role: 'STUDENT', universityId: '2024-10005' },
   bea: { fullName: 'Bea Villanueva', gender: 'NON_BINARY', role: 'STUDENT', universityId: '2024-10006' },
   paolo: { fullName: 'Paolo Garcia', gender: 'MAN', role: 'STUDENT', universityId: '2023-10007' },
   rico: { fullName: 'Rico Bautista', gender: 'MAN', role: 'STUDENT', universityId: '2025-10008' },
-  liza: { fullName: 'Liza Ramos', gender: 'WOMAN', role: 'FACULTY', universityId: 'FAC-10009', isAdmin: true },
+  // Liza is the superadmin (the school's DPO); Carlo is a regular admin.
+  liza: { fullName: 'Liza Ramos', gender: 'WOMAN', role: 'FACULTY', universityId: 'FAC-10009', isSuperAdmin: true },
 };
 
 const emailFor = (key) =>
@@ -73,6 +74,7 @@ async function wipe() {
   await prisma.savedVehicle.deleteMany();
   await prisma.preference.deleteMany();
   await prisma.adminAction.deleteMany();
+  await prisma.dataRequest.deleteMany();
   await prisma.fuelPrice.deleteMany();
   await prisma.emailVerification.deleteMany();
   await prisma.user.deleteMany();
@@ -92,7 +94,8 @@ async function createUsers() {
         universityId: p.universityId,
         verified: true,
         hasSeenOnboarding: true,
-        isAdmin: Boolean(p.isAdmin),
+        isAdmin: Boolean(p.isAdmin || p.isSuperAdmin),
+        isSuperAdmin: Boolean(p.isSuperAdmin),
         termsAcceptedAt: new Date(),
         termsVersion: '2026-09-17',
       },
@@ -378,6 +381,23 @@ async function main() {
       title: 'Welcome to the RideShareEU pilot',
       body: 'Thank you for testing! Post your regular commute to campus and tell us what you think through Help.',
       endsAt: new Date(Date.now() + 14 * 86400 * 1000).toISOString(),
+    });
+
+    // Demo only: one past data request, so the superadmin's page isn't empty.
+    // Made-up agency, officer and reference number.
+    const phDay = (offsetDays) =>
+      new Date(Date.now() + 8 * 3600 * 1000 + offsetDays * 86400 * 1000).toISOString().slice(0, 10);
+    await api(u.liza.id, 'POST', '/api/admin/data-requests', {
+      subjectUserId: u.rico.id,
+      agency: 'PNP Lucena City Police Station',
+      officerName: 'PCPT R. Dela Peña, Investigation Section',
+      officerContact: '(042) 555 0100',
+      referenceNumber: 'BLT-2026-0117',
+      legalBasis: 'SUBPOENA',
+      fromDate: phDay(-30),
+      toDate: phDay(0),
+      verificationNote: 'Called the station on its listed number and confirmed the officer and the blotter entry.',
+      password: DEMO_PASSWORD,
     });
 
     console.log('Demo data ready. Accounts (password for all: see DEMO_PASSWORD in this file):');

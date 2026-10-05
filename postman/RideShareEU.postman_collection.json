@@ -120,6 +120,18 @@
     {
       "key": "familiarTripId",
       "value": ""
+    },
+    {
+      "key": "dataFromDate",
+      "value": ""
+    },
+    {
+      "key": "dataToDate",
+      "value": ""
+    },
+    {
+      "key": "dataRequestId",
+      "value": ""
     }
   ],
   "item": [
@@ -2179,7 +2191,8 @@
                       "const body = pm.response.json();",
                       "pm.test('profile and activity returned', () => {",
                       "  pm.expect(body.user.isAdmin).to.eql(false);",
-                      "  pm.expect(body.joinedMatches.length).to.be.at.least(1);",
+                      "  pm.expect(body.hostedTrips).to.be.an('array');",
+                      "  pm.expect(body).to.not.have.property('joinedMatches'); // trip history only through a data request",
                       "});"
                     ]
                   }
@@ -3611,6 +3624,383 @@
                       "language": "json"
                     }
                   }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "16. Data requests",
+          "description": "The seeded admin is the superadmin (the school's Data Protection Officer). Only the superadmin manages admins and releases a person's records for a data request; a release re-checks the password and is recorded in the audit log, where regular admins see it without the person's name.",
+          "item": [
+            {
+              "name": "Superadmin makes the host an admin",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/users/{{hostId}}/promote",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "An admin cannot make admins",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 403', () => pm.response.to.have.status(403));",
+                      "pm.test('error is SUPERADMIN_ONLY', () => pm.expect(pm.response.json().error).to.eql('SUPERADMIN_ONLY'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/users/{{passengerId}}/promote",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "An admin cannot open data requests",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 403', () => pm.response.to.have.status(403));",
+                      "pm.test('error is SUPERADMIN_ONLY', () => pm.expect(pm.response.json().error).to.eql('SUPERADMIN_ONLY'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/data-requests",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "An admin cannot ban the superadmin",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 409', () => pm.response.to.have.status(409));",
+                      "pm.test('error is TARGET_IS_SUPERADMIN', () => pm.expect(pm.response.json().error).to.eql('TARGET_IS_SUPERADMIN'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/users/{{adminId}}/ban",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"duration\": \"24H\",\n  \"reason\": \"SPAM\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Release with a wrong password",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// Philippine dates around this run's trips (posted for tomorrow).",
+                      "const phDay = (offsetDays) => new Date(Date.now() + 8 * 3600 * 1000 + offsetDays * 86400 * 1000).toISOString().slice(0, 10);",
+                      "pm.collectionVariables.set('dataFromDate', phDay(-2));",
+                      "pm.collectionVariables.set('dataToDate', phDay(3));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 403', () => pm.response.to.have.status(403));",
+                      "pm.test('error is INVALID_PASSWORD', () => pm.expect(pm.response.json().error).to.eql('INVALID_PASSWORD'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/data-requests",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"subjectUserId\": \"{{passengerId}}\",\n  \"agency\": \"PNP Lucena City Police Station\",\n  \"officerName\": \"PCPT Postman Tester\",\n  \"officerContact\": \"0917 000 0000\",\n  \"referenceNumber\": \"POSTMAN-BLT-1\",\n  \"legalBasis\": \"WARRANT\",\n  \"fromDate\": \"{{dataFromDate}}\",\n  \"toDate\": \"{{dataToDate}}\",\n  \"verificationNote\": \"Postman run: called the station on its listed number.\",\n  \"password\": \"not-the-password\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Chats need a warrant or court order",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "pm.test('names the field', () => pm.expect(pm.response.json()).to.eql({ error: 'INVALID_DATA_REQUEST', field: 'includeChats' }));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/data-requests",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"subjectUserId\": \"{{passengerId}}\",\n  \"agency\": \"PNP Lucena City Police Station\",\n  \"officerName\": \"PCPT Postman Tester\",\n  \"officerContact\": \"0917 000 0000\",\n  \"referenceNumber\": \"POSTMAN-BLT-1\",\n  \"legalBasis\": \"SUBPOENA\",\n  \"fromDate\": \"{{dataFromDate}}\",\n  \"toDate\": \"{{dataToDate}}\",\n  \"verificationNote\": \"Postman run: called the station on its listed number.\",\n  \"password\": \"{{adminPassword}}\",\n  \"includeChats\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Superadmin releases the passenger's records",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                      "const { request: created, release } = pm.response.json();",
+                      "pm.test('the release lists their trips', () => pm.expect(release.trips.length).to.be.above(0));",
+                      "pm.test('no email addresses in the release', () => pm.expect(JSON.stringify(release)).to.not.include('@test.local'));",
+                      "pm.collectionVariables.set('dataRequestId', created.id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/data-requests",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"subjectUserId\": \"{{passengerId}}\",\n  \"agency\": \"PNP Lucena City Police Station\",\n  \"officerName\": \"PCPT Postman Tester\",\n  \"officerContact\": \"0917 000 0000\",\n  \"referenceNumber\": \"POSTMAN-BLT-1\",\n  \"legalBasis\": \"WARRANT\",\n  \"fromDate\": \"{{dataFromDate}}\",\n  \"toDate\": \"{{dataToDate}}\",\n  \"verificationNote\": \"Postman run: called the station on its listed number.\",\n  \"password\": \"{{adminPassword}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Superadmin reopens the release",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('same request', () => pm.expect(pm.response.json().request.id).to.eql(pm.collectionVariables.get('dataRequestId')));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/data-requests/{{dataRequestId}}",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "An admin sees the release without the person",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const entry = pm.response.json().actions.find((a) => a.action === 'DATA_RELEASED' && a.details.referenceNumber === 'POSTMAN-BLT-1');",
+                      "pm.test('the release is listed', () => pm.expect(entry).to.be.an('object'));",
+                      "pm.test('without who it was about', () => pm.expect(entry.targetUserId).to.eql(null));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/actions",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Superadmin removes the host as admin",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/users/{{hostId}}/demote",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
                 }
               }
             }

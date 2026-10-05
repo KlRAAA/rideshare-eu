@@ -82,6 +82,9 @@ async function removeExisting(emails) {
   }
   await prisma.announcement.deleteMany({ where: { createdById: { in: userIds } } });
   await prisma.securityEvent.deleteMany({ where: { userId: { in: userIds } } });
+  await prisma.dataRequest.deleteMany({
+    where: { OR: [{ createdById: { in: userIds } }, { subjectUserId: { in: userIds } }] },
+  });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 
   for (const { avatarUrl } of users) {
@@ -133,7 +136,7 @@ async function main() {
     fullName: 'Postman Admin',
     universityId: 'POSTMAN-ADMIN',
   });
-  await prisma.user.update({ where: { id: admin.id }, data: { isAdmin: true } });
+  await prisma.user.update({ where: { id: admin.id }, data: { isAdmin: true, isSuperAdmin: true } });
 
   console.log(`Seeded Postman accounts: host ${host.email}, passenger ${passenger.email}, admin ${admin.email}`);
 }
