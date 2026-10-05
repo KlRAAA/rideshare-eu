@@ -3,6 +3,8 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import BackButton from '@/components/BackButton';
 import { getCurrentUser } from '@/lib/session';
+import { apiFetch } from '@/lib/api-server';
+import { isWomenPlusEligible, type GenderPreference } from '@/lib/riderRules';
 import SearchClient, { type SearchInitialState } from './SearchClient';
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? '';
@@ -17,14 +19,22 @@ function parsePickup(sp: Record<string, string | string[] | undefined>): SearchI
   return valid && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 }
 
-function parseInitial(sp: Record<string, string | string[] | undefined>): SearchInitialState {
+// `show` overrides the Profile's "Trips I see" default for this search.
+function parseShow(sp: Record<string, string | string[] | undefined>, fallback: GenderPreference): GenderPreference {
+  const show = one(sp.show);
+  if (show === 'womenplus') return 'WOMEN_PLUS';
+  if (show === 'all') return 'ANY';
+  return fallback;
+}
+
+function parseInitial(sp: Record<string, string | string[] | undefined>, profilePreference: GenderPreference): SearchInitialState {
   return {
     origin: one(sp.origin),
     pickup: parsePickup(sp),
     destination: one(sp.destination),
     date: one(sp.date),
     time: one(sp.time),
-    genderPreference: one(sp.gender) === 'SAME_GENDER' ? 'SAME_GENDER' : 'ANY',
+    genderPreference: parseShow(sp, profilePreference),
     flexibleTime: one(sp.flex) === '1',
     sortBy: one(sp.sort) === 'earliest' ? 'earliest' : 'best',
   };
@@ -37,6 +47,14 @@ export default async function SearchRidesPage({
 }) {
   const user = await getCurrentUser();
   const sp = await searchParams;
+  // Women+ is offered only to eligible riders; the server already reads a
+  // stale or ineligible stored preference as ANY.
+  const canUseWomenPlus = isWomenPlusEligible(user?.gender);
+  const profilePreference: GenderPreference =
+    user && canUseWomenPlus
+      ? (await apiFetch<{ preference: { genderPreference: GenderPreference } }>(`/api/preferences/${user.id}`)).preference
+          .genderPreference
+      : 'ANY';
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -48,7 +66,12 @@ export default async function SearchRidesPage({
           <p className="text-sm text-gray-500 mt-0.5">Search for available carpools that match your route</p>
         </div>
         {user ? (
-          <SearchClient passengerId={user.id} initial={parseInitial(sp)} />
+          <SearchClient
+            passengerId={user.id}
+            initial={parseInitial(sp, profilePreference)}
+            canUseWomenPlus={canUseWomenPlus}
+            profilePreference={profilePreference}
+          />
         ) : (
           <p className="text-sm text-gray-500">Sign in to search for rides.</p>
         )}

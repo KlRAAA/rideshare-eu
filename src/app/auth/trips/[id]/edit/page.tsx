@@ -8,6 +8,7 @@ import { apiFetch } from '@/lib/api-server';
 import { ApiError } from '@/lib/api';
 import PostTripForm, { type EditableTrip } from '@/app/auth/post/PostTripForm';
 import type { FuelType } from '@/lib/fuelTypes';
+import { isWomenPlusEligible, type GenderPreference } from '@/lib/riderRules';
 
 interface TripApiShape {
   id: string;
@@ -28,7 +29,7 @@ interface TripApiShape {
   filledSeats: number;
   fuelSharePerSeat: number | null;
   driverNotes: string | null;
-  genderPreference: 'ANY' | 'SAME_GENDER';
+  genderPreference: GenderPreference;
   flexibleDeparture: boolean;
   flexWindowMinutes: number;
   familiarRidersOnly: boolean;
@@ -95,7 +96,7 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
           <h1 className="text-2xl font-bold text-gray-900">Edit Trip</h1>
           <p className="text-sm text-gray-500 mt-0.5">Update your posted trip</p>
         </div>
-        <PostTripForm hostId={user.id} editTrip={editTrip} />
+        <PostTripForm hostId={user.id} editTrip={editTrip} canHostWomenPlus={isWomenPlusEligible(user.gender)} />
       </main>
       <BottomNav active="trips" />
     </div>

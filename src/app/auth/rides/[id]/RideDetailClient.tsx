@@ -12,6 +12,8 @@ import TripSummaryCard from '@/components/TripSummaryCard';
 import FuelShareCard from '@/components/FuelShareCard';
 import CoRidersCard from '@/components/CoRidersCard';
 import RequestToJoinModal from '@/components/RequestToJoinModal';
+import RuleBadges from '@/components/RuleBadges';
+import { whoCanJoinLabel, type GenderPreference } from '@/lib/riderRules';
 
 interface Vehicle {
   make: string;
@@ -80,6 +82,8 @@ interface RideDetailClientProps {
   // only when this page was opened from a search — drives the overlap layer.
   passengerOrigin: LatLng | null;
   passengerDestination: LatLng | null;
+  // WOMEN_PLUS when the rider chose Women+ trips (search filter or Profile).
+  riderPreference: GenderPreference;
 }
 
 export default function RideDetailClient({
@@ -88,6 +92,7 @@ export default function RideDetailClient({
   matchParams,
   passengerOrigin,
   passengerDestination,
+  riderPreference,
 }: RideDetailClientProps) {
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
@@ -153,6 +158,8 @@ export default function RideDetailClient({
           href={`/auth/users/${trip.host.id}`}
         />
 
+        <RuleBadges trip={trip} />
+
         <TripSummaryCard trip={trip} />
 
         {fuelShareAmount != null && <FuelShareCard amount={fuelShareAmount} />}
@@ -216,10 +223,8 @@ export default function RideDetailClient({
           <h3 className="text-sm font-bold text-gray-900 mb-3">Preferences</h3>
           <dl className="space-y-3 text-xs">
             <div>
-              <dt className="text-gray-400">Gender Preference</dt>
-              <dd className="text-gray-800 font-medium">
-                {trip.genderPreference === 'ANY' ? 'Any' : 'Same-gender only'}
-              </dd>
+              <dt className="text-gray-400">Who Can Join</dt>
+              <dd className="text-gray-800 font-medium">{whoCanJoinLabel(trip.genderPreference)}</dd>
             </div>
             <div>
               <dt className="text-gray-400">Departure Flexibility</dt>
@@ -243,6 +248,8 @@ export default function RideDetailClient({
           passengerId={currentUserId}
           hostName={trip.host.fullName}
           matchPayload={matchParams}
+          tripGenderPreference={trip.genderPreference}
+          riderPreference={riderPreference}
           onClose={() => setShowModal(false)}
           onSubmitted={() => {
             setShowModal(false);

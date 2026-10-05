@@ -17,6 +17,8 @@ import ReportModal from '@/components/ReportModal';
 import { apiFetch, ApiError } from '@/lib/api';
 import { checkCampusProximity, getCurrentCoords } from '@/lib/geoProximity';
 import { LOCATION_POLL_INTERVAL_MS } from '@/lib/constants';
+import RuleBadges from '@/components/RuleBadges';
+import { whoCanJoinLabel } from '@/lib/riderRules';
 
 interface Vehicle {
   make: string;
@@ -254,6 +256,8 @@ export default function TripDetailClient({
           href={`/auth/users/${trip.host.id}`}
         />
 
+        <RuleBadges trip={trip} />
+
         <TripSummaryCard trip={trip} />
 
         {(() => {
@@ -421,8 +425,8 @@ export default function TripDetailClient({
           <h3 className="text-sm font-bold text-gray-900 mb-3">Preferences</h3>
           <dl className="space-y-3 text-xs">
             <div>
-              <dt className="text-gray-400">Gender Preference</dt>
-              <dd className="text-gray-800 font-medium">{trip.genderPreference === 'ANY' ? 'Any' : 'Same-gender only'}</dd>
+              <dt className="text-gray-400">Who Can Join</dt>
+              <dd className="text-gray-800 font-medium">{whoCanJoinLabel(trip.genderPreference)}</dd>
             </div>
             <div>
               <dt className="text-gray-400">Departure Flexibility</dt>

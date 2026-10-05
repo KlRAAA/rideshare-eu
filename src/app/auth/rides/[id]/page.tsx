@@ -6,6 +6,7 @@ import BackButton from '@/components/BackButton';
 import { getCurrentUser } from '@/lib/session';
 import { apiFetch } from '@/lib/api-server';
 import { ApiError } from '@/lib/api';
+import { isWomenPlusEligible, type GenderPreference } from '@/lib/riderRules';
 import RideDetailClient, { type RideDetail, type MatchParams } from './RideDetailClient';
 
 // The PSGA scores are computed per passenger at search time and not persisted,
@@ -59,6 +60,17 @@ export default async function RideDetailPage({
     throw err;
   }
 
+  // Women+ trips only, from the search filter (`show`) or the Profile default;
+  // drives the warning before requesting a trip open to everyone.
+  let riderPreference: GenderPreference = 'ANY';
+  if (isWomenPlusEligible(user.gender)) {
+    if (sp.show === 'womenplus') riderPreference = 'WOMEN_PLUS';
+    else if (sp.show !== 'all') {
+      const { preference } = await apiFetch<{ preference: { genderPreference: GenderPreference } }>(`/api/preferences/${user.id}`);
+      riderPreference = preference.genderPreference;
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <Header active="search" />
@@ -70,6 +82,7 @@ export default async function RideDetailPage({
           matchParams={parseMatchParams(sp)}
           passengerOrigin={parsePassengerPoint(sp.plat, sp.plng)}
           passengerDestination={parsePassengerPoint(sp.dlat, sp.dlng)}
+          riderPreference={riderPreference}
         />
       </main>
       <BottomNav active="search" />

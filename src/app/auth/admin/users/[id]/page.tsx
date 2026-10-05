@@ -8,6 +8,7 @@ import { ApiError } from '@/lib/api';
 import { getSessionUserId } from '@/lib/session';
 import { reportCategoryLabel } from '@/lib/format';
 import { formatDateTime, type AdminAction } from '@/lib/admin';
+import { GENDER_OPTIONS } from '@/lib/riderRules';
 import UserActions from './UserActions';
 import CancelTripButton from './CancelTripButton';
 
@@ -27,6 +28,7 @@ interface UserDetail {
     fullName: string;
     role: string;
     universityId: string;
+    gender: string;
     trustScore: number;
     tripCount: number;
     isAdmin: boolean;
@@ -89,6 +91,11 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
           <dd className="text-gray-900">{user.universityId}</dd>
           <dt className="text-gray-500">Role</dt>
           <dd className="text-gray-900">{user.role.toLowerCase()}</dd>
+          <dt className="text-gray-500">Gender</dt>
+          <dd className="text-gray-900">
+            {GENDER_OPTIONS.find((o) => o.value === user.gender)?.label ?? 'Prefer not to say'}{' '}
+            <span className="text-xs text-gray-500">(self-declared; admins only, for reviewing Women+ reports)</span>
+          </dd>
           <dt className="text-gray-500">Trust score</dt>
           <dd className="text-gray-900 tabular-nums">
             {user.trustScore.toFixed(2)} ({user.tripCount} rating{user.tripCount === 1 ? '' : 's'})

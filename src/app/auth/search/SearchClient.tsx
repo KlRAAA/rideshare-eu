@@ -29,6 +29,8 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import RouteMap from '@/components/RouteMap';
 import type { LatLng } from '@/lib/directions';
 import { searchFlexWindow } from '@/lib/searchWindow';
+import RuleBadges from '@/components/RuleBadges';
+import { TRIPS_I_SEE_OPTIONS, type GenderPreference } from '@/lib/riderRules';
 
 interface Vehicle {
   make: string;
@@ -53,6 +55,8 @@ interface Trip {
   vehicle: Vehicle;
   status: string;
   host: Host;
+  genderPreference: string;
+  familiarRidersOnly: boolean;
 }
 
 interface MatchResult {
@@ -93,7 +97,7 @@ export interface SearchInitialState {
   destination: string;
   date: string;
   time: string;
-  genderPreference: 'ANY' | 'SAME_GENDER';
+  genderPreference: GenderPreference;
   flexibleTime: boolean;
   sortBy: SortBy;
 }
@@ -137,13 +141,15 @@ function SearchResultCardSkeleton() {
   );
 }
 
-export default function SearchClient({
-  passengerId,
-  initial,
-}: {
+interface SearchClientProps {
   passengerId: string;
   initial: SearchInitialState;
-}) {
+  // Women+ trips are for women and non-binary riders; the filter shows only for them.
+  canUseWomenPlus: boolean;
+  profilePreference: GenderPreference;
+}
+
+export default function SearchClient({ passengerId, initial, canUseWomenPlus, profilePreference }: SearchClientProps) {
   const router = useRouter();
 
   const [origin, setOrigin] = useState(initial.origin);
@@ -167,7 +173,11 @@ export default function SearchClient({
   const pickupCoords = originPin ?? geocodedOrigin;
   const [date, setDate] = useState(initial.date);
   const [time, setTime] = useState(() => initial.time || defaultSearchTime());
-  const [genderPreference, setGenderPreference] = useState<'ANY' | 'SAME_GENDER'>(initial.genderPreference);
+  const [genderPreference, setGenderPreference] = useState<GenderPreference>(initial.genderPreference);
+  // Set by "Also show trips open to everyone": the rider still chose Women+
+  // trips, so joining an open trip shows the warning (Women+ spec S6, S7).
+  const [widenedFromWomenPlus, setWidenedFromWomenPlus] = useState(false);
+  const womenPlusChosen = profilePreference === 'WOMEN_PLUS' || genderPreference === 'WOMEN_PLUS' || widenedFromWomenPlus;
   const [flexibleTime, setFlexibleTime] = useState(initial.flexibleTime);
   const [sortBy, setSortBy] = useState<SortBy>(initial.sortBy);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -200,12 +210,12 @@ export default function SearchClient({
     if (destination && destination !== DEFAULT_DESTINATION) q.set('destination', destination);
     if (date) q.set('date', date);
     if (time) q.set('time', time);
-    if (genderPreference !== 'ANY') q.set('gender', genderPreference);
+    if (genderPreference !== profilePreference) q.set('show', genderPreference === 'WOMEN_PLUS' ? 'womenplus' : 'all');
     if (flexibleTime) q.set('flex', '1');
     if (sortBy !== 'best') q.set('sort', sortBy);
     const qs = q.toString();
     router.replace(qs ? `/auth/search?${qs}` : '/auth/search', { scroll: false });
-  }, [origin, originPin, destination, date, time, genderPreference, flexibleTime, sortBy, router]);
+  }, [origin, originPin, destination, date, time, genderPreference, profilePreference, flexibleTime, sortBy, router]);
 
   const isFirstSync = useRef(true);
   useEffect(() => {
@@ -234,7 +244,13 @@ export default function SearchClient({
     runSearch();
   }
 
-  async function runSearch() {
+  function showOpenTripsToo() {
+    setWidenedFromWomenPlus(true);
+    setGenderPreference('ANY');
+    runSearch('ANY');
+  }
+
+  async function runSearch(preference: GenderPreference = genderPreference) {
     if (!TIME_RE.test(time)) {
       setSearched(true);
       setIsFallback(false);
@@ -265,7 +281,7 @@ export default function SearchClient({
           departureMinutes,
           date,
           flexWindowMinutes: searchFlexWindow(flexibleTime),
-          genderPreference,
+          genderPreference: preference,
         }),
       });
 
@@ -282,8 +298,8 @@ export default function SearchClient({
   // Empty-state fallback. Reuses the origin/destination already geocoded by the
   // last search (no re-geocode) and asks the server for every trip heading to
   // the same destination, ignoring the route-overlap and departure-time gates.
-  // Safety constraints (gender preference, familiar-riders-only) are still
-  // enforced server-side. Only reachable from the "No matching rides" card.
+  // Safety rules (Women+ trips, familiar riders only, the Women+ filter) are
+  // still enforced server-side. Only reachable from the "No matching rides" card.
   async function runShowAll() {
     if (!searchGeo) return;
     if (!TIME_RE.test(time)) {
@@ -331,6 +347,7 @@ export default function SearchClient({
       sched: String(match.scheduleAlignment),
       pref: match.preferenceMatch ? '1' : '0',
     });
+    if (womenPlusChosen) q.set('show', 'womenplus'); // so Ride Details warns before joining an open trip
     if (searchGeo) {
       q.set('plat', String(searchGeo.origin.lat));
       q.set('plng', String(searchGeo.origin.lng));
@@ -436,17 +453,28 @@ export default function SearchClient({
       <div className="border-t border-gray-100 pt-4">
         <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Filters</p>
         <div className="space-y-3">
-          <div>
-            <label className="block text-[11px] text-gray-500 mb-1">Gender Preference</label>
-            <Select
-              value={genderPreference}
-              onChange={(e) => setGenderPreference(e.target.value as 'ANY' | 'SAME_GENDER')}
-              className="w-full pl-3 pr-9 py-2 bg-gray-50 border border-gray-300 rounded-xl text-sm"
-            >
-              <option value="ANY">Any</option>
-              <option value="SAME_GENDER">Same-gender only</option>
-            </Select>
-          </div>
+          {canUseWomenPlus && (
+            <div>
+              <label htmlFor="search-show" className="block text-[11px] text-gray-500 mb-1">
+                Show
+              </label>
+              <Select
+                id="search-show"
+                value={genderPreference}
+                onChange={(e) => {
+                  setGenderPreference(e.target.value as GenderPreference);
+                  setWidenedFromWomenPlus(false);
+                }}
+                className="w-full pl-3 pr-9 py-2 bg-gray-50 border border-gray-300 rounded-xl text-sm"
+              >
+                {TRIPS_I_SEE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-600">
               Flexible Time
@@ -549,6 +577,13 @@ export default function SearchClient({
             <p className="text-xs text-gray-400 text-center">
               Try a wider flexible-time window, or check back later — new trips are posted throughout the day.
             </p>
+            {genderPreference === 'WOMEN_PLUS' && (
+              <div className="text-center mt-4">
+                <button type="button" onClick={showOpenTripsToo} className="rsu-btn-secondary inline-flex px-4">
+                  Also show trips open to everyone
+                </button>
+              </div>
+            )}
             {searchGeo && (
               <div className="text-center mt-4">
                 <button type="button" onClick={runShowAll} className="rsu-btn-secondary inline-flex px-4">
@@ -594,6 +629,7 @@ export default function SearchClient({
                 </Link>
                 <Badge tone={status.tone}>{status.label}</Badge>
               </div>
+              <RuleBadges trip={match.trip} className="mb-2" />
 
               <div className="text-xs text-gray-600 space-y-1.5">
                 <p className="flex items-start gap-2">
@@ -653,6 +689,8 @@ export default function SearchClient({
             scheduleAlignment: requestTarget.scheduleAlignment,
             preferenceMatch: requestTarget.preferenceMatch,
           }}
+          tripGenderPreference={requestTarget.trip.genderPreference}
+          riderPreference={womenPlusChosen ? 'WOMEN_PLUS' : 'ANY'}
           onClose={() => setRequestTarget(null)}
           onSubmitted={() => {
             setJoinedTripIds((prev) => new Set(prev).add(requestTarget.tripId));

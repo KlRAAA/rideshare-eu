@@ -20,12 +20,9 @@ import { useGeocodedAddress, reverseGeocodeLabel } from '@/lib/useGeocodedAddres
 import { useFormDraft } from '@/lib/useFormDraft';
 import DraftRestoredBar from '@/components/DraftRestoredBar';
 import { useCurrentLocationAddress } from '@/lib/useCurrentLocationAddress';
+import { WHO_CAN_JOIN_OPTIONS, type GenderPreference } from '@/lib/riderRules';
 
 const SEAT_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({ value: n, label: `${n} seat${n > 1 ? 's' : ''}` }));
-const GENDER_PREFERENCE_OPTIONS: { value: 'ANY' | 'SAME_GENDER'; label: string }[] = [
-  { value: 'ANY', label: 'Any' },
-  { value: 'SAME_GENDER', label: 'Same-gender only' },
-];
 
 type Recurrence = 'ONE_TIME' | 'DAILY' | 'WEEKDAYS' | 'CUSTOM';
 
@@ -83,7 +80,7 @@ export interface EditableTrip {
   approvedCount: number;
   fuelSharePerSeat: number | null;
   driverNotes: string | null;
-  genderPreference: 'ANY' | 'SAME_GENDER';
+  genderPreference: GenderPreference;
   flexibleDeparture: boolean;
   flexWindowMinutes: number;
   familiarRidersOnly: boolean;
@@ -93,7 +90,14 @@ export interface EditableTrip {
   vehicle: { make: string; model: string; color: string; plate: string | null; fuelEfficiencyKmL: number; fuelType: FuelType };
 }
 
-export default function PostTripForm({ hostId, editTrip }: { hostId: string; editTrip?: EditableTrip }) {
+interface PostTripFormProps {
+  hostId: string;
+  editTrip?: EditableTrip;
+  // Only women and non-binary hosts may offer Women+ trips (Women+ spec D5).
+  canHostWomenPlus: boolean;
+}
+
+export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: PostTripFormProps) {
   const router = useRouter();
   const isEdit = Boolean(editTrip);
 
@@ -174,7 +178,7 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
   }, [isEdit, officialFuelPrice]);
   const [saveNewCar, setSaveNewCar] = useState(false);
   const [driverNotes, setDriverNotes] = useState(editTrip?.driverNotes ?? '');
-  const [genderPreference, setGenderPreference] = useState<'ANY' | 'SAME_GENDER'>(editTrip?.genderPreference ?? 'ANY');
+  const [genderPreference, setGenderPreference] = useState<GenderPreference>(editTrip?.genderPreference ?? 'ANY');
   const [flexibleDeparture, setFlexibleDeparture] = useState(editTrip?.flexibleDeparture ?? false);
   const [familiarRidersOnly, setFamiliarRidersOnly] = useState(editTrip?.familiarRidersOnly ?? false);
   const [meetingPointAddress, setMeetingPointAddress] = useState(editTrip?.meetingPointAddress ?? '');
@@ -279,6 +283,11 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
   // Once a passenger is approved the price is locked — show the stored value,
   // not a live recompute that would mislead the host into thinking it moved.
   const fuelShareLocked = isEdit && (editTrip?.approvedCount ?? 0) > 0;
+  // Riders agreed to the trip as it was, so the rule locks once one is approved (D3).
+  const whoCanJoinLocked = fuelShareLocked;
+  const whoCanJoinOptions = WHO_CAN_JOIN_OPTIONS.filter(
+    (o) => o.value === 'ANY' || canHostWomenPlus || editTrip?.genderPreference === 'WOMEN_PLUS'
+  );
   const fuelSharePreview = fuelShareLocked
     ? editTrip?.fuelSharePerSeat ?? null
     : route?.distanceMeters && efficiencyNum > 0 && seats > 0 && fuelPriceValue
@@ -458,6 +467,10 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
       } else if (err instanceof ApiError && err.code === 'SEAT_COUNT_BELOW_FILLED') {
         const n = err.body?.filledSeats;
         setError(`This trip has ${n} confirmed passenger${n === 1 ? '' : 's'}. Decline a passenger before reducing seats below ${n}.`);
+      } else if (err instanceof ApiError && err.code === 'WHO_CAN_JOIN_LOCKED') {
+        setError('Who can join can’t change after a rider is approved.');
+      } else if (err instanceof ApiError && err.code === 'WOMEN_PLUS_HOST_NOT_ELIGIBLE') {
+        setError('Only women and non-binary hosts can post Women+ trips.');
       } else if (err instanceof ApiError && err.code === 'TRIP_NOT_EDITABLE') {
         setError('This trip can no longer be edited.');
       } else if (err instanceof ApiError && err.code === 'INVALID_TRIP') {
@@ -495,7 +508,7 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
         if (typeof d.fuelPricePerLiter === 'string') setFuelPricePerLiter(d.fuelPricePerLiter);
         if (d.vehicle) setVehicle(d.vehicle);
         if (typeof d.driverNotes === 'string') setDriverNotes(d.driverNotes);
-        if (d.genderPreference) setGenderPreference(d.genderPreference);
+        if (d.genderPreference === 'WOMEN_PLUS' ? canHostWomenPlus : d.genderPreference === 'ANY') setGenderPreference(d.genderPreference);
         if (typeof d.flexibleDeparture === 'boolean') setFlexibleDeparture(d.flexibleDeparture);
         if (typeof d.familiarRidersOnly === 'boolean') setFamiliarRidersOnly(d.familiarRidersOnly);
         if (typeof d.meetingPointAddress === 'string') setMeetingPointAddress(d.meetingPointAddress);
@@ -705,20 +718,24 @@ export default function PostTripForm({ hostId, editTrip }: { hostId: string; edi
         <div className="rsu-card space-y-4">
           <div>
             <h2 className="text-sm font-bold text-gray-900">Preferences</h2>
-            <p className="text-xs text-gray-500">Set your co-rider preferences</p>
+            <p className="text-xs text-gray-500">Choose who can join your trip</p>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-              Co-rider Gender Preference
+              Who Can Join
             </label>
-            <Listbox<'ANY' | 'SAME_GENDER'>
+            <Listbox<GenderPreference>
               value={genderPreference}
               onChange={setGenderPreference}
-              options={GENDER_PREFERENCE_OPTIONS}
-              ariaLabel="Co-rider gender preference"
+              options={whoCanJoinOptions}
+              ariaLabel="Who can join"
+              disabled={whoCanJoinLocked}
               className="pl-3 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm"
             />
+            {whoCanJoinLocked && (
+              <p className="text-[11px] text-gray-400 mt-1">Locked because riders are already approved.</p>
+            )}
           </div>
 
           <div className="flex items-center justify-between">
