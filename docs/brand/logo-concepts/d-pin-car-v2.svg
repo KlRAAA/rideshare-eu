@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- D "Pin car" v2: a map pin laid on its side is the car body; its point is the nose (moving right),
+       its round hole is the rear window; two wheels sit just below. -->
+  <path fill="#000" fill-rule="evenodd" d="M230 158 L125.5 63.9 A62 62 0 0 0 44.8 158.0 Z M80 108 m-25 0 a25 25 0 1 0 50 0 a25 25 0 1 0 -50 0 Z"/>
+  <circle cx="82" cy="188" r="22" fill="#000"/>
+  <circle cx="176" cy="188" r="22" fill="#000"/>
+</svg>

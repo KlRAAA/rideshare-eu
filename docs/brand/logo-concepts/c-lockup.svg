@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 256">
+  <!-- Exploratory lockup: the wordmark is live text in a stock font (Segoe UI/Arial), not final artwork. -->
+  
+  <!-- C "Split pin" v3: one pickup point, two halves (two riders, half the cost). Gap 16, each half notched for the hole. -->
+  <path fill="#000" d="M120 26.4 A82 82 0 0 0 64 158 L120 225 V135 A32 32 0 0 1 120 73 Z"/>
+  <path fill="#000" d="M136 26.4 A82 82 0 0 1 192 158 L136 225 V135 A32 32 0 0 0 136 73 Z"/>
+
+  <text x="276" y="166" font-family="Segoe UI, Arial, sans-serif" font-size="112" font-weight="700" letter-spacing="-2" fill="#000">RideShareEU</text>
+</svg>

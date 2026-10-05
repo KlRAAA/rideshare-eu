@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- C "Split pin" (evolution): the pickup pin split in two halves, one point shared by two riders. -->
+  <path fill="#000" fill-rule="evenodd" d="M122 26.2 A82 82 0 0 0 64 158 L122 228 Z M134 26.2 A82 82 0 0 1 192 158 L134 228 Z M128 72 m-30 0 a30 30 0 1 0 60 0 a30 30 0 1 0 -60 0 Z"/>
+</svg>

@@ -16,10 +16,10 @@ interface LogoProps {
 // for that variable, so the chip is never independent of the theme, and
 // there's no separate dark-mode asset to maintain.
 //
-// The mark: a simple car silhouette inside a map pin — a "pickup point"
-// glyph, the same family of icon most rideshare apps use. Two flat shapes,
-// no fine detail, so it stays legible at 40px instead of the previous
-// artwork's multi-element illustration collapsing into noise at that size.
+// The mark ("Pin car", docs/brand/logo): a map pin laid on its side is the car body; its
+// point is the nose, its hole is the rear window, and two wheels sit below. This is the
+// small-size cut (bigger window and wheels) because the chip is only 24-40 px. The window
+// is a real hole, so the chip colour shows through in both themes.
 export default function Logo({ size = 40, className = '' }: LogoProps) {
   return (
     <div
@@ -31,17 +31,15 @@ export default function Logo({ size = 40, className = '' }: LogoProps) {
         borderRadius: 'var(--rsu-radius-lg)',
       }}
     >
-      <svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path
-          d="M12 2C7.58 2 4 5.58 4 10c0 5.25 6.4 11.4 7.3 12.3.4.4 1 .4 1.4 0C13.6 21.4 20 15.25 20 10c0-4.42-3.58-8-8-8z"
-          fill="white"
-        />
-        <path
-          d="M9.7 6.9h4.6l1.5 2h.8a1 1 0 0 1 1 .87l.2 1.7a1 1 0 0 1-1 1.13H7.2a1 1 0 0 1-1-1.13l.2-1.7a1 1 0 0 1 1-.87h.8l1.5-2z"
-          fill="var(--rsu-color-primary)"
-        />
-        <circle cx="9.2" cy="12.5" r="1.05" fill="white" />
-        <circle cx="14.8" cy="12.5" r="1.05" fill="white" />
+      <svg width={size * 0.72} height={size * 0.72} viewBox="0 0 256 256" aria-hidden="true">
+        <g transform="translate(-6.58 -26.91) scale(1.1137)" fill="white">
+          <path
+            fillRule="evenodd"
+            d="M219.7 158 L127.8 66.2 A62 62 0 0 0 44.8 158 Z M52 108 a28 28 0 1 0 56 0 a28 28 0 1 0 -56 0 Z"
+          />
+          <circle cx="86" cy="196" r="25" />
+          <circle cx="167.7" cy="196" r="25" />
+        </g>
       </svg>
     </div>
   );

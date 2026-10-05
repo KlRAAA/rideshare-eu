@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { FaBell } from 'react-icons/fa';
 import Logo from './Logo';
+import Wordmark from './Wordmark';
 import ThemeToggle from './ThemeToggle';
 
 export type ActiveRoute = 'dashboard' | 'trips' | 'search' | 'post' | 'notifications' | 'profile' | 'help';
@@ -30,7 +31,7 @@ export default function Header({ active, unreadCount = 0 }: HeaderProps) {
       <div className="app-desktop h-14 md:h-16 flex items-center justify-between gap-4">
         <Link href="/auth/dashboard" className="flex items-center gap-3 min-w-0">
           <Logo size={40} />
-          <span className="font-extrabold text-gray-900 truncate">RideShareEU</span>
+          <Wordmark height={18} className="text-gray-900 shrink-0" />
         </Link>
 
         <nav className="rsu-topnav flex-1 min-w-0 justify-end hidden md:flex">

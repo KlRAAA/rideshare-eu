@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaEnvelope, FaUser, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import Logo from '@/components/Logo';
+import Wordmark from '@/components/Wordmark';
 import Select from '@/components/Select';
 import OtpInput from '@/components/OtpInput';
 import { apiFetch, ApiError, setSessionCookie } from '@/lib/api';
@@ -166,7 +167,9 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
           <Logo size={64} className="mb-4" />
-          <h1 className="text-2xl font-extrabold text-gray-900">RideShareEU</h1>
+          <h1 className="text-gray-900 flex justify-center">
+            <Wordmark height={28} />
+          </h1>
           <p className="text-sm text-gray-500 mt-1">Enverga University Carpool Network</p>
         </div>
 

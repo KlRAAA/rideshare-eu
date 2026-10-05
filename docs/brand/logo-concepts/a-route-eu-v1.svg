@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- A "Route EU": one rounded route draws the E and runs on into the U. Stroke 28, round caps. -->
+  <g fill="none" stroke="#000" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M118 64 H70 A14 14 0 0 0 56 78 V178 A14 14 0 0 0 70 192 H188 A32 32 0 0 0 220 160 V64"/>
+    <path d="M56 128 H104"/>
+    <path d="M156 64 V150"/>
+  </g>
+</svg>

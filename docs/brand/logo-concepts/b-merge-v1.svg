@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- B "Merge": two roads join into one ride; the joined lane and the dot also read as a rider. Stroke 32. -->
+  <g fill="none" stroke="#000" stroke-width="32" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M80 224 C80 184 128 182 128 146 V118"/>
+    <path d="M176 224 C176 184 128 182 128 146"/>
+  </g>
+  <circle cx="128" cy="66" r="28" fill="#000"/>
+</svg>

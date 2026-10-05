@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>RideShareEU</title>
+  <!-- E "Twin pins" v3: two pickup pins side by side; their overlap is cut out. Edges exactly 60 degrees (tip = 2r). -->
+  <path fill="#000" fill-rule="evenodd" d="M92 214 L43.50 130.00 A56 56 0 1 1 140.50 130.00 Z M164 214 L115.50 130.00 A56 56 0 1 1 212.50 130.00 Z"/>
+</svg>

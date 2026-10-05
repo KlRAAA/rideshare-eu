@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- A "Route EU" v3: the E's baseline runs on and becomes the U's bowl, so the two letters share one road. -->
+  <g fill="none" stroke="#000" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M104 64 H70 A14 14 0 0 0 56 78 V178 A14 14 0 0 0 70 192 H184 A36 36 0 0 0 220 156 V64"/>
+    <path d="M56 128 H96"/>
+    <path d="M148 64 V156 A36 36 0 0 0 184 192"/>
+  </g>
+</svg>

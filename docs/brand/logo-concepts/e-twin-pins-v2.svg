@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- E "Twin pins" v2: two pickup pins side by side; where their heads overlap is cut out. -->
+  <path fill="#000" fill-rule="evenodd" d="M92 214 L43.8 132.5 A56 56 0 1 1 140.2 132.5 Z M164 214 L115.8 132.5 A56 56 0 1 1 212.2 132.5 Z"/>
+</svg>

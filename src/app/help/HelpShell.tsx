@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import Logo from '@/components/Logo';
+import Wordmark from '@/components/Wordmark';
 
 interface HelpShellProps {
   signedIn: boolean;
@@ -27,7 +28,7 @@ export default function HelpShell({ signedIn, children }: HelpShellProps) {
         <div className="app-desktop h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <Logo size={36} />
-            <span className="font-extrabold text-gray-900">RideShareEU</span>
+            <Wordmark height={16} className="text-gray-900" />
           </Link>
           <Link href="/login" className="text-sm font-semibold text-[color:var(--rsu-color-primary)] hover:underline">
             Sign in

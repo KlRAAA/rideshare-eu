@@ -1,0 +1,32 @@
+{
+  "brand": "RideShareEU",
+  "tagline": "Enverga University Carpool Network",
+  "brief": "A carpool app only for Manuel S. Enverga University Foundation students, faculty and staff, matching riders on the same route to campus. It should feel trustworthy, communal (sabay), proud of the school, and practical.",
+  "adjectives": ["trustworthy", "together", "campus-proud", "practical"],
+  "criteria": "Success: reads as 'ride' at a glance, has a twist no other rideshare app owns, keeps Enverga maroon, works at 16 px and in one colour.",
+  "mockups": ["app-icon", "favicon-tab", "website", "sticker", "badge", "social"],
+  "nav": ["Find a Ride", "Post a Trip", "Help"],
+  "brand_color": "#800000",
+  "greyscale": false,
+  "designer": "RideShareEU thesis team",
+  "round": 2,
+  "concepts": [
+    {
+      "name": "Pin car",
+      "symbol": "symbol.svg",
+      "lockup": "lockup-horizontal.svg",
+      "idea": "A map pin laid on its side becomes the car: your pickup point comes to you.",
+      "rationale": [
+        "Reads as a car at a glance, and as a pickup pin a second later",
+        "Built from one circle, a 45-degree roof line and two wheels; the lettering shares the same circles and round ends",
+        "Keeps Enverga maroon; white on maroon has about 10.9:1 contrast"
+      ]
+    }
+  ],
+  "recommendation": "Pin car, in white on Enverga maroon, with the custom monoline wordmark.",
+  "next_steps": [
+    "Use the files in docs/brand/logo/export",
+    "Run a trademark search before public launch",
+    "Print a car-window sticker and a campus ID lanyard to test it in real life"
+  ]
+}

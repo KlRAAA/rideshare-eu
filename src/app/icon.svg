@@ -1,13 +1,11 @@
-<svg width="64" height="64" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-  <rect width="24" height="24" rx="6" fill="#800000"/>
-  <path
-    d="M12 5.2C9.2 5.2 7 7.4 7 10.1c0 3.3 4 7.1 4.55 7.65a.62.62 0 0 0 .9 0C13 17.2 17 13.4 17 10.1c0-2.7-2.2-4.9-5-4.9z"
-    fill="white"
-  />
-  <path
-    d="M10.6 8.7h2.8l.9 1.2h.5a.6.6 0 0 1 .6.53l.12 1a.6.6 0 0 1-.6.68H9.08a.6.6 0 0 1-.6-.68l.12-1a.6.6 0 0 1 .6-.53h.5l.9-1.2z"
-    fill="#800000"
-  />
-  <circle cx="10" cy="12.4" r="0.65" fill="white"/>
-  <circle cx="14" cy="12.4" r="0.65" fill="white"/>
+<svg width="64" height="64" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- RideShareEU favicon: the Pin car (small-size cut) in white on Enverga maroon. Source: docs/brand/logo. -->
+  <rect width="256" height="256" rx="56" fill="#800000"/>
+  <g transform="translate(26.4 22.6) scale(0.8)">
+    <g transform="translate(-6.58 -26.91) scale(1.1137)" fill="white">
+      <path fill-rule="evenodd" d="M219.7 158 L127.8 66.2 A62 62 0 0 0 44.8 158 Z M52 108 a28 28 0 1 0 56 0 a28 28 0 1 0 -56 0 Z"/>
+      <circle cx="86" cy="196" r="25"/>
+      <circle cx="167.7" cy="196" r="25"/>
+    </g>
+  </g>
 </svg>
