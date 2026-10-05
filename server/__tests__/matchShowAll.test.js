@@ -93,6 +93,8 @@ afterAll(async () => {
     await prisma.match.deleteMany({ where: { tripId: { in: seeded.tripIds } } });
     await prisma.trip.deleteMany({ where: { id: { in: seeded.tripIds } } });
     await prisma.vehicle.deleteMany({ where: { id: { in: seeded.vehicleIds } } });
+    // An announcement test running in parallel notifies every user, these included.
+    await prisma.notification.deleteMany({ where: { userId: { in: seeded.userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: seeded.userIds } } });
   }
   if (server) await new Promise((resolve) => server.close(resolve));

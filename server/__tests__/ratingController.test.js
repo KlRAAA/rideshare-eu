@@ -31,7 +31,7 @@ async function makeUser(fullName, universityId) {
       email: `${universityId}@test.local`,
       passwordHash: 'x',
       role: 'STUDENT',
-      gender: 'MALE',
+      gender: 'MAN',
       verified: true,
     },
   });

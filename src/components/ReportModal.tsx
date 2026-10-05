@@ -8,7 +8,7 @@ const CATEGORIES: { value: string; label: string }[] = [
   { value: 'SPAM', label: 'Spam' },
   { value: 'NO_SHOW', label: 'No-show' },
   { value: 'INAPPROPRIATE_BEHAVIOR', label: 'Inappropriate behavior' },
-  { value: 'HARASSMENT', label: 'Harassment' },
+  { value: 'HARASSMENT', label: 'Harassment, including about gender or identity' },
   { value: 'SAFETY', label: 'Safety concern' },
   { value: 'OTHER', label: 'Other' },
 ];

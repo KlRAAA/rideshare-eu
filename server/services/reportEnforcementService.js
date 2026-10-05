@@ -12,7 +12,7 @@ const CATEGORY_LABELS = {
   SPAM: 'Spam',
   NO_SHOW: 'No-show',
   INAPPROPRIATE_BEHAVIOR: 'Inappropriate behavior',
-  HARASSMENT: 'Harassment',
+  HARASSMENT: 'Harassment, including about gender or identity',
   SAFETY: 'Safety concern',
   OTHER: 'Other',
 };
