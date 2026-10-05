@@ -82,8 +82,13 @@ async function overview(req, res) {
     security(now),
     buildWatchlist(new Date(now.getTime() - WATCH_WINDOW_DAYS * DAY_MS)),
   ]);
+  // Emergency releases still waiting for the written request (superadmin only).
+  const overdueDataPaperwork = req.user.isSuperAdmin
+    ? await prisma.dataRequest.count({ where: { paperworkReceivedAt: null, paperworkDueAt: { lt: now } } })
+    : null;
   res.json({
     counts: { users, admins, openTrips, completedTrips, pendingRequests, openReports, activeBans },
+    overdueDataPaperwork,
     queues: queueInfo,
     today: { ridesToday, newUsers24h, activeBans },
     security: securityInfo,
