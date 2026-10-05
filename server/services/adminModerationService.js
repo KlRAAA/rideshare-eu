@@ -32,7 +32,7 @@ function banUntilFor(duration, now = new Date()) {
 
 async function loadTarget(tx, actorId, targetId) {
   if (actorId === targetId) throw new AdminError(400, 'CANNOT_TARGET_SELF');
-  const target = await tx.user.findUnique({ where: { id: targetId }, select: { id: true, email: true, isAdmin: true } });
+  const target = await tx.user.findUnique({ where: { id: targetId }, select: { id: true, email: true, isAdmin: true, isSuperAdmin: true } });
   if (!target) throw new AdminError(404, 'USER_NOT_FOUND');
   return target;
 }
@@ -43,6 +43,7 @@ async function banUser(tx, { actorId, targetId, duration, reason, note = null, r
   if (!CATEGORY_LABELS[reason]) throw new AdminError(400, 'INVALID_REASON');
   const cleanNote = normalizeNote(note);
   const target = await loadTarget(tx, actorId, targetId);
+  if (target.isSuperAdmin) throw new AdminError(409, 'TARGET_IS_SUPERADMIN');
   if (target.isAdmin) throw new AdminError(409, 'TARGET_IS_ADMIN');
 
   const permanent = duration === 'PERMANENT';
@@ -74,6 +75,8 @@ async function unbanUser(tx, { actorId, targetId, note = null }) {
 
 async function setAdmin(tx, { actorId, targetId, makeAdmin }) {
   const target = await loadTarget(tx, actorId, targetId);
+  // Removed only by a handover with `npm run make-superadmin --replace`.
+  if (!makeAdmin && target.isSuperAdmin) throw new AdminError(409, 'TARGET_IS_SUPERADMIN');
   if (target.isAdmin === makeAdmin) throw new AdminError(409, makeAdmin ? 'ALREADY_ADMIN' : 'NOT_ADMIN');
   await tx.user.update({ where: { id: targetId }, data: { isAdmin: makeAdmin } });
   await record(tx, { actorId, action: makeAdmin ? 'PROMOTE' : 'DEMOTE', targetUserId: targetId });

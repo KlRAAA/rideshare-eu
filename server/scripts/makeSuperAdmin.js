@@ -6,14 +6,15 @@ require('dotenv').config({ quiet: true });
 const prisma = require('../config/db');
 const { record } = require('../services/adminActionService');
 
-async function makeSuperAdmin(email, { replace = false } = {}) {
-  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, deletedAt: true } });
+// `db` is injectable so tests can run it without touching the shared database.
+async function makeSuperAdmin(email, { replace = false, db = prisma } = {}) {
+  const user = await db.user.findUnique({ where: { email }, select: { id: true, deletedAt: true } });
   if (!user || user.deletedAt) throw new Error('USER_NOT_FOUND');
-  const current = await prisma.user.findFirst({ where: { isSuperAdmin: true }, select: { id: true } });
+  const current = await db.user.findFirst({ where: { isSuperAdmin: true }, select: { id: true } });
   if (current?.id === user.id) return { already: true, replacedId: null };
   if (current && !replace) throw new Error('SUPERADMIN_EXISTS');
 
-  await prisma.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
     if (current) await tx.user.update({ where: { id: current.id }, data: { isSuperAdmin: false } });
     await tx.user.update({ where: { id: user.id }, data: { isAdmin: true, isSuperAdmin: true } });
     await record(tx, {

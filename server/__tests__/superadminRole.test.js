@@ -13,7 +13,6 @@ let server;
 let base;
 let dbUp = false;
 const bag = newBag();
-let previous; // the dev DB's real superadmin, put back afterwards
 
 const call = (method, path, userId, body) =>
   fetch(`${base}${path}`, {
@@ -31,13 +30,11 @@ beforeAll(async () => {
   }
   server = app.listen(0);
   base = `http://127.0.0.1:${server.address().port}`;
-  if (dbUp) previous = await prisma.user.findFirst({ where: { isSuperAdmin: true }, select: { id: true } });
 });
 
 afterAll(async () => {
   if (dbUp) {
     await prisma.user.updateMany({ where: { id: { in: bag.userIds } }, data: { isSuperAdmin: false } });
-    if (previous) await prisma.user.update({ where: { id: previous.id }, data: { isSuperAdmin: true } });
     await cleanup(bag);
   }
   if (server) await new Promise((r) => server.close(r));
@@ -49,25 +46,49 @@ const guard = () => {
   return !dbUp;
 };
 
+// An in-memory stand-in for the two tables the script touches, so this test
+// doesn't race other suites that create superadmins in the shared dev DB.
+function fakeDb(users) {
+  const actions = [];
+  const byEmail = (email) => users.find((u) => u.email === email) ?? null;
+  const tx = {
+    user: {
+      update: async ({ where, data }) => Object.assign(users.find((u) => u.id === where.id), data),
+    },
+    adminAction: { create: async ({ data }) => actions.push(data) },
+  };
+  return {
+    actions,
+    user: {
+      findUnique: async ({ where }) => byEmail(where.email),
+      findFirst: async () => users.find((u) => u.isSuperAdmin) ?? null,
+    },
+    $transaction: (fn) => fn(tx),
+  };
+}
+
 describe('npm run make-superadmin', () => {
   test('H1/H2: sets one superadmin, refuses a second, hands over with --replace', async () => {
-    if (guard()) return;
-    if (previous) await prisma.user.update({ where: { id: previous.id }, data: { isSuperAdmin: false } });
-    const first = await makeUser(bag);
-    const second = await makeUser(bag);
+    const users = [
+      { id: 'a', email: 'a@test.local', isAdmin: false, isSuperAdmin: false, deletedAt: null },
+      { id: 'b', email: 'b@test.local', isAdmin: true, isSuperAdmin: false, deletedAt: null },
+      { id: 'gone', email: 'gone@test.local', isAdmin: false, isSuperAdmin: false, deletedAt: new Date() },
+    ];
+    const db = fakeDb(users);
 
-    expect(await makeSuperAdmin(first.email)).toEqual({ already: false, replacedId: null });
-    expect(await prisma.user.findUnique({ where: { id: first.id } })).toMatchObject({ isAdmin: true, isSuperAdmin: true });
-    expect(await prisma.adminAction.count({ where: { action: 'SUPERADMIN_SET', targetUserId: first.id } })).toBe(1);
+    expect(await makeSuperAdmin('a@test.local', { db })).toEqual({ already: false, replacedId: null });
+    expect(users[0]).toMatchObject({ isAdmin: true, isSuperAdmin: true });
+    expect(db.actions).toEqual([
+      expect.objectContaining({ action: 'SUPERADMIN_SET', targetUserId: 'a', details: { via: 'make-superadmin script', replacedId: null } }),
+    ]);
 
-    await expect(makeSuperAdmin(second.email)).rejects.toThrow('SUPERADMIN_EXISTS');
-    expect(await makeSuperAdmin(second.email, { replace: true })).toEqual({ already: false, replacedId: first.id });
-    expect(await prisma.user.findUnique({ where: { id: first.id } })).toMatchObject({ isAdmin: true, isSuperAdmin: false });
-    expect(await prisma.user.count({ where: { isSuperAdmin: true } })).toBe(1);
-    expect(await makeSuperAdmin(second.email)).toEqual({ already: true, replacedId: null });
-    await expect(makeSuperAdmin('nobody@test.local')).rejects.toThrow('USER_NOT_FOUND');
-
-    await prisma.user.update({ where: { id: second.id }, data: { isSuperAdmin: false } });
+    await expect(makeSuperAdmin('b@test.local', { db })).rejects.toThrow('SUPERADMIN_EXISTS');
+    expect(await makeSuperAdmin('b@test.local', { db, replace: true })).toEqual({ already: false, replacedId: 'a' });
+    expect(users[0]).toMatchObject({ isAdmin: true, isSuperAdmin: false });
+    expect(users.filter((u) => u.isSuperAdmin).map((u) => u.id)).toEqual(['b']);
+    expect(await makeSuperAdmin('b@test.local', { db })).toEqual({ already: true, replacedId: null });
+    await expect(makeSuperAdmin('nobody@test.local', { db })).rejects.toThrow('USER_NOT_FOUND');
+    await expect(makeSuperAdmin('gone@test.local', { db })).rejects.toThrow('USER_NOT_FOUND');
   });
 });
 

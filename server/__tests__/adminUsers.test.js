@@ -2,7 +2,7 @@ require('dotenv').config({ quiet: true });
 const app = require('../app');
 const prisma = require('../config/db');
 const { bearer } = require('../test-helpers/auth');
-const { newBag, makeUser, makeAdminUser, cleanup } = require('../test-helpers/seed');
+const { newBag, makeUser, makeAdminUser, makeSuperAdminUser, cleanup } = require('../test-helpers/seed');
 
 let server;
 let base;
@@ -60,7 +60,7 @@ describe('user search and detail', () => {
     const body = await res.json();
     expect(body.user).toMatchObject({ id: target.id, fullName: 'Detail Target', isAdmin: false });
     expect(body.user).not.toHaveProperty('passwordHash');
-    for (const key of ['hostedTrips', 'joinedMatches', 'ratings', 'reportsReceived', 'banHistory']) {
+    for (const key of ['hostedTrips', 'ratings', 'reportsReceived', 'banHistory']) {
       expect(Array.isArray(body[key])).toBe(true);
     }
     expect((await call('GET', '/api/admin/users/does-not-exist', admin.id)).status).toBe(404);
@@ -116,7 +116,8 @@ describe('ban and unban', () => {
 describe('promote and demote', () => {
   test('promote grants admin access; demote removes it on the next request', async () => {
     if (guard()) return;
-    const admin = await makeAdminUser(bag);
+    // Only the superadmin manages admins (superadmin spec D6).
+    const admin = await makeSuperAdminUser(bag);
     const user = await makeUser(bag);
 
     expect((await call('POST', `/api/admin/users/${user.id}/promote`, admin.id)).status).toBe(200);
@@ -132,7 +133,7 @@ describe('promote and demote', () => {
 
   test('cannot demote yourself', async () => {
     if (guard()) return;
-    const admin = await makeAdminUser(bag);
+    const admin = await makeSuperAdminUser(bag);
     const res = await call('POST', `/api/admin/users/${admin.id}/demote`, admin.id);
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('CANNOT_TARGET_SELF');

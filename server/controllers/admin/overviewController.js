@@ -1,5 +1,5 @@
 const prisma = require('../../config/db');
-const { withNames } = require('../../services/adminActionService');
+const { withNames, redactDataActions } = require('../../services/adminActionService');
 const { decryptField } = require('../../services/encryptionService');
 const { tripRunsOnSearchDate } = require('../../services/psgaService');
 const { securityCounts, accountsWithFailedLogins } = require('../../services/securityEventStore');
@@ -89,7 +89,7 @@ async function overview(req, res) {
     security: securityInfo,
     watchlistCount: watchlist.length,
     errorsUrl: process.env.ADMIN_ERRORS_URL || null,
-    recentActions: await withNames(recent),
+    recentActions: redactDataActions(await withNames(recent), req.user.isSuperAdmin),
   });
 }
 
@@ -108,7 +108,7 @@ async function listActions(req, res) {
   });
   const hasMore = rows.length > ACTIONS_PAGE_SIZE;
   const page = hasMore ? rows.slice(0, ACTIONS_PAGE_SIZE) : rows;
-  res.json({ actions: await withNames(page), nextCursor: hasMore ? page[page.length - 1].id : null });
+  res.json({ actions: redactDataActions(await withNames(page), req.user.isSuperAdmin), nextCursor: hasMore ? page[page.length - 1].id : null });
 }
 
 module.exports = { overview, listActions, watchlist };

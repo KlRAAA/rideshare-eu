@@ -7,6 +7,7 @@ const reports = require('../controllers/admin/reportController');
 const { cancelTripAsAdmin } = require('../controllers/admin/tripController');
 const support = require('../controllers/admin/supportController');
 const announcements = require('../controllers/announcementController');
+const { requireSuperAdmin } = require('../middleware/requireSuperAdmin');
 
 const router = express.Router();
 router.use(requireAdmin);
@@ -21,8 +22,9 @@ router.get('/users', users.searchUsers);
 router.get('/users/:id', users.getUserDetail);
 router.post('/users/:id/ban', users.ban);
 router.post('/users/:id/unban', users.unban);
-router.post('/users/:id/promote', users.promote);
-router.post('/users/:id/demote', users.demote);
+// Only the superadmin appoints or removes admins (superadmin spec D6).
+router.post('/users/:id/promote', requireSuperAdmin, users.promote);
+router.post('/users/:id/demote', requireSuperAdmin, users.demote);
 
 router.get('/reports', reports.listReports);
 router.patch('/reports/:id', reports.reviewReport);
