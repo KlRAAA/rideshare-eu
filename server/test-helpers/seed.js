@@ -32,6 +32,12 @@ async function makeAdminUser(bag, opts) {
   return { ...user, isAdmin: true };
 }
 
+async function makeSuperAdminUser(bag, opts) {
+  const user = await makeAdminUser(bag, opts);
+  await prisma.user.update({ where: { id: user.id }, data: { isSuperAdmin: true } });
+  return { ...user, isSuperAdmin: true };
+}
+
 async function makeVehicle(bag, ownerId, { fuelType = 'REGULAR' } = {}) {
   const vehicle = await prisma.vehicle.create({
     data: { ownerId, make: 'Test', model: 'Car', color: 'Blue', fuelEfficiencyKmL: 12, fuelType },
@@ -140,7 +146,10 @@ async function cleanup(bag) {
   await prisma.supportTicket.deleteMany({ where: { userId: { in: bag.userIds } } });
   await prisma.announcement.deleteMany({ where: { createdById: { in: bag.userIds } } });
   await prisma.securityEvent.deleteMany({ where: { userId: { in: bag.userIds } } });
+  await prisma.dataRequest.deleteMany({
+    where: { OR: [{ createdById: { in: bag.userIds } }, { subjectUserId: { in: bag.userIds } }] },
+  });
   await prisma.user.deleteMany({ where: { id: { in: bag.userIds } } });
 }
 
-module.exports = { newBag, makeUser, makeAdminUser, makeVehicle, makeTrip, makeMatch, makeNotification, cleanup };
+module.exports = { newBag, makeUser, makeAdminUser, makeSuperAdminUser, makeVehicle, makeTrip, makeMatch, makeNotification, cleanup };

@@ -21,6 +21,7 @@ export interface CurrentUser {
   tripsJoined: number;
   hasSeenOnboarding: boolean;
   isAdmin?: boolean;
+  isSuperAdmin?: boolean; // your own record only
   gender?: Gender; // your own record only
 }
 

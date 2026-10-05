@@ -112,7 +112,7 @@ describe('authenticate middleware — DB-backed ban check', () => {
     // must fall through exactly like a real, unbanned user would.
     const { req, nexted } = await run(bearer('this-id-does-not-exist'));
     expect(nexted).toBe(true);
-    expect(req.user).toEqual({ id: 'this-id-does-not-exist', isAdmin: false });
+    expect(req.user).toEqual({ id: 'this-id-does-not-exist', isAdmin: false, isSuperAdmin: false });
   });
 
   test('valid token for a real, unbanned user → next() called, req.user.id set', async () => {
@@ -122,7 +122,7 @@ describe('authenticate middleware — DB-backed ban check', () => {
     try {
       const { req, nexted } = await run(bearer(user.id));
       expect(nexted).toBe(true);
-      expect(req.user).toEqual({ id: user.id, isAdmin: false });
+      expect(req.user).toEqual({ id: user.id, isAdmin: false, isSuperAdmin: false });
     } finally {
       await cleanup(bag);
     }

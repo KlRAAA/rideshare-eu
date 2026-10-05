@@ -28,8 +28,10 @@ async function deleteAccount(userId) {
   const unusablePasswordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 4);
 
   const avatarUrl = await prisma.$transaction(async (tx) => {
-    const user = await tx.user.findUnique({ where: { id: userId }, select: { isAdmin: true, avatarUrl: true, email: true } });
+    const user = await tx.user.findUnique({ where: { id: userId }, select: { isAdmin: true, isSuperAdmin: true, avatarUrl: true, email: true } });
     if (!user) throw new AccountDeletionError(404, 'USER_NOT_FOUND');
+    // Handed over with `npm run make-superadmin <email> --replace` first.
+    if (user.isSuperAdmin) throw new AccountDeletionError(409, 'LAST_SUPERADMIN');
     if (user.isAdmin) {
       const admins = await tx.user.count({ where: { isAdmin: true, deletedAt: null } });
       if (admins <= 1) throw new AccountDeletionError(409, 'LAST_ADMIN');

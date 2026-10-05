@@ -17,7 +17,7 @@ const AVATAR_URL_PREFIX = '/uploads/avatars';
 async function getById(req, res) {
   const userRaw = await prisma.user.findUnique({
     where: { id: req.params.id },
-    select: { ...safeUserSelect, isAdmin: true, gender: true },
+    select: { ...safeUserSelect, isAdmin: true, isSuperAdmin: true, gender: true },
   });
   if (!userRaw) return res.status(404).json({ error: 'USER_NOT_FOUND' });
   const user = decryptUserFields(userRaw);
@@ -31,7 +31,7 @@ async function getById(req, res) {
   // this endpoint for any user and only needs name/avatar/role/trustScore.
   // So is gender (Women+ spec §6). Every other safeUserSelect field stays
   // visible to any authenticated caller.
-  const { email, isAdmin, gender, ...rest } = user;
+  const { email, isAdmin, isSuperAdmin, gender, ...rest } = user;
   const isOwnProfile = req.user.id === req.params.id;
   const visible = isOwnProfile ? { ...user, gender: normalizeGender(gender) } : rest;
 

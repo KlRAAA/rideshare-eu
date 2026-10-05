@@ -77,6 +77,42 @@ enum AdminActionType {
   SUPPORT_REPLIED
   SUPPORT_CLOSED
   ANNOUNCEMENT_POSTED
+  DATA_RELEASED
+  DATA_RELEASE_VIEWED
+  DATA_PAPERWORK_RECEIVED
+  SUPERADMIN_SET
+}
+
+enum DataRequestBasis {
+  WARRANT
+  COURT_ORDER
+  SUBPOENA
+  EMERGENCY
+}
+
+// A request from the police or another authority for one person's records.
+// Holds who asked and why, never the released data (that is rebuilt when
+// opened, so no second copy of personal data is kept). Ids are plain, like
+// AdminAction's targets, so the record survives account deletion.
+model DataRequest {
+  id                  String           @id @default(cuid())
+  createdById         String
+  subjectUserId       String
+  agency              String
+  officerName         String
+  officerContact      String
+  referenceNumber     String
+  legalBasis          DataRequestBasis
+  fromDate            DateTime?
+  toDate              DateTime?
+  includeChats        Boolean          @default(false)
+  includeSupport      Boolean          @default(false)
+  verificationNote    String
+  paperworkDueAt      DateTime?
+  paperworkReceivedAt DateTime?
+  createdAt           DateTime         @default(now())
+
+  @@index([createdAt])
 }
 
 // Help & support: a user's request to the admins, and the replies on it.
@@ -147,6 +183,10 @@ model User {
   // Read by the authenticate middleware on every request, so a demotion
   // takes effect immediately. Granted by `npm run make-admin` or another admin.
   isAdmin Boolean @default(false)
+  // The one superadmin (the school's Data Protection Officer): manages admins
+  // and alone releases records for a data request. Set only by
+  // `npm run make-superadmin`; read by authenticate on every request.
+  isSuperAdmin Boolean @default(false)
   // Set when the user deletes their account (accountDeletionService). The row
   // stays, anonymized, so other people's trip history, ratings and safety
   // reports still resolve; authenticate refuses any session for it.
