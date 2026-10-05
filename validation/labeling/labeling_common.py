@@ -30,12 +30,11 @@ COLUMNS = [
     ("Passenger leaves at", 12),
     ("Passenger can wait (± min)", 12),
     ("Passenger gender", 10),
-    ("Passenger wants a same-gender driver", 14),
+    ("Passenger wants Women+ trips only", 14),
     ("Passenger already knows this driver", 14),
     ("Driver leaves at", 12),
     ("Gap between departures (min)", 13),
     ("Seats left", 8),
-    ("Driver gender", 10),
     ("Driver accepts", 16),
     ("Driver takes only riders they know", 14),
     ("Passenger home → campus (km)", 13),
@@ -46,6 +45,8 @@ COLUMNS = [
     ("Notes (optional)", 40),
 ]
 HEADERS = [h for h, _ in COLUMNS]
+
+GENDER_LABELS = {"WOMAN": "Woman", "MAN": "Man", "NON_BINARY": "Non-binary", "PREFER_NOT_TO_SAY": "Prefer not to say"}
 JUDGMENT_COL = HEADERS.index("Judgment") + 1  # 1-based for openpyxl
 NOTES_COL = HEADERS.index("Notes (optional)") + 1
 PAIR_ID_COL = 1
@@ -95,14 +96,13 @@ def evaluator_row(r):
         r["tripId"],
         clock(r["passengerDepartureMinutes"]),
         r["passengerFlexWindowMinutes"],
-        r["passengerGender"].title(),
-        yes_no(r["passengerSameGenderOnly"]),
+        GENDER_LABELS.get(r["passengerGender"], r["passengerGender"]),
+        yes_no(r["passengerWomenPlusOnly"]),
         yes_no(r["passengerIsFamiliarWithHost"]),
         clock(r["tripDepartureMinutes"]),
         abs(r["tripDepartureMinutes"] - r["passengerDepartureMinutes"]),
         r["tripSeatsAvailable"],
-        r["hostGender"].title(),
-        "Same gender only" if r["hostGenderPreference"] == "SAME_GENDER" else "Anyone",
+        "Women+ only" if r["hostGenderPreference"] == "WOMEN_PLUS" else "Anyone",
         yes_no(r["familiarRidersOnly"]),
         round(home_to_campus, 2),
         round(driver_to_home, 2),

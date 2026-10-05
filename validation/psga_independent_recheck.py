@@ -63,16 +63,15 @@ def schedule_alignment(time_diff_min: float, flex_window_min: float) -> float:
 
 
 def preference_match(passenger: Dict[str, Any], trip: Dict[str, Any]) -> float:
-    """Bidirectional gender check + familiar-riders-only + seats, all hard constraints."""
+    """Women+ rule both ways + familiar-riders-only + seats, all hard constraints."""
     if trip["seatsAvailable"] <= 0:
         return 0.0
 
-    if trip.get("hostGenderPreference") == "SAME_GENDER" and \
-       passenger.get("gender") != trip.get("hostGender"):
+    trip_is_women_plus = trip.get("hostGenderPreference") == "WOMEN_PLUS"
+    passenger_is_eligible = passenger.get("gender") in {"WOMAN", "NON_BINARY"}
+    if trip_is_women_plus and not passenger_is_eligible:
         return 0.0
-
-    if passenger.get("sameGenderOnly") and \
-       passenger.get("gender") != trip.get("hostGender"):
+    if passenger.get("womenPlusOnly") and not trip_is_women_plus:
         return 0.0
 
     if trip.get("familiarRidersOnly") and not passenger.get("isFamiliarWithHost", False):
@@ -136,7 +135,7 @@ if __name__ == "__main__":
             "departureMinutes": row["passengerDepartureMinutes"],
             "flexWindowMinutes": row["passengerFlexWindowMinutes"],
             "gender": row["passengerGender"],
-            "sameGenderOnly": row["passengerSameGenderOnly"],
+            "womenPlusOnly": row["passengerWomenPlusOnly"],
             "isFamiliarWithHost": row["passengerIsFamiliarWithHost"],
         }
         trip = {
@@ -145,7 +144,6 @@ if __name__ == "__main__":
             "destination": tuple(row["tripDestination"]),
             "departureMinutes": row["tripDepartureMinutes"],
             "seatsAvailable": row["tripSeatsAvailable"],
-            "hostGender": row["hostGender"],
             "hostGenderPreference": row["hostGenderPreference"],
             "familiarRidersOnly": row["familiarRidersOnly"],
         }

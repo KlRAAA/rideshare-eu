@@ -57,7 +57,17 @@ def bimodal_departure_minutes():
     peak = random.choice([420, 990])
     return int(max(360, min(1140, random.gauss(peak, 35))))  # clamp 6:00-19:00
 
-GENDERS = ["MALE", "FEMALE"]
+# Self-declared genders (Women+ spec §4), weighted toward the two most common.
+GENDERS = ["WOMAN", "MAN", "NON_BINARY", "PREFER_NOT_TO_SAY"]
+GENDER_WEIGHTS = [45, 45, 5, 5]
+WOMEN_PLUS_GENDERS = ("WOMAN", "NON_BINARY")
+
+
+def make_rider_gender():
+    gender = random.choices(GENDERS, weights=GENDER_WEIGHTS)[0]
+    # Only eligible riders can choose "Women+ trips only" (the app hides it otherwise).
+    women_plus_only = gender in WOMEN_PLUS_GENDERS and random.random() < 0.3
+    return gender, women_plus_only
 
 def make_trip(trip_id, posted_seq):
     return {
@@ -66,21 +76,23 @@ def make_trip(trip_id, posted_seq):
         "destination": CAMPUS,
         "departureMinutes": bimodal_departure_minutes(),
         "seatsAvailable": random.choices([0, 1, 2, 3, 4], weights=[5, 25, 30, 25, 15])[0],
-        "hostGender": random.choice(GENDERS),
-        "hostGenderPreference": random.choices(["ANY", "SAME_GENDER"], weights=[80, 20])[0],
+        # A Women+ trip always has a woman or non-binary host (Women+ spec D5);
+        # the host's own gender is not a matching input (D6), so it isn't stored.
+        "hostGenderPreference": random.choices(["ANY", "WOMEN_PLUS"], weights=[80, 20])[0],
         "familiarRidersOnly": random.random() < 0.15,
         "postedAtSeq": posted_seq,
     }
 
 def make_passenger(query_id):
+    gender, women_plus_only = make_rider_gender()
     return {
         "queryId": query_id,
         "origin": random_origin(),
         "destination": CAMPUS,
         "departureMinutes": bimodal_departure_minutes(),
         "flexWindowMinutes": random.choice([10, 15, 15, 15, 20, 30]),  # 15 is the stated default, weighted accordingly
-        "gender": random.choice(GENDERS),
-        "sameGenderOnly": random.random() < 0.2,
+        "gender": gender,
+        "womenPlusOnly": women_plus_only,
     }
 
 def make_candidate_pool_for_query(passenger, posted_seq_start, edge_case_slot):
@@ -89,7 +101,7 @@ def make_candidate_pool_for_query(passenger, posted_seq_start, edge_case_slot):
     isn't trivial: at least one clear positive, one clear negative, and
     edge cases near the Stage-1 thresholds (per the proposal's own
     instruction to cover "zero route overlap, exact schedule alignment,
-    and conflicting gender preference constraints").
+    and conflicting gender preference constraints", now the Women+ rule).
     """
     trips = []
     seq = posted_seq_start
@@ -98,7 +110,7 @@ def make_candidate_pool_for_query(passenger, posted_seq_start, edge_case_slot):
     t = make_trip(f"{passenger['queryId']}-T1", seq); seq += 1
     t["origin"] = jitter(passenger["origin"], km_sd=0.3)
     t["departureMinutes"] = max(360, min(1140, passenger["departureMinutes"] + random.randint(-5, 5)))
-    t["hostGenderPreference"] = "ANY"
+    t["hostGenderPreference"] = "WOMEN_PLUS" if passenger["womenPlusOnly"] else "ANY"
     t["familiarRidersOnly"] = False
     t["seatsAvailable"] = random.choice([1, 2, 3])
     trips.append(t)
@@ -128,10 +140,11 @@ def make_candidate_pool_for_query(passenger, posted_seq_start, edge_case_slot):
     t["origin"] = jitter(passenger["origin"], km_sd=0.3)
     t["departureMinutes"] = max(360, min(1140, passenger["departureMinutes"] + random.randint(-5, 5)))
     conflict = random.choice(["gender", "familiar", "seats"])
-    if conflict == "gender":
-        t["hostGenderPreference"] = "SAME_GENDER"
-        t["hostGender"] = "MALE" if passenger["gender"] == "FEMALE" else "FEMALE"
-    elif conflict == "familiar":
+    if conflict == "gender" and passenger["gender"] not in WOMEN_PLUS_GENDERS:
+        t["hostGenderPreference"] = "WOMEN_PLUS"  # a Women+ trip the passenger can't join
+    elif conflict == "gender" and passenger["womenPlusOnly"]:
+        t["hostGenderPreference"] = "ANY"  # an open trip the passenger chose to skip
+    elif conflict in ("gender", "familiar"):  # no gender conflict is possible for this passenger: use familiar riders
         t["familiarRidersOnly"] = True
     else:
         t["seatsAvailable"] = 0
@@ -158,13 +171,12 @@ def build_dataset(n_queries=100):
                 "passengerDepartureMinutes": passenger["departureMinutes"],
                 "passengerFlexWindowMinutes": passenger["flexWindowMinutes"],
                 "passengerGender": passenger["gender"],
-                "passengerSameGenderOnly": passenger["sameGenderOnly"],
+                "passengerWomenPlusOnly": passenger["womenPlusOnly"],
                 "passengerIsFamiliarWithHost": passenger_for_scoring["isFamiliarWithHost"],
                 "tripOrigin": t["origin"],
                 "tripDestination": t["destination"],
                 "tripDepartureMinutes": t["departureMinutes"],
                 "tripSeatsAvailable": t["seatsAvailable"],
-                "hostGender": t["hostGender"],
                 "hostGenderPreference": t["hostGenderPreference"],
                 "familiarRidersOnly": t["familiarRidersOnly"],
                 "passesStage1": passes_stage1(passenger_for_scoring, t),

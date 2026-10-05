@@ -30,7 +30,7 @@ for qid, pair_rows in by_query.items():
         "departureMinutes": pair_rows[0]["passengerDepartureMinutes"],
         "flexWindowMinutes": pair_rows[0]["passengerFlexWindowMinutes"],
         "gender": pair_rows[0]["passengerGender"],
-        "sameGenderOnly": pair_rows[0]["passengerSameGenderOnly"],
+        "womenPlusOnly": pair_rows[0]["passengerWomenPlusOnly"],
         "isFamiliarWithHost": pair_rows[0]["passengerIsFamiliarWithHost"],
     }
     trips = []
@@ -41,7 +41,6 @@ for qid, pair_rows in by_query.items():
             "destination": tuple(r["tripDestination"]),
             "departureMinutes": r["tripDepartureMinutes"],
             "seatsAvailable": r["tripSeatsAvailable"],
-            "hostGender": r["hostGender"],
             "hostGenderPreference": r["hostGenderPreference"],
             "familiarRidersOnly": r["familiarRidersOnly"],
             "postedAtSeq": pair_rows.index(r) + 1,

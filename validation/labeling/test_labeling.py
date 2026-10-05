@@ -57,13 +57,15 @@ class EvaluatorViewTests(unittest.TestCase):
                 self.assertNotIn(word, header.lower())
 
     def test_row_shows_the_inputs_in_plain_words(self):
-        r = dict(DATASET[0], hostGenderPreference="SAME_GENDER", familiarRidersOnly=True,
+        r = dict(DATASET[0], hostGenderPreference="WOMEN_PLUS", familiarRidersOnly=True, passengerGender="NON_BINARY",
                  passengerDepartureMinutes=420, tripDepartureMinutes=432)
         row = dict(zip(HEADERS, evaluator_row(r)))
         self.assertEqual(row["Passenger leaves at"], "7:00 AM")
         self.assertEqual(row["Driver leaves at"], "7:12 AM")
         self.assertEqual(row["Gap between departures (min)"], 12)
-        self.assertEqual(row["Driver accepts"], "Same gender only")
+        self.assertEqual(row["Driver accepts"], "Women+ only")
+        self.assertEqual(row["Passenger gender"], "Non-binary")
+        self.assertNotIn("Driver gender", row)  # the driver's gender is not a matching input (D6)
         self.assertEqual(row["Driver takes only riders they know"], "Yes")
         self.assertGreaterEqual(row["Extra distance for the driver to pick up (km)"], 0)
         self.assertTrue(row["Map: driver start → passenger → campus"].startswith("https://www.google.com/maps/dir/"))

@@ -13,7 +13,13 @@ Stage 2 - Score:
     Score(P, H) = w1*RouteOverlap + w2*ScheduleAlignment + w3*PreferenceMatch
     ScheduleAlignment = 1 - (TimeDiff / FlexWindow)
     PreferenceMatch = 1.0 if ALL hard constraints hold, else 0.0
-        hard constraints: co-rider gender preference, familiar-riders-only, seats > 0
+        hard constraints: Women+ trips (women and non-binary riders only),
+        the passenger's own "Women+ trips only" choice, familiar-riders-only,
+        seats > 0
+
+Safety pre-filter (Women+ spec, Oct 2026): as in the live app, a trip that
+fails a hard constraint is removed before ranking, so for every ranked trip
+PreferenceMatch is 1.0. The formula itself is unchanged.
 
 This module is intentionally isolated from the live Node.js app / database -
 it operates on plain dicts, exactly as the proposal specifies ("no direct
@@ -100,24 +106,27 @@ def schedule_alignment(time_diff_min, flex_window_min):
     return max(0.0, 1 - (time_diff_min / flex_window_min))
 
 
+WOMEN_PLUS_GENDERS = ("WOMAN", "NON_BINARY")
+
+
 def preference_match(passenger: Dict[str, Any], trip: Dict[str, Any]) -> float:
     """
     Binary hard-constraint check, per the proposal's definition:
     "PreferenceMatch is evaluated as a conjunction. All constraints must
-    pass for the value to be 1.0." Constraints: co-rider gender preference
-    (checked both directions - host's stated preference against the
-    passenger's gender, AND the passenger's own same-gender-only toggle
-    against the host's gender), familiar-riders-only, and seats > 0.
+    pass for the value to be 1.0." Constraints: a Women+ trip takes only
+    women and non-binary riders; a passenger who chose "Women+ trips only"
+    takes only Women+ trips; familiar-riders-only; and seats > 0. Only the
+    trip's rule is used, never the driver's gender (mirrors
+    server/services/riderRules.js).
     """
     if trip["seatsAvailable"] <= 0:
         return 0.0
 
-    if trip.get("hostGenderPreference") == "SAME_GENDER" and \
-       passenger.get("gender") != trip.get("hostGender"):
+    if trip.get("hostGenderPreference") == "WOMEN_PLUS" and \
+       passenger.get("gender") not in WOMEN_PLUS_GENDERS:
         return 0.0
 
-    if passenger.get("sameGenderOnly") and \
-       passenger.get("gender") != trip.get("hostGender"):
+    if passenger.get("womenPlusOnly") and trip.get("hostGenderPreference") != "WOMEN_PLUS":
         return 0.0
 
     if trip.get("familiarRidersOnly") and not passenger.get("isFamiliarWithHost", False):
@@ -161,8 +170,15 @@ def passes_stage1(passenger, trip):
 
 
 def run_psga(passenger, candidate_trips):
-    """Full two-stage PSGA. Returns candidates that pass Stage 1, ranked by score desc."""
-    filtered = [t for t in candidate_trips if passes_stage1(passenger, t)]
+    """
+    Full two-stage PSGA. Returns candidates that pass the safety pre-filter and
+    Stage 1, ranked by score desc. The pre-filter mirrors the live app, which
+    removes trips the passenger can't join before scoring.
+    """
+    filtered = [
+        t for t in candidate_trips
+        if preference_match(passenger, t) == 1.0 and passes_stage1(passenger, t)
+    ]
     scored = [score_trip(passenger, t) for t in filtered]
     return sorted(scored, key=lambda r: r["score"], reverse=True)
 

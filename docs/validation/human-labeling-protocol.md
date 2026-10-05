@@ -33,8 +33,10 @@ must come from people.
 work through them in the same sequence. Every row shows only the situation:
 
 - departure times, the passenger's ± wait, the gap between departures
-- seats left, both genders, same-gender and familiar-riders-only settings,
-  and whether the passenger already knows the driver
+- seats left, the passenger's gender and "Women+ trips only" choice, whether
+  the driver accepts anyone or Women+ only (women and non-binary riders), the
+  familiar-riders-only setting, and whether the passenger already knows the
+  driver. The driver's own gender is not shown: the app never uses it.
 - straight-line distances (passenger home → campus, driver start →
   passenger home, and the extra distance the driver takes to pick them up)
 - a Google Maps link drawing driver start → passenger home → campus
