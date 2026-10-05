@@ -203,3 +203,40 @@ Spec and plan: `docs/superpowers/specs/2026-10-04-help-and-admin-monitoring-desi
   shows an error-reports link when set.
 - Deleting an account deletes the user's support requests.
 - Data requests from the police follow `docs/policy/law-enforcement-data-requests.md`.
+
+## Women+ trips (Oct 2026)
+
+Spec and plan: `docs/superpowers/specs/2026-10-02-women-plus-ride-preferences-design.md`,
+`docs/superpowers/plans/2026-10-04-women-plus.md`. Replaces "same-gender only".
+
+- `User.gender` (encrypted) is self-declared: `WOMAN`, `MAN`, `NON_BINARY`,
+  `PREFER_NOT_TO_SAY` (default). Women+ eligible = woman or non-binary.
+  `GenderPreference` is `ANY` | `WOMEN_PLUS` on `Trip` (who can join) and
+  `Preference` (Trips I see).
+- One rule set: `server/services/riderRules.js` (UI mirror `src/lib/riderRules.ts`),
+  facts from `server/services/riderFacts.js`, never from the client. Search and
+  Show all drop trips the searcher can't join before PSGA scoring; join 403s
+  `TRIP_WOMEN_PLUS_ONLY` / `TRIP_FAMILIAR_RIDERS_ONLY`; approve re-checks (409
+  `RIDER_NO_LONGER_ELIGIBLE`, request declined); only Women+ hosts may post or
+  switch to Women+ (403 `WOMEN_PLUS_HOST_NOT_ELIGIBLE`); "who can join" locks
+  once a rider is approved (409 `WHO_CAN_JOIN_LOCKED`); switching to Women+
+  declines ineligible pending requests; a Women+ trip's details give a
+  non-eligible outsider the same 404 as a missing trip.
+- Privacy: `safeUserSelect` has no `gender`. It's returned only on your own
+  `GET /api/users/:id` and the admin user detail. Trips show rule badges, never
+  a person's gender.
+- `PATCH /api/users/me/gender { gender, confirm }`: 409 `HOSTING_WOMEN_PLUS_TRIPS`
+  while hosting open Women+ trips; 409 `CONFIRM_WITHDRAW_PENDING` before
+  withdrawing pending Women+ requests (resend with `confirm: true`); resets a
+  Women+ preference to `ANY`. Not written to the security log.
+- Preferences: 400 `INVALID_PREFERENCE`, 403 `WOMEN_PLUS_NOT_ELIGIBLE`; a stale
+  value reads as `ANY`.
+- Find a Ride's `show=womenplus|all` overrides the Profile default; a rider who
+  chose Women+ trips sees a warning before requesting a trip open to everyone.
+- Migration: `node scripts/backup-db.mjs`, `npm run migrate-women-plus`, then
+  `npx prisma db push` (drops the old `SAME_GENDER` value). Done on
+  `rideshare_dev` and `rideshare_demo`.
+- Validation: `psga.py` and the recheck use the Women+ rules and, like the app,
+  rank only trips that pass them; datasets, `method_rankings.json` and the blank
+  evaluator workbooks were regenerated. The Postman host is a woman; folder
+  "15. Women+ trips" covers the rules.

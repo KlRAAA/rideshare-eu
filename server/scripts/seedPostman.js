@@ -89,14 +89,16 @@ async function removeExisting(emails) {
   }
 }
 
-async function createUser({ email, password, fullName, universityId }) {
+// The host is a woman so the "15. Women+ trips" folder can post a Women+ trip;
+// the passenger and admin are men, who can't join or host one.
+async function createUser({ email, password, fullName, universityId, gender = 'MAN' }) {
   return prisma.user.create({
     data: {
       email,
       universityId,
       passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS),
       fullName: encryptField(fullName),
-      gender: encryptField('MAN'),
+      gender: encryptField(gender),
       role: 'STUDENT',
       verified: true,
       tripCount: 0,
@@ -117,6 +119,7 @@ async function main() {
     password: env.hostPassword,
     fullName: 'Postman Host',
     universityId: 'POSTMAN-HOST',
+    gender: 'WOMAN',
   });
   const passenger = await createUser({
     email: env.passengerEmail,
