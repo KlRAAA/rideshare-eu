@@ -62,6 +62,8 @@ No IDOR was found in this review.
 - One rules module, [server/services/riderRules.js](../../server/services/riderRules.js), with facts read from the DB by [server/services/riderFacts.js](../../server/services/riderFacts.js), is applied at every entry point: search and Show all drop ineligible trips before scoring; join returns 403 `TRIP_WOMEN_PLUS_ONLY` / `TRIP_FAMILIAR_RIDERS_ONLY`; approval re-checks (409 `RIDER_NO_LONGER_ELIGIBLE`); only women and non-binary hosts can post Women+ trips (403 `WOMEN_PLUS_HOST_NOT_ELIGIBLE`); a Women+ trip's details return the same 404 as a missing trip to someone who can't join it. Covered by `womenPlusSearch`, `womenPlusJoin`, `womenPlusTrips` and `genderChange` tests and the Postman folder "15. Women+ trips".
 - Changing your gender (`PATCH /api/users/me/gender`) is deliberately not written to the security log, so no gender-change history is kept.
 
+**RESOLVED (2026-10-05, superadmin, branch `superadmin`) — every admin had every power:** not in the original review. Any admin could appoint more admins, so one compromised admin account could create others, and the admin user page listed any user's last 20 hosted and joined trips. Fixed with least privilege: a single superadmin (the school's DPO), set only from the server (`npm run make-superadmin`), is the only one who can promote or demote admins ([server/middleware/requireSuperAdmin.js](../../server/middleware/requireSuperAdmin.js)); admins can't ban or demote the superadmin (409 `TARGET_IS_SUPERADMIN`). Regular admins now see only a user's open trips. Trip history leaves the system only through a superadmin data request with a password re-check ([server/controllers/admin/dataRequestController.js](../../server/controllers/admin/dataRequestController.js)). Covered by `adminLeastPrivilege.test.js`, `superadminRole.test.js`, `dataRequests.test.js` and Postman folder "16. Data requests".
+
 ## A02: Cryptographic Failures — Mitigated
 
 **Mitigated:**
@@ -299,6 +301,8 @@ fix available via `npm audit fix --force` (installs autocannon@2.0.1, breaking)
 **Severity: Medium-High** — this is what makes the A07 brute-force gap worse than it already is: even if an attack were happening right now against a real account, nothing in this system would surface it. **Effort: M** — introduce a logging library (even a lightweight one) and, at minimum, log every authentication failure, every exhausted OTP attempt cap, and every 403 from an ownership check, with enough context (IP, user id where known, endpoint) to reconstruct an incident after the fact. A full monitoring/alerting pipeline (shipping logs to an external service, dashboards, paging) is a larger, separate effort reasonably deferred past Sept 30; structured logging of the events themselves is not.
 
 ---
+
+**PARTLY RESOLVED (2026-10-05, superadmin):** releasing a person's records to the police is now recorded in full: each release, every reopening and the emergency paperwork confirmation is an `AdminAction` written in the same transaction, with the agency, reference number and legal basis. Regular admins see that a release happened without seeing who it was about.
 
 ## A10: Server-Side Request Forgery — Mitigated
 

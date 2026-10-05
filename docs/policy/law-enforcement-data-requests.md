@@ -11,7 +11,7 @@ This policy covers requests from the Philippine National Police (PNP), the NBI o
 
 - Requests are handled only by the **MSEUF Data Protection Officer (DPO)**, or a person the DPO names in writing.
 - Regular RideShareEU admins **do not** release user data to anyone. An admin who receives a request forwards it to the DPO and records that in a support request or email.
-- The app has no "export a user's history" button. Any export is done by the DPO from the database, following this policy.
+- The DPO holds the app's single **superadmin** account (set from the server with `npm run make-superadmin`, never in the app). Records are released only through **Admin console → Data requests**, which records the request, re-checks the DPO's password, builds the summary described in section 6, and writes a permanent audit entry. Regular admins can't open a user's trip history at all; they see only open trips, so they can cancel one.
 
 ## 3. What a request must include
 
@@ -58,11 +58,13 @@ Following the Data Privacy Act (RA 10173):
 
 ## 7. Record keeping
 
-For every request, the DPO keeps:
+The app records automatically, for every release: the agency, officer, reference number, legal basis, date range, whether chats or support requests were included, how the request was verified, who released it and when, and every later reopening. Other admins see in the activity log that a release happened, but not who it was about. For an emergency release the app shows the 72-hour paperwork deadline and flags it when overdue.
 
-- the request and its legal basis,
-- what was released, to whom, when and how,
-- who approved it, and whether the emergency path was used.
+The DPO still keeps:
+
+- the written request and the court document,
+- how the release was handed over (for example, printed and signed for),
+- whether the user was later informed, and why or why not.
 
 Records are kept for as long as the university's records policy requires.
 
@@ -74,5 +76,4 @@ How long trip records are kept decides what can be released later, so it must be
 
 ## 9. Future work
 
-- A DPO-only export tool that produces the summary in section 6 and writes the record in section 7 automatically.
 - A short note in the Privacy Policy telling users that data may be disclosed to authorities when the law requires it.

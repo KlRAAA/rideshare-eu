@@ -93,7 +93,8 @@ Added at the research adviser's request. Spec and plan:
   takes effect immediately. `requireAdmin` guards the whole `/api/admin/*`
   router (403 `ADMIN_ONLY`).
 - First admin: `npm run make-admin <email>` (existing account). After that,
-  admins promote/demote each other in the console at `/auth/admin`.
+  only the superadmin promotes/demotes admins (see "Superadmin and data
+  requests" below).
 - Powers: official fuel price, report review (with optional ban), ban/unban,
   user search/detail, cancel a trip, promote/demote, audit log.
 - Safety rules: no action on your own account (`CANNOT_TARGET_SELF`), including
@@ -240,3 +241,37 @@ Spec and plan: `docs/superpowers/specs/2026-10-02-women-plus-ride-preferences-de
   rank only trips that pass them; datasets, `method_rankings.json` and the blank
   evaluator workbooks were regenerated. The Postman host is a woman; folder
   "15. Women+ trips" covers the rules.
+
+## Superadmin and data requests (Oct 2026)
+
+Spec and plan: `docs/superpowers/specs/2026-10-05-superadmin-data-requests-design.md`,
+`docs/superpowers/plans/2026-10-05-superadmin-data-requests.md`. Policy:
+`docs/policy/law-enforcement-data-requests.md`.
+
+- `User.isSuperAdmin`: exactly one, meant to be the school's DPO. Set only by
+  `npm run make-superadmin <email>` (`--replace` hands over; the old one stays
+  an admin). Re-read by `authenticate` (`req.user.isSuperAdmin`);
+  `requireSuperAdmin` returns 403 `SUPERADMIN_ONLY`.
+- Only the superadmin promotes/demotes admins. Nobody can ban or demote the
+  superadmin (409 `TARGET_IS_SUPERADMIN`); the superadmin can't delete their
+  account (409 `LAST_SUPERADMIN`). With no superadmin set, promote/demote are
+  simply unavailable.
+- Regular admins see only a user's open/full hosted trips (to cancel them);
+  `joinedMatches` and past trips are gone from `GET /api/admin/users/:id`.
+- `/api/admin/data-requests` (superadmin only): `GET /` list (with `overdue`),
+  `POST /` create + release (password re-check, 403 `INVALID_PASSWORD`,
+  rate-limited like sign-in; 400 `INVALID_DATA_REQUEST` with `field`,
+  `CANNOT_TARGET_SELF`), `GET /:id` reopen, `PATCH /:id/paperwork`.
+  `DataRequest` stores who asked and why, never the released data:
+  `dataRequestService.buildRelease` rebuilds it on each opening.
+- A release has the person's trips in the range (or, for `EMERGENCY`, the most
+  recent trip, the next 24 h and active recurring trips), co-riders by name,
+  car and plate; chats/support only for a warrant or court order that names
+  them. Never emails, passwords, codes, security logs or ratings.
+- Every release, reopening and paperwork confirmation is an `AdminAction`
+  (`DATA_RELEASED`, `DATA_RELEASE_VIEWED`, `DATA_PAPERWORK_RECEIVED`);
+  `redactDataActions` hides the person and details from regular admins.
+  Emergency paperwork is due 72 h after release (`overdueDataPaperwork` on the
+  superadmin's overview).
+- Demo: Liza is the superadmin, Carlo a regular admin. Postman: the admin
+  account is the superadmin; folder "16. Data requests".
