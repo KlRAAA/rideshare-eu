@@ -17,7 +17,12 @@ async function migrateGenders(db) {
   let changed = 0;
   const users = await db.user.findMany({ select: { id: true, gender: true } });
   for (const u of users) {
-    const old = decryptField(u.gender);
+    let old;
+    try {
+      old = decryptField(u.gender);
+    } catch {
+      continue; // not valid ciphertext (e.g. a half-written test row): leave it alone
+    }
     const next = normalizeGender(old);
     if (old !== next) {
       await db.user.update({ where: { id: u.id }, data: { gender: encryptField(next) } });

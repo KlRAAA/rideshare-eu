@@ -2,6 +2,9 @@ require('dotenv').config({ quiet: true }); // jest doesn't load .env the way ser
 const app = require('../app');
 const prisma = require('../config/db');
 const { bearer } = require('../test-helpers/auth'); // API now requires a session token
+// Names, gender and addresses are ciphertext at rest; seeding plaintext breaks any
+// suite running alongside that decrypts every user (e.g. admin user search).
+const { encryptField } = require('../services/encryptionService');
 
 // Server-side enforcement for POST /api/matches/:id/ratings. Every gate is
 // checked here, not just in the UI: match must exist and be COMPLETED, rater
@@ -26,12 +29,12 @@ let matchPending; // tripOpen, pax1, PENDING
 async function makeUser(fullName, universityId) {
   const u = await prisma.user.create({
     data: {
-      fullName,
+      fullName: encryptField(fullName),
       universityId,
       email: `${universityId}@test.local`,
       passwordHash: 'x',
       role: 'STUDENT',
-      gender: 'MAN',
+      gender: encryptField('MAN'),
       verified: true,
     },
   });
@@ -44,10 +47,10 @@ async function makeTrip(hostId, vehicleId, status) {
     data: {
       hostId,
       vehicleId,
-      originAddress: 'Origin',
+      originAddress: encryptField('Origin'),
       originLat: 13.9,
       originLng: 121.6,
-      destinationAddress: 'Enverga University',
+      destinationAddress: encryptField('Enverga University'),
       destinationLat: 13.95,
       destinationLng: 121.62,
       departureTime: new Date('2026-08-20T00:00:00Z'),
@@ -261,10 +264,10 @@ describe('POST /api/matches/:id/ratings — recurring trips', () => {
       data: {
         hostId: recurringHost.id,
         vehicleId: vehicle.id,
-        originAddress: 'Origin',
+        originAddress: encryptField('Origin'),
         originLat: 13.9,
         originLng: 121.6,
-        destinationAddress: 'Enverga University',
+        destinationAddress: encryptField('Enverga University'),
         destinationLat: 13.95,
         destinationLng: 121.62,
         departureTime: new Date('2026-01-01T06:00:00Z'),
