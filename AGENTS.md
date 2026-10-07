@@ -298,3 +298,26 @@ Spec: `docs/superpowers/specs/2026-10-06-user-warnings-design.md`.
   reported them.
 - The watch list flags ≥2 warnings in 30 days. A notification type the
   notifications page doesn't know falls back to a bell icon instead of crashing.
+
+## Pre-deploy security pass (Oct 2026)
+
+Report: `docs/security/pre-deploy-audit.md`.
+
+- Every write route runs `strictBody('<name>')` (`server/middleware/strictBody.js`);
+  schemas live in `server/validation/bodySchemas.js`. Unknown fields → 400
+  `UNKNOWN_FIELD`, wrong types → `INVALID_FIELD_TYPE`, identity/ownership/price
+  fields (`NEVER_SET`: `userId`, `hostId`, `passengerId`, `raterId`, `ownerId`,
+  `isAdmin`, `filledSeats`, `fuelSharePerSeat` …) → `FORBIDDEN_FIELD`, logged as
+  `ACCESS_DENIED`. A new route needs a schema: `strictBody.test.js` walks the
+  router and fails otherwise. Clients must not send identity fields any more.
+- Signed-in routes are limited per account: 300/min overall, geocode 30/min,
+  reports 10/hour (`middleware/rateLimit.js`, skipped under Jest unless
+  `RATE_LIMIT_IN_TESTS=1`).
+- The API won't start with a weak or placeholder `JWT_SECRET`, a bad
+  `PII_ENCRYPTION_KEY`, no `DATABASE_URL`, or (production) non-https
+  `CORS_ORIGIN` (`server/config/checkEnv.js`). JWTs are verified as HS256 only.
+- `/api/session` (Next) sets the cookie only for a same-origin JSON request with
+  a validly signed token (stops login CSRF). The unused public `/api/figma`
+  proxy was removed.
+- `crossUserAccess.test.js` is the per-route proof that another user gets
+  403/404; `SHOW_ACCESS_TABLE=1` prints each attempt's status.
