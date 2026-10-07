@@ -1,0 +1,27 @@
+name: Uptime
+
+# Checks the live site every 15 minutes. /api/health goes through the website,
+# the forwarding to Railway, the API and the database, so one request covers
+# all of them. A failed run makes GitHub email the repo owner.
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Live site answers /api/health
+        run: |
+          for attempt in 1 2 3; do
+            if curl -fsS --max-time 20 https://rideshare-eu.vercel.app/api/health | grep -q '"status":"ok"'; then
+              echo "RideShareEU is up"
+              exit 0
+            fi
+            echo "Attempt $attempt failed; retrying in 30 seconds"
+            sleep 30
+          done
+          echo "::error::RideShareEU is down: https://rideshare-eu.vercel.app/api/health did not answer ok three times"
+          exit 1
