@@ -68,11 +68,13 @@ export default async function RootLayout({
             No integrity hash: Umami updates script.js in place (no version in
             the URL), and a pinned hash silently stopped analytics when it did
             (Oct 2026). The nonce-strict CSP in src/proxy.ts still decides
-            what may run. */}
+            what may run. data-domains limits counting to the live site, so
+            localhost testing doesn't skew the pilot's visitor numbers. */}
         <Script
           defer
           src="https://cloud.umami.is/script.js"
           data-website-id="995d9cc8-d6d2-43cb-b194-1642404581b0"
+          data-domains="rideshare-eu.vercel.app"
           strategy="afterInteractive"
           nonce={nonce ?? undefined}
         />
