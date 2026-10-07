@@ -361,8 +361,21 @@ Guide: `docs/deployment/railway-vercel.md`.
 - Photos: `server/config/uploads.js` (`UPLOADS_DIR`, a Railway volume at
   `/data/uploads`; defaults to `public/uploads` locally). The API serves
   `/uploads/*` with a 30-day immutable cache.
-- `railway.json`: build `npx prisma generate`, pre-deploy `npx prisma db push`,
-  start `npm run server`, one replica (the cron jobs run in-process).
+- Railway service settings live in the dashboard (Railway no longer reads
+  `railway.json` for new services; the file was removed): build
+  `npx prisma generate`, pre-deploy `npx prisma db push`, start
+  `npm run server`, healthcheck `/api/health`, one replica (the cron jobs run
+  in-process). Auto-deploy needs the Railway GitHub app installed on the repo.
+- Backups: Hobby can't create Railway backups. `scripts/backup-production.ps1`
+  (weekly via Task Scheduler) runs `backup-db.mjs` against
+  `DATABASE_PUBLIC_URL` from `%USERPROFILE%\.rideshare\production-database-url.txt`
+  into `%USERPROFILE%ideshare-backups\production`. Every table is listed in
+  `scripts/backupModels.cjs` (restore order); `backupModels.test.js` fails if a
+  model is missing. Manifests never contain the database password.
+- Uptime: `.github/workflows/uptime.yml` checks the live `/api/health` every
+  15 minutes; a failed run emails the repo owner.
+- Chat polls `GET /api/trips/:id/messages?after=<last id>` (only newer
+  messages); Express compresses responses (`compression`).
 - CI: `.github/workflows/ci.yml` (Postgres 17, server + web tests, `tsc`).
   Tests must create their own data; CI's database starts empty.
 - To rehearse production routing locally: launch configs `api-prodsim`
