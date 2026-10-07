@@ -8,7 +8,7 @@ const { record } = require('../services/adminActionService');
 
 // `db` is injectable so tests can run it without touching the shared database.
 async function makeSuperAdmin(email, { replace = false, db = prisma } = {}) {
-  const user = await db.user.findUnique({ where: { email }, select: { id: true, deletedAt: true } });
+  const user = await db.user.findFirst({ where: { email: { equals: email.trim(), mode: 'insensitive' } }, select: { id: true, deletedAt: true } });
   if (!user || user.deletedAt) throw new Error('USER_NOT_FOUND');
   const current = await db.user.findFirst({ where: { isSuperAdmin: true }, select: { id: true } });
   if (current?.id === user.id) return { already: true, replacedId: null };

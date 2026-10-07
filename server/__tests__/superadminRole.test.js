@@ -50,7 +50,7 @@ const guard = () => {
 // doesn't race other suites that create superadmins in the shared dev DB.
 function fakeDb(users) {
   const actions = [];
-  const byEmail = (email) => users.find((u) => u.email === email) ?? null;
+  const byEmail = (email) => users.find((u) => u.email.toLowerCase() === String(email).toLowerCase()) ?? null;
   const tx = {
     user: {
       update: async ({ where, data }) => Object.assign(users.find((u) => u.id === where.id), data),
@@ -61,7 +61,8 @@ function fakeDb(users) {
     actions,
     user: {
       findUnique: async ({ where }) => byEmail(where.email),
-      findFirst: async () => users.find((u) => u.isSuperAdmin) ?? null,
+      // By email (ignoring capitals, like the script asks for), or the current superadmin.
+      findFirst: async ({ where }) => (where.email ? byEmail(where.email.equals) : users.find((u) => u.isSuperAdmin) ?? null),
     },
     $transaction: (fn) => fn(tx),
   };

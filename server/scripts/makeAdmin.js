@@ -5,7 +5,7 @@ const prisma = require('../config/db');
 const { record } = require('../services/adminActionService');
 
 async function promoteByEmail(email) {
-  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, isAdmin: true } });
+  const user = await prisma.user.findFirst({ where: { email: { equals: email.trim(), mode: 'insensitive' } }, select: { id: true, isAdmin: true } });
   if (!user) throw new Error('USER_NOT_FOUND');
   if (user.isAdmin) return { alreadyAdmin: true };
   await prisma.$transaction(async (tx) => {

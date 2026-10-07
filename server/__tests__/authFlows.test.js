@@ -598,3 +598,63 @@ describe('Forgot/reset password flow', () => {
     expect((await res.json()).error).toBe('INVALID_OR_EXPIRED_TICKET');
   });
 });
+
+// Accounts made before emails were normalised can be stored with capitals
+// (e.g. "A23-35830@student.mseuf.edu.ph"); people type them in lowercase.
+describe('email addresses ignore capitalisation and spaces', () => {
+  const mixedCase = () => {
+    const lower = `auth-flow-${uniqueSuffix()}@student.mseuf.edu.ph`;
+    createdEmails.push(lower);
+    return { lower, upper: lower.replace('auth-flow', 'AUTH-FLOW') };
+  };
+
+  test('a capitalised account signs in with the lowercase address, with stray spaces', async () => {
+    if (guard()) return;
+    const { lower, upper } = mixedCase();
+    const { password } = await createVerifiedUser({ email: upper });
+    const res = await post('/api/auth/verify', { email: `  ${lower} `, password });
+    expect(res.status).toBe(200);
+    expect((await res.json()).user.email).toBe(upper);
+  });
+
+  test('signing up again with different capitals is refused as an existing account', async () => {
+    if (guard()) return;
+    const { lower, upper } = mixedCase();
+    await createVerifiedUser({ email: upper });
+    const res = await post('/api/auth/register/start', { email: lower });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe('ACCOUNT_EXISTS');
+  });
+
+  test('a new account typed with capitals is saved in lowercase and can sign in either way', async () => {
+    if (guard()) return;
+    const { lower, upper } = mixedCase();
+    await post('/api/auth/register/start', { email: upper.replace('@student.mseuf.edu.ph', '@Student.MSEUF.edu.ph') });
+    const otp = latestOtpFor(lower);
+    expect(otp).toMatch(/^\d{6}$/);
+    const { verificationTicket } = await (await post('/api/auth/register/verify-otp', { email: upper, otp })).json();
+    const done = await post('/api/auth/register/complete', {
+      verificationTicket,
+      password: 'NewPass123!',
+      fullName: 'Mixed Case Person',
+      universityId: `MC-${uniqueSuffix()}`,
+      termsAccepted: true,
+    });
+    expect(done.status).toBe(201);
+    const { user } = await done.json();
+    createdUserIds.push(user.id);
+    expect(user.email).toBe(lower);
+    expect((await post('/api/auth/verify', { email: upper, password: 'NewPass123!' })).status).toBe(200);
+  });
+
+  test('a capitalised account can reset its password using the lowercase address', async () => {
+    if (guard()) return;
+    const { lower, upper } = mixedCase();
+    await createVerifiedUser({ email: upper });
+    const { otp } = await startResetAndGetOtp(lower);
+    expect(otp).toMatch(/^\d{6}$/);
+    const { resetTicket } = await (await post('/api/auth/verify-reset-otp', { email: lower, otp })).json();
+    expect((await post('/api/auth/reset-password', { resetTicket, password: 'Changed123!' })).status).toBe(200);
+    expect((await post('/api/auth/verify', { email: lower, password: 'Changed123!' })).status).toBe(200);
+  });
+});

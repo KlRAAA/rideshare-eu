@@ -21,6 +21,17 @@ const CURRENT_TERMS_VERSION = '2026-09-17';
 // not tied to any real account, just an anchor for the compare's own cost.
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync('rsu-timing-safe-placeholder', 12);
 
+// Email addresses are matched without regard to capitals or stray spaces:
+// people type "a23-35830@…" for an account saved as "A23-35830@…". New
+// addresses are saved in lowercase; older capitalised rows still match.
+function normalizeEmail(raw) {
+  return typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+}
+
+function findUserByEmail(email) {
+  return prisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } } });
+}
+
 function inferRole(email) {
   if (email.endsWith(STUDENT_DOMAIN)) return 'STUDENT';
   // Base domain covers both Faculty and Staff; the email alone can't tell
@@ -60,13 +71,13 @@ async function checkOtp(req, email, otp, reason) {
 
 // Step 1 of 3: strict domain whitelist, then issue and email an OTP.
 async function startRegistration(req, res) {
-  const { email } = req.body;
+  const email = normalizeEmail(req.body.email);
   const role = email ? inferRole(email) : null;
   if (!role) {
     return res.status(400).json({ error: 'INVALID_DOMAIN', message: 'Email must end in @student.mseuf.edu.ph or @mseuf.edu.ph.' });
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await findUserByEmail(email);
   if (existing) return res.status(409).json({ error: 'ACCOUNT_EXISTS' });
 
   const otp = generateOtp();
@@ -81,7 +92,8 @@ async function startRegistration(req, res) {
 
 // Step 2 of 3: verify the OTP, issue a short-lived ticket for Step 3.
 async function verifyRegistrationOtp(req, res) {
-  const { email, otp } = req.body;
+  const email = normalizeEmail(req.body.email);
+  const { otp } = req.body;
 
   const failure = await checkOtp(req, email, otp, 'REGISTRATION');
   if (failure) return res.status(failure.status).json({ error: failure.error });
@@ -152,12 +164,12 @@ async function completeRegistration(req, res) {
 // the account exists, to avoid leaking which emails are registered. Only the
 // side effect (whether an OTP actually gets created/sent) differs.
 async function requestPasswordReset(req, res) {
-  const { email } = req.body;
+  const email = normalizeEmail(req.body.email);
   const GENERIC_RESPONSE = { status: 'OTP_SENT_IF_ACCOUNT_EXISTS' };
 
   if (!email) return res.status(400).json({ error: 'MISSING_EMAIL' });
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await findUserByEmail(email);
   if (!user) return res.json(GENERIC_RESPONSE);
 
   const otp = generateOtp();
@@ -175,7 +187,8 @@ async function requestPasswordReset(req, res) {
 // against completeRegistration (or vice versa) even though both tickets are
 // signed with the same JWT_SECRET.
 async function verifyPasswordResetOtp(req, res) {
-  const { email, otp } = req.body;
+  const email = normalizeEmail(req.body.email);
+  const { otp } = req.body;
 
   const failure = await checkOtp(req, email, otp, 'PASSWORD_RESET');
   if (failure) return res.status(failure.status).json({ error: failure.error });
@@ -201,15 +214,18 @@ async function resetPassword(req, res) {
     return res.status(400).json({ error: 'PASSWORD_TOO_SHORT' });
   }
 
+  const user = await findUserByEmail(normalizeEmail(payload.email));
+  if (!user) return res.status(401).json({ error: 'INVALID_OR_EXPIRED_TICKET' });
   const passwordHash = await bcrypt.hash(password, 12);
-  await prisma.user.update({ where: { email: payload.email }, data: { passwordHash } });
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
 
   return res.json({ status: 'PASSWORD_RESET' });
 }
 
 async function login(req, res) {
-  const { email, password } = req.body;
-  const user = await prisma.user.findUnique({ where: { email } });
+  const email = normalizeEmail(req.body.email);
+  const { password } = req.body;
+  const user = email ? await findUserByEmail(email) : null;
 
   // Same generic response whether the email doesn't exist or the password is
   // wrong — previously an unknown email got 404 ACCOUNT_NOT_FOUND while a
