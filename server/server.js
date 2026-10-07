@@ -14,7 +14,8 @@ if (envProblems.length > 0) {
 const Sentry = require('@sentry/node');
 Sentry.init({
   dsn: 'https://c54ac878dcc6a78d5b94bf76e3667ec4@o4512106171793408.ingest.us.sentry.io/4512106173956096',
-  tracesSampleRate: 1,
+  environment: process.env.SENTRY_ENVIRONMENT || process.env.RAILWAY_ENVIRONMENT_NAME || process.env.NODE_ENV,
+  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1,
 });
 const cron = require('node-cron');
 const app = require('./app');

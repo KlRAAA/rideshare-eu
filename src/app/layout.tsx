@@ -65,19 +65,14 @@ export default async function RootLayout({
             hardcoding it here matches this repo's existing convention rather
             than needing its own env var. afterInteractive matches the raw
             snippet's `defer` behavior — loads without blocking initial render.
-            integrity pins the exact script Umami served when this hash was
-            computed (openssl dgst -sha384) — the real trade-off: if Umami
-            ever updates script.js, the hash stops matching and the browser
-            refuses to run it at all (silently, no visible error), so
-            analytics would just stop until someone notices and recomputes
-            this. That's the accepted cost of SRI on a third-party CDN
-            script with no version in its URL, not a bug. */}
+            No integrity hash: Umami updates script.js in place (no version in
+            the URL), and a pinned hash silently stopped analytics when it did
+            (Oct 2026). The nonce-strict CSP in src/proxy.ts still decides
+            what may run. */}
         <Script
           defer
           src="https://cloud.umami.is/script.js"
           data-website-id="995d9cc8-d6d2-43cb-b194-1642404581b0"
-          integrity="sha384-Tj9oEUiYIxX/hfR7mn1IWl784aSOveAhXJuDPo5xVUMw5HZanvI1nSmQWHwvfXn0"
-          crossOrigin="anonymous"
           strategy="afterInteractive"
           nonce={nonce ?? undefined}
         />
