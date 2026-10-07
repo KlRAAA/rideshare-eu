@@ -4,6 +4,7 @@ const prisma = require('../config/db');
 const { computeFuelSharePerSeat } = require('../services/fuelShareService');
 const { bearer } = require('../test-helpers/auth'); // API now requires a session token
 const { encryptField } = require('../services/encryptionService');
+const { newBag, makeUser, cleanup } = require('../test-helpers/seed');
 
 // Regression for: "trip shows in My Trips list but View Details 404s."
 // Root cause was a flaky dev DB connection surfacing as a 500 that the frontend
@@ -14,6 +15,7 @@ const { encryptField } = require('../services/encryptionService');
 let server;
 let base;
 let dbUp = false;
+const bag = newBag();
 
 beforeAll(async () => {
   try {
@@ -27,6 +29,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  if (dbUp) await cleanup(bag);
   if (server) await new Promise((resolve) => server.close(resolve));
   await prisma.$disconnect().catch(() => {});
 });
@@ -37,7 +40,9 @@ describe('edit a trip, then open its detail page', () => {
       console.warn('[tripEditDetail.test] DB unavailable — regression assertion not exercised this run');
       return;
     }
-    const host = await prisma.user.findFirst();
+    // Its own host: an empty database (CI) has no users to borrow, and borrowing
+    // one in the dev database put test trips on a real account.
+    const host = await makeUser(bag, { fullName: 'Edit Regression Host' });
     const vehicle = await prisma.vehicle.create({
       data: { ownerId: host.id, make: 'Reg', model: 'Test', color: 'White', fuelEfficiencyKmL: 12 },
     });
