@@ -20,22 +20,56 @@ function getTransport() {
   });
 }
 
-// `devLog` is printed instead of sending when SMTP isn't configured (dev only)
-// or the address can never receive mail.
+// "RideShareEU <no-reply@x.ph>" → { name, email }, for APIs that want them apart.
+function parseFrom(from) {
+  const match = /^\s*(.*?)\s*<([^>]+)>\s*$/.exec(from || '');
+  return match ? { name: match[1] || undefined, email: match[2] } : { email: String(from || '').trim() };
+}
+
+async function sendViaApi(url, init, provider) {
+  const res = await fetch(url, { method: 'POST', ...init, signal: AbortSignal.timeout(10000) });
+  if (!res.ok) throw new Error(`${provider} refused the email (${res.status}): ${(await res.text()).slice(0, 200)}`);
+}
+
+// Railway's Hobby plan blocks SMTP, so production sends through an HTTPS email
+// API: Resend (RESEND_API_KEY) or Brevo (BREVO_API_KEY). SMTP stays for local
+// use. `devLog` is printed instead of sending when nothing is configured (dev
+// only) or the address can never receive mail.
 async function deliver({ to, subject, text, devLog }) {
   if (isUndeliverableAddress(to)) {
     console.warn(`[email skipped: reserved test domain] ${devLog}`);
     return;
   }
+  const from = process.env.EMAIL_FROM || process.env.SMTP_FROM;
+  if (process.env.RESEND_API_KEY) {
+    return sendViaApi(
+      'https://api.resend.com/emails',
+      {
+        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, to: [to], subject, text }),
+      },
+      'Resend'
+    );
+  }
+  if (process.env.BREVO_API_KEY) {
+    return sendViaApi(
+      'https://api.brevo.com/v3/smtp/email',
+      {
+        headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ sender: parseFrom(from), to: [{ email: to }], subject, textContent: text }),
+      },
+      'Brevo'
+    );
+  }
   const transport = getTransport();
   if (!transport) {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error(`SMTP is not configured — cannot send "${subject}" in production.`);
+      throw new Error(`No email provider is configured — cannot send "${subject}" in production.`);
     }
     console.log(`[dev-only] ${devLog}`);
     return;
   }
-  await transport.sendMail({ from: process.env.SMTP_FROM, to, subject, text });
+  await transport.sendMail({ from, to, subject, text });
 }
 
 async function sendOtpEmail(email, otp) {
@@ -89,4 +123,4 @@ async function sendWarningEmail(email, { reasonLabel, note }) {
   });
 }
 
-module.exports = { sendOtpEmail, sendBanNotificationEmail, sendWarningEmail, isUndeliverableAddress };
+module.exports = { sendOtpEmail, sendBanNotificationEmail, sendWarningEmail, isUndeliverableAddress, parseFrom };
