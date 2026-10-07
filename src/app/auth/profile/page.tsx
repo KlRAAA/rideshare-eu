@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import React from 'react';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
@@ -21,6 +22,15 @@ export default async function ProfilePage() {
         </div>
         {/* Remounts after a gender change, which can reset the Women+ preference. */}
         <ProfileClient key={user.gender} user={user} initialPreference={preference} />
+        <p className="text-xs text-center text-gray-500 mt-6">
+          <Link href="/privacy" className="font-semibold text-gray-500 hover:underline">
+            Privacy Policy
+          </Link>
+          {' · '}
+          <Link href="/terms" className="font-semibold text-gray-500 hover:underline">
+            Terms of Use
+          </Link>
+        </p>
       </main>
       <BottomNav active="profile" />
     </div>

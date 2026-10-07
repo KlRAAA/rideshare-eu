@@ -150,6 +150,14 @@ export default function LoginPage() {
           <Link href="/help" className="font-semibold text-gray-500 hover:underline">
             Help &amp; emergency numbers
           </Link>
+          {' · '}
+          <Link href="/privacy" className="font-semibold text-gray-500 hover:underline">
+            Privacy
+          </Link>
+          {' · '}
+          <Link href="/terms" className="font-semibold text-gray-500 hover:underline">
+            Terms
+          </Link>
         </p>
       </div>
     </div>

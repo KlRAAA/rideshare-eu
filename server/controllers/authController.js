@@ -14,7 +14,7 @@ const STAFF_DOMAIN = '@mseuf.edu.ph';
 // lets a future "you agreed to an older version, please re-accept" flow
 // compare against this instead of just checking termsAcceptedAt is non-null.
 // No such re-prompt flow exists yet; this is just the value stamped today.
-const CURRENT_TERMS_VERSION = '2026-09-17';
+const CURRENT_TERMS_VERSION = '2026-10-07';
 
 // A fixed-cost stand-in for login's bcrypt.compare when no real user exists,
 // so an unknown email takes the same time to reject as a wrong password —

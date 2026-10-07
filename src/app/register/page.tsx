@@ -362,7 +362,7 @@ export default function RegisterPage() {
                     className="mt-0.5 w-4 h-4 accent-[color:var(--rsu-color-primary)]"
                   />
                   <span>
-                    I agree to the{' '}
+                    I&apos;m 18 or older and agree to the{' '}
                     <Link href="/terms" target="_blank" className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline">
                       Terms of Use
                     </Link>{' '}

@@ -77,6 +77,15 @@ export default async function HelpPage() {
             </p>
           )}
         </Card>
+        <p className="text-xs text-center text-gray-500">
+          <Link href="/privacy" className="font-semibold text-gray-500 hover:underline">
+            Privacy Policy
+          </Link>
+          {' · '}
+          <Link href="/terms" className="font-semibold text-gray-500 hover:underline">
+            Terms of Use
+          </Link>
+        </p>
       </div>
     </HelpShell>
   );
