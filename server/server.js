@@ -1,4 +1,10 @@
 require('dotenv').config();
+const { checkEnv } = require('./config/checkEnv');
+const envProblems = checkEnv();
+if (envProblems.length > 0) {
+  console.error(['RideShareEU API not started:', ...envProblems.map((p) => `- ${p}`)].join('\n'));
+  process.exit(1);
+}
 // Sentry.init must run before anything else requires express/http/pg, etc. —
 // its auto-instrumentation patches those modules on first require, which is
 // too late if app.js (and everything it pulls in) loads first. Same DSN the

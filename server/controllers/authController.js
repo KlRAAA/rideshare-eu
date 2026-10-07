@@ -96,7 +96,7 @@ async function completeRegistration(req, res) {
 
   let payload;
   try {
-    payload = jwt.verify(verificationTicket, process.env.JWT_SECRET);
+    payload = jwt.verify(verificationTicket, process.env.JWT_SECRET, { algorithms: ['HS256'] });
   } catch {
     return res.status(401).json({ error: 'INVALID_OR_EXPIRED_TICKET' });
   }
@@ -191,7 +191,7 @@ async function resetPassword(req, res) {
 
   let payload;
   try {
-    payload = jwt.verify(resetTicket, process.env.JWT_SECRET);
+    payload = jwt.verify(resetTicket, process.env.JWT_SECRET, { algorithms: ['HS256'] });
   } catch {
     return res.status(401).json({ error: 'INVALID_OR_EXPIRED_TICKET' });
   }
