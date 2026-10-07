@@ -161,6 +161,9 @@ export default function ForgotPasswordPage() {
                     Verification Code
                   </label>
                   <OtpInput value={otp} onChange={setOtp} disabled={loading} />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Didn’t get the code? Check your Spam folder, then use Resend code below.
+                  </p>
                 </div>
                 {errorCode && <ErrorMessage code={errorCode} />}
                 <button type="submit" disabled={loading || otp.length !== 6} className="rsu-btn-primary w-full disabled:opacity-60">
