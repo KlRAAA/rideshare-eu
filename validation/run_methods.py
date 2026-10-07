@@ -10,56 +10,77 @@ correctness judgment comes later, from the human evaluators.
 """
 
 import json
+import random
 import zlib
 from collections import defaultdict
 
 from psga import run_psga, baseline_random, baseline_route_only, baseline_fifo
 
-with open("dataset_500_pairs.json") as f:
-    rows = json.load(f)
+import os
 
-by_query = defaultdict(list)
-for r in rows:
-    by_query[r["queryId"]].append(r)
+HERE = os.path.dirname(os.path.abspath(__file__))
 
-results = {}
-for qid, pair_rows in by_query.items():
-    passenger = {
-        "origin": tuple(pair_rows[0]["passengerOrigin"]),
-        "destination": tuple(pair_rows[0]["passengerDestination"]),
-        "departureMinutes": pair_rows[0]["passengerDepartureMinutes"],
-        "flexWindowMinutes": pair_rows[0]["passengerFlexWindowMinutes"],
-        "gender": pair_rows[0]["passengerGender"],
-        "womenPlusOnly": pair_rows[0]["passengerWomenPlusOnly"],
-        "isFamiliarWithHost": pair_rows[0]["passengerIsFamiliarWithHost"],
-    }
-    trips = []
-    for r in pair_rows:
-        trips.append({
-            "tripId": r["tripId"],
-            "origin": tuple(r["tripOrigin"]),
-            "destination": tuple(r["tripDestination"]),
-            "departureMinutes": r["tripDepartureMinutes"],
-            "seatsAvailable": r["tripSeatsAvailable"],
-            "hostGenderPreference": r["hostGenderPreference"],
-            "familiarRidersOnly": r["familiarRidersOnly"],
-            "postedAtSeq": pair_rows.index(r) + 1,
-        })
 
-    psga_ranked = [x["tripId"] for x in run_psga(passenger, trips)]
-    results[qid] = {
-        "psga": psga_ranked,
-        # crc32, not hash(): Python randomizes str hashes per process, so hash()
-        # gave a different "random" baseline on every run.
-        "random": baseline_random(passenger, trips, seed=zlib.crc32(qid.encode())),
-        "routeOnly": baseline_route_only(passenger, trips),
-        "fifo": baseline_fifo(passenger, trips),
-    }
+def rank_queries(rows, order_key="order"):
+    """Each method's ranked tripIds per query. order_key seeds the posting order."""
+    by_query = defaultdict(list)
+    for r in rows:
+        by_query[r["queryId"]].append(r)
 
-with open("method_rankings.json", "w") as f:
-    json.dump(results, f, indent=2)
+    results = {}
+    for qid, pair_rows in by_query.items():
+        # The generator always makes T1 the clear positive and creates it first.
+        # Shuffling (seeded) decouples posting order from trip quality; otherwise
+        # FIFO gets the ideal trip at #1 for free and ties fall to T1.
+        pair_rows = list(pair_rows)
+        random.Random(zlib.crc32(f"{order_key}:{qid}".encode())).shuffle(pair_rows)
+        passenger = {
+            "origin": tuple(pair_rows[0]["passengerOrigin"]),
+            "destination": tuple(pair_rows[0]["passengerDestination"]),
+            "departureMinutes": pair_rows[0]["passengerDepartureMinutes"],
+            "flexWindowMinutes": pair_rows[0]["passengerFlexWindowMinutes"],
+            "gender": pair_rows[0]["passengerGender"],
+            "womenPlusOnly": pair_rows[0]["passengerWomenPlusOnly"],
+        }
+        trips = []
+        for seq, r in enumerate(pair_rows, start=1):
+            trips.append({
+                "tripId": r["tripId"],
+                "origin": tuple(r["tripOrigin"]),
+                "destination": tuple(r["tripDestination"]),
+                "departureMinutes": r["tripDepartureMinutes"],
+                "seatsAvailable": r["tripSeatsAvailable"],
+                "hostGenderPreference": r["hostGenderPreference"],
+                "familiarRidersOnly": r["familiarRidersOnly"],
+                "postedAtSeq": seq,
+            })
 
-# Quick sanity summary
-n_psga_nonempty = sum(1 for v in results.values() if v["psga"])
-print(f"{len(results)} queries processed.")
-print(f"PSGA returned at least one match for {n_psga_nonempty}/{len(results)} queries.")
+        # Familiarity is per (passenger, trip) pair, so each trip is checked with
+        # its own pair's value; filtering and scoring are per trip, and the stable
+        # sort keeps run_psga's tie order.
+        scored = [
+            s
+            for r, t in zip(pair_rows, trips)
+            for s in run_psga({**passenger, "isFamiliarWithHost": r["passengerIsFamiliarWithHost"]}, [t])
+        ]
+        results[qid] = {
+            "psga": [x["tripId"] for x in sorted(scored, key=lambda x: x["score"], reverse=True)],
+            # crc32, not hash(): Python randomizes str hashes per process, so hash()
+            # gave a different "random" baseline on every run.
+            "random": baseline_random(passenger, trips, seed=zlib.crc32(f"random:{order_key}:{qid}".encode())),
+            "routeOnly": baseline_route_only(passenger, trips),
+            "fifo": baseline_fifo(passenger, trips),
+        }
+    return results
+
+
+if __name__ == "__main__":
+    with open(os.path.join(HERE, "dataset_500_pairs.json")) as f:
+        results = rank_queries(json.load(f))
+
+    with open(os.path.join(HERE, "method_rankings.json"), "w") as f:
+        json.dump(results, f, indent=2)
+
+    n_psga_nonempty = sum(1 for v in results.values() if v["psga"])
+    print(f"{len(results)} queries processed.")
+    print(f"PSGA returned at least one match for {n_psga_nonempty}/{len(results)} queries.")
