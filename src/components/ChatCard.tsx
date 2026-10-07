@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Card from './Card';
 import Avatar from './Avatar';
 import { apiFetch, ApiError } from '@/lib/api';
@@ -36,18 +36,33 @@ export default function ChatCard({ tripId, currentUserId }: ChatCardProps) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  // Latest messages for the poll, which runs outside React's render cycle.
+  const latest = useRef<ChatMessage[] | null>(null);
+
+  // The first call loads the latest page; after that only messages newer than
+  // the last one shown are fetched (?after=), so a quiet chat costs a few bytes
+  // per poll instead of resending the last 50 messages every 7 seconds.
+  const fetchNew = useCallback(async () => {
+    const known = latest.current;
+    const last = known?.[known.length - 1];
+    const data = await apiFetch<{ messages: ChatMessage[] }>(
+      `/api/trips/${tripId}/messages${last ? `?after=${encodeURIComponent(last.id)}` : ''}`
+    );
+    // Server returns newest-first (same convention as notifications); a chat
+    // reads naturally oldest-at-top, newest-at-bottom.
+    const incoming = [...data.messages].reverse();
+    const seen = new Set((known ?? []).map((m) => m.id));
+    const next = known ? [...known, ...incoming.filter((m) => !seen.has(m.id))] : incoming;
+    latest.current = next;
+    setMessages(next);
+  }, [tripId]);
 
   useEffect(() => {
     let cancelled = false;
+    latest.current = null;
     const poll = () => {
-      apiFetch<{ messages: ChatMessage[] }>(`/api/trips/${tripId}/messages`)
-        .then((data) => {
-          if (cancelled) return;
-          // Server returns newest-first (same convention as notifications);
-          // a chat reads naturally oldest-at-top, newest-at-bottom.
-          setMessages([...data.messages].reverse());
-          setError(null);
-        })
+      fetchNew()
+        .then(() => !cancelled && setError(null))
         .catch((err) => {
           if (cancelled) return;
           setError(err instanceof ApiError ? err.message : 'Could not load messages.');
@@ -59,7 +74,7 @@ export default function ChatCard({ tripId, currentUserId }: ChatCardProps) {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [tripId]);
+  }, [fetchNew]);
 
   // Follow new messages — only when already scrolled near the bottom, so
   // reading older history during a poll tick doesn't get yanked away.
@@ -81,10 +96,9 @@ export default function ChatCard({ tripId, currentUserId }: ChatCardProps) {
         body: JSON.stringify({ body }),
       });
       setDraft('');
-      // Refresh immediately rather than waiting for the next poll tick, so
-      // sending a message shows up right away instead of up to ~7s later.
-      const data = await apiFetch<{ messages: ChatMessage[] }>(`/api/trips/${tripId}/messages`);
-      setMessages([...data.messages].reverse());
+      // Fetch right away rather than waiting for the next poll tick, so a sent
+      // message shows up immediately instead of up to ~7s later.
+      await fetchNew();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not send that message. Try again.');
     } finally {

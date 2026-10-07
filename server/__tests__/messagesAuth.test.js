@@ -241,3 +241,39 @@ describe('MESSAGE notifications', () => {
     expect(notifications[0].message).toContain('Running late');
   });
 });
+
+// The chat polls every 7 s. With ?after=<last message id> it gets only newer
+// messages, so a quiet chat costs a few bytes per poll instead of resending
+// the last 50 messages.
+describe('polling for new messages only', () => {
+  test('?after returns only messages newer than that one, oldest of them last like a normal page', async () => {
+    if (guard()) return;
+    const host = await makeUser(bag, { fullName: 'Poll Host' });
+    const vehicle = await makeVehicle(bag, host.id);
+    const trip = await makeTrip(bag, host.id, vehicle.id, { status: 'OPEN' });
+    const ids = [];
+    for (const body of ['one', 'two', 'three']) {
+      const { message } = await (await req('POST', `/api/trips/${trip.id}/messages`, host.id, { body })).json();
+      ids.push(message.id);
+    }
+
+    const afterFirst = await (await req('GET', `/api/trips/${trip.id}/messages?after=${ids[0]}`, host.id)).json();
+    expect(afterFirst.messages.map((m) => m.body)).toEqual(['three', 'two']);
+
+    const afterLast = await (await req('GET', `/api/trips/${trip.id}/messages?after=${ids[2]}`, host.id)).json();
+    expect(afterLast).toEqual({ messages: [], nextCursor: null });
+  });
+
+  test('an id from another trip is ignored: the latest page comes back', async () => {
+    if (guard()) return;
+    const host = await makeUser(bag, { fullName: 'Poll Host 2' });
+    const vehicle = await makeVehicle(bag, host.id);
+    const tripA = await makeTrip(bag, host.id, vehicle.id, { status: 'OPEN' });
+    const tripB = await makeTrip(bag, host.id, vehicle.id, { status: 'OPEN' });
+    const { message: other } = await (await req('POST', `/api/trips/${tripB.id}/messages`, host.id, { body: 'elsewhere' })).json();
+    await req('POST', `/api/trips/${tripA.id}/messages`, host.id, { body: 'here' });
+
+    const res = await (await req('GET', `/api/trips/${tripA.id}/messages?after=${other.id}`, host.id)).json();
+    expect(res.messages.map((m) => m.body)).toEqual(['here']);
+  });
+});

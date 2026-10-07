@@ -93,10 +93,12 @@ async function postMessage(req, res) {
 // posting: once a trip is COMPLETED/CANCELLED this refuses everyone, not just
 // new posts, matching the hard-cutoff access window (no read-only history).
 // Cursor-paginated on `id`, same shape as notificationController.list.
+// ?after=<message id> returns only messages newer than that one, for the
+// chat's 7-second poll (an id from another trip is ignored).
 async function listMessages(req, res) {
   const { id: tripId } = req.params;
   const userId = req.user.id;
-  const { limit, cursor } = req.query;
+  const { limit, cursor, after } = req.query;
   const take = limit ? Number(limit) : DEFAULT_MESSAGE_LIMIT;
 
   const trip = await loadTripForChat(tripId);
@@ -104,8 +106,15 @@ async function listMessages(req, res) {
   if (!ACTIVE_STATUSES.includes(trip.status)) return res.status(409).json({ error: 'CHAT_CLOSED' });
   if (!isParticipant(trip, userId)) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
 
+  const since = typeof after === 'string'
+    ? await prisma.message.findFirst({ where: { id: after, tripId }, select: { id: true, createdAt: true } })
+    : null;
+  const newerThanSince = since && {
+    OR: [{ createdAt: { gt: since.createdAt } }, { createdAt: since.createdAt, id: { gt: since.id } }],
+  };
+
   const rows = await prisma.message.findMany({
-    where: { tripId },
+    where: { tripId, ...newerThanSince },
     include: { sender: { select: { id: true, fullName: true, avatarUrl: true } } },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: take + 1, // one extra row just to detect whether a next (older) page exists
