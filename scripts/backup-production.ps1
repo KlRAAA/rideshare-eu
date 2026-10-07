@@ -31,7 +31,8 @@ try {
   for ($i = 0; $i -lt 60 -and -not $url; $i++) {
     Start-Sleep -Seconds 1
     if ($tunnel.HasExited) { throw "railway connect stopped: $(Get-Content "$out.err" -Raw)" }
-    $match = Select-String -Path $out -Pattern 'postgres(ql)?://\S+' | Select-Object -First 1
+    # The CLI prints the connection details to stderr.
+    $match = Select-String -Path $out, "$out.err" -Pattern 'postgres(ql)?://\S+' | Select-Object -First 1
     if ($match) { $url = $match.Matches[0].Value }
   }
   if (-not $url) { throw 'The Railway tunnel did not open within 60 seconds.' }
