@@ -60,7 +60,6 @@ describe('saved vehicles', () => {
     [{ ...CAR, model: 'x'.repeat(41) }, 'model'],
     [{ ...CAR, fuelEfficiencyKmL: 2.9 }, 'fuelEfficiencyKmL'],
     [{ ...CAR, fuelEfficiencyKmL: 50.1 }, 'fuelEfficiencyKmL'],
-    [{ ...CAR, fuelEfficiencyKmL: 'abc' }, 'fuelEfficiencyKmL'],
     [{ ...CAR, plate: 'x'.repeat(16) }, 'plate'],
   ])('rejects %p → 400 INVALID_VEHICLE on %s', async (body, field) => {
     if (guard()) return;
@@ -68,6 +67,14 @@ describe('saved vehicles', () => {
     const res = await call('POST', '/api/saved-vehicles', user.id, body);
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: 'INVALID_VEHICLE', field });
+  });
+
+  test('a non-numeric fuel efficiency is stopped by the body schema → 400 INVALID_FIELD_TYPE', async () => {
+    if (guard()) return;
+    const user = await makeUser(bag);
+    const res = await call('POST', '/api/saved-vehicles', user.id, { ...CAR, fuelEfficiencyKmL: 'abc' });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'INVALID_FIELD_TYPE', field: 'fuelEfficiencyKmL' });
   });
 
   test('allows at most 5 saved cars', async () => {

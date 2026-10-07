@@ -1,4 +1,4 @@
-const { rateLimit } = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const { logSecurityEvent } = require('../services/securityLog');
 
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
@@ -11,6 +11,18 @@ const EMAIL_SEND_LIMIT = 5;
 // against the login endpoint, which had no limit at all.
 const AUTH_ATTEMPT_LIMIT = 10;
 
+const ONE_MINUTE_MS = 60 * 1000;
+const ONE_HOUR_MS = 60 * 60 * 1000;
+// Signed-in routes, counted per account rather than per IP (a campus network
+// puts many students behind one address). Normal use is far below this: the
+// trip chat polls every 7 s and live location every 30 s.
+const API_LIMIT_PER_MINUTE = 300;
+// Address lookups all share one Nominatim queue spaced 1.1 s apart, so one
+// account flooding it would slow everyone else's lookups.
+const GEOCODE_LIMIT_PER_MINUTE = 30;
+// Each report can trigger the automatic ban ladder and a ban email.
+const REPORT_LIMIT_PER_HOUR = 10;
+
 // authFlows.test.js alone makes ~50 auth calls from one IP, so limiting is off
 // under Jest unless a test opts in. Read per request (skip runs on every call),
 // so a test file can toggle it with process.env without reloading the app.
@@ -20,10 +32,11 @@ function skipUnderTests() {
 
 // One limiter instance per route (not per tier), so each endpoint keeps its own
 // counter — failed logins can't lock someone out of finishing OTP verification.
-function createLimiter({ limit, windowMs = FIFTEEN_MINUTES_MS }) {
+function createLimiter({ limit, windowMs = FIFTEEN_MINUTES_MS, perUser = false }) {
   return rateLimit({
     windowMs,
     limit,
+    ...(perUser && { keyGenerator: (req) => (req.user?.id ? `user:${req.user.id}` : ipKeyGenerator(req.ip)) }),
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     skip: skipUnderTests,
@@ -31,7 +44,7 @@ function createLimiter({ limit, windowMs = FIFTEEN_MINUTES_MS }) {
       logSecurityEvent(req, 'RATE_LIMITED', { limit: options.limit });
       res.status(options.statusCode).json({
         error: 'TOO_MANY_REQUESTS',
-        message: 'Too many attempts. Try again in a few minutes.',
+        message: 'Too many requests. Try again in a few minutes.',
       });
     },
   });
@@ -39,5 +52,19 @@ function createLimiter({ limit, windowMs = FIFTEEN_MINUTES_MS }) {
 
 const emailSendLimiter = () => createLimiter({ limit: EMAIL_SEND_LIMIT });
 const authAttemptLimiter = () => createLimiter({ limit: AUTH_ATTEMPT_LIMIT });
+const apiLimiter = () => createLimiter({ limit: API_LIMIT_PER_MINUTE, windowMs: ONE_MINUTE_MS, perUser: true });
+const geocodeLimiter = () => createLimiter({ limit: GEOCODE_LIMIT_PER_MINUTE, windowMs: ONE_MINUTE_MS, perUser: true });
+const reportLimiter = () => createLimiter({ limit: REPORT_LIMIT_PER_HOUR, windowMs: ONE_HOUR_MS, perUser: true });
 
-module.exports = { emailSendLimiter, authAttemptLimiter, EMAIL_SEND_LIMIT, AUTH_ATTEMPT_LIMIT };
+module.exports = {
+  emailSendLimiter,
+  authAttemptLimiter,
+  apiLimiter,
+  geocodeLimiter,
+  reportLimiter,
+  EMAIL_SEND_LIMIT,
+  AUTH_ATTEMPT_LIMIT,
+  API_LIMIT_PER_MINUTE,
+  GEOCODE_LIMIT_PER_MINUTE,
+  REPORT_LIMIT_PER_HOUR,
+};

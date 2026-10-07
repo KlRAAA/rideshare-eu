@@ -42,12 +42,20 @@ const guard = () => {
 };
 
 describe('POST /api/vehicles', () => {
-  test('ownerId is the verified caller; a body ownerId claiming someone else is ignored', async () => {
+  test('a body ownerId is rejected; the owner is always the verified caller', async () => {
     if (guard()) return;
-    const res = await fetch(`${base}/api/vehicles`, {
+    const forged = await fetch(`${base}/api/vehicles`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...bearer(alice.id) },
       body: JSON.stringify({ ownerId: bob.id, make: 'Toyota', model: 'Vios', color: 'White', fuelEfficiencyKmL: 15 }),
+    });
+    expect(forged.status).toBe(400);
+    expect(await forged.json()).toEqual({ error: 'FORBIDDEN_FIELD', field: 'ownerId' });
+
+    const res = await fetch(`${base}/api/vehicles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...bearer(alice.id) },
+      body: JSON.stringify({ make: 'Toyota', model: 'Vios', color: 'White', fuelEfficiencyKmL: 15 }),
     });
     expect(res.status).toBe(201);
     const { vehicle } = await res.json();

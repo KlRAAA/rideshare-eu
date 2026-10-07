@@ -217,6 +217,13 @@ async function showAll(req, res) {
 async function create(req, res) {
   const passengerId = req.user.id;
   const { tripId, score, routeOverlap, scheduleAlignment, preferenceMatch, message } = req.body;
+  // The PSGA scores the passenger's search page showed. They come from the
+  // client, so they are stored for reference only: nothing gates on them and
+  // the host never sees them. Absent (a shared link) means 0.
+  const scores = { score, routeOverlap, scheduleAlignment };
+  if (Object.values(scores).some((v) => v != null && (v < 0 || v > 1))) {
+    return res.status(400).json({ error: 'INVALID_MATCH_SCORE' });
+  }
 
   const trip = await prisma.trip.findUnique({
     where: { id: tripId },
@@ -237,10 +244,10 @@ async function create(req, res) {
     data: {
       tripId,
       passengerId,
-      score,
-      routeOverlap,
-      scheduleAlignment,
-      preferenceMatch,
+      score: score ?? 0,
+      routeOverlap: routeOverlap ?? 0,
+      scheduleAlignment: scheduleAlignment ?? 0,
+      preferenceMatch: preferenceMatch ?? false,
       // Snapshot the trip's fixed per-seat share, server-side — the client's
       // figure is display-only and never trusted here. Locks the price the
       // passenger saw onto their request.

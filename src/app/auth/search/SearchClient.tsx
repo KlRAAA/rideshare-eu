@@ -275,7 +275,6 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
       const result = await apiFetch<{ status: 'MATCHED' | 'NO_MATCH'; matches: MatchResult[] }>('/api/matches/search', {
         method: 'POST',
         body: JSON.stringify({
-          passengerId,
           origin: { lat: originGeo.lat, lng: originGeo.lng },
           destination: { lat: destinationGeo.lat, lng: destinationGeo.lng },
           departureMinutes,
@@ -316,9 +315,8 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
       const result = await apiFetch<{ status: 'MATCHED' | 'NO_MATCH'; matches: MatchResult[] }>('/api/matches/show-all', {
         method: 'POST',
         body: JSON.stringify({
-          passengerId,
-          origin: searchGeo.origin,
-          destination: searchGeo.destination,
+          origin: { lat: searchGeo.origin.lat, lng: searchGeo.origin.lng },
+          destination: { lat: searchGeo.destination.lat, lng: searchGeo.destination.lng },
           departureMinutes,
           date,
           flexWindowMinutes: searchFlexWindow(flexibleTime),

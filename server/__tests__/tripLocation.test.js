@@ -117,13 +117,19 @@ describe('POST /api/trips/:id/location', () => {
   test.each([
     [{ lat: 999, lng: 121.6 }],
     [{ lat: 13.9, lng: -999 }],
-    [{ lat: 'not-a-number', lng: 121.6 }],
     [{ lat: null, lng: 121.6 }],
   ])('invalid coordinates %p → 400 INVALID_COORDINATES', async (coords) => {
     if (guard()) return;
     const res = await req('POST', `/api/trips/${trip.id}/location`, host.id, coords);
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('INVALID_COORDINATES');
+  });
+
+  test('a non-numeric coordinate is stopped by the body schema → 400 INVALID_FIELD_TYPE', async () => {
+    if (guard()) return;
+    const res = await req('POST', `/api/trips/${trip.id}/location`, host.id, { lat: 'not-a-number', lng: 121.6 });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'INVALID_FIELD_TYPE', field: 'lat' });
   });
 
   test('the host, sharing ON, trip OPEN → 200, persisted with a fresh timestamp', async () => {

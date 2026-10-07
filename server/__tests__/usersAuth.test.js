@@ -90,7 +90,7 @@ describe('GET /api/users/:id — email visibility', () => {
 });
 
 describe('POST /api/users/me/avatar — targets the verified caller', () => {
-  test("a body userId claiming someone else is ignored; the token's user gets the avatar", async () => {
+  test('a body userId is rejected and nobody gets a new avatar', async () => {
     if (guard()) return;
     const form = new FormData();
     form.append('userId', bob.id); // spoof attempt
@@ -101,13 +101,10 @@ describe('POST /api/users/me/avatar — targets the verified caller', () => {
       headers: bearer(alice.id),
       body: form,
     });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'FORBIDDEN_FIELD', field: 'userId' });
 
-    const [freshAlice, freshBob] = await Promise.all([
-      prisma.user.findUnique({ where: { id: alice.id }, select: { avatarUrl: true } }),
-      prisma.user.findUnique({ where: { id: bob.id }, select: { avatarUrl: true } }),
-    ]);
-    expect(freshAlice.avatarUrl).toMatch(/^\/uploads\/avatars\//);
+    const freshBob = await prisma.user.findUnique({ where: { id: bob.id }, select: { avatarUrl: true } });
     expect(freshBob.avatarUrl).toBeNull();
   });
 

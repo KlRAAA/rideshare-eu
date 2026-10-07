@@ -74,7 +74,7 @@ describe('edit a trip, then open its detail page', () => {
       fetch(`${base}/api/trips/${trip.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...bearer(host.id) },
-        body: JSON.stringify({ userId: host.id, ...body }),
+        body: JSON.stringify(body),
       });
 
     try {

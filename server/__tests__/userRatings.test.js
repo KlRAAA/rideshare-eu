@@ -20,7 +20,8 @@ let emptyUser;
 let raterMulti; // "Alpha Bravo Kilo"  -> "Alpha K."
 let raterSolo; // "Cher"               -> "Cher"
 let raterAnon; // "Zoe Yankee"         -> null (anonymous)
-let raterInvalid; // "Ivy Nolan"       -> "Ivy N." (anonymous:'yes' is not true -> stored false)
+let raterInvalid; // "Ivy Nolan"       -> "Ivy N." (anonymous:'yes' is refused; resent without it)
+let invalidAnonymousResponse;
 
 async function makeUser(fullName, universityId) {
   const u = await prisma.user.create({
@@ -79,8 +80,9 @@ async function makeCompletedMatch(hostId, vehicleId, passengerId) {
 const rate = (matchId, body) =>
   fetch(`${base}/api/matches/${matchId}/ratings`, {
     method: 'POST',
+    // raterId picks the token; it is never sent, the server takes it from the token.
     headers: { 'Content-Type': 'application/json', ...bearer(body && body.raterId) },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, raterId: undefined }),
   });
 
 const getRatings = (userId) => fetch(`${base}/api/users/${userId}/ratings`, { headers: bearer() });
@@ -120,7 +122,9 @@ beforeAll(async () => {
   await rate(mMulti.id, { raterId: raterMulti.id, rateeId: ratee.id, score: 5, comment: 'Great driver' }); // no `anonymous`
   await rate(mSolo.id, { raterId: raterSolo.id, rateeId: ratee.id, score: 4 }); // no `anonymous`
   await rate(mAnon.id, { raterId: raterAnon.id, rateeId: ratee.id, score: 3, comment: 'ok', anonymous: true });
-  await rate(mInvalid.id, { raterId: raterInvalid.id, rateeId: ratee.id, score: 2, anonymous: 'yes' }); // invalid -> false
+  const refused = await rate(mInvalid.id, { raterId: raterInvalid.id, rateeId: ratee.id, score: 2, anonymous: 'yes' });
+  invalidAnonymousResponse = { status: refused.status, body: await refused.json() };
+  await rate(mInvalid.id, { raterId: raterInvalid.id, rateeId: ratee.id, score: 2 });
 });
 
 afterAll(async () => {
@@ -150,8 +154,9 @@ describe('anonymous field on submitRating', () => {
     expect(row.anonymous).toBe(false);
   });
 
-  test('stays false for a non-boolean value', async () => {
+  test('a non-boolean value is refused by the body schema; resent without it, the rating is named', async () => {
     if (guard()) return;
+    expect(invalidAnonymousResponse).toEqual({ status: 400, body: { error: 'INVALID_FIELD_TYPE', field: 'anonymous' } });
     const row = await prisma.rating.findFirst({ where: { raterId: raterInvalid.id, rateeId: ratee.id } });
     expect(row.anonymous).toBe(false);
   });

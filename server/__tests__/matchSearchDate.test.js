@@ -28,8 +28,7 @@ const post = (path, token, body) =>
     body: JSON.stringify(body),
   });
 
-const searchBody = (passengerId, overrides = {}) => ({
-  passengerId,
+const searchBody = (_passengerId, overrides = {}) => ({
   origin: { lat: 14.5, lng: 121.0 },
   destination: SEARCH_DEST,
   departureMinutes: 420,

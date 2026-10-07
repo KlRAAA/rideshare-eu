@@ -36,7 +36,7 @@ export default function RatingModal({ matchId, raterId, rateeId, rateeName, occu
     try {
       await apiFetch(`/api/matches/${matchId}/ratings`, {
         method: 'POST',
-        body: JSON.stringify({ raterId, rateeId, score, comment: comment || undefined, anonymous, occurrenceDate }),
+        body: JSON.stringify({ rateeId, score, comment: comment || undefined, anonymous, occurrenceDate }),
       });
       onSubmitted();
     } catch {

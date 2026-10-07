@@ -89,12 +89,17 @@ const tripBody = (over = {}) => ({
 });
 
 describe('POST /api/trips', () => {
-  test('hostId is the verified caller; a body hostId claiming someone else is ignored', async () => {
+  test('a body hostId is rejected and nothing is created; the host is always the verified caller', async () => {
     if (guard()) return;
-    const res = await json('POST', '/api/trips', host.id, tripBody({ hostId: other.id }));
+    const before = await prisma.trip.count({ where: { hostId: { in: [host.id, other.id] } } });
+    const forged = await json('POST', '/api/trips', host.id, tripBody({ hostId: other.id }));
+    expect(forged.status).toBe(400);
+    expect(await forged.json()).toEqual({ error: 'FORBIDDEN_FIELD', field: 'hostId' });
+    expect(await prisma.trip.count({ where: { hostId: { in: [host.id, other.id] } } })).toBe(before);
+
+    const res = await json('POST', '/api/trips', host.id, tripBody());
     expect(res.status).toBe(201);
-    const { trip } = await res.json();
-    expect(trip.hostId).toBe(host.id);
+    expect((await res.json()).trip.hostId).toBe(host.id);
   });
 
   test('no token → 401', async () => {
@@ -106,7 +111,6 @@ describe('POST /api/trips', () => {
   test.each([
     [{ originAddress: '' }, 'originAddress'],
     [{ destinationAddress: 'x'.repeat(201) }, 'destinationAddress'],
-    [{ originLat: 'abc' }, 'originLat'],
     [{ originLng: 181 }, 'originLng'],
     [{ destinationLat: -91 }, 'destinationLat'],
     [{ departureTime: 'not a date' }, 'departureTime'],
@@ -122,7 +126,6 @@ describe('POST /api/trips', () => {
     [{ genderPreference: 'MALE_ONLY' }, 'genderPreference'],
     [{ genderPreference: 'SAME_GENDER' }, 'genderPreference'], // S23: retired value
     [{ flexWindowMinutes: 500 }, 'flexWindowMinutes'],
-    [{ flexibleDeparture: 'yes' }, 'flexibleDeparture'],
     [{ driverNotes: 'x'.repeat(501) }, 'driverNotes'],
     [{ meetingPointLat: 13.95 }, 'meetingPointLng'],
   ])('%p → 400 INVALID_TRIP on %s, nothing created', async (over, field) => {
@@ -163,25 +166,32 @@ describe('POST /api/trips', () => {
     expect((await res.json()).error).toBe('VEHICLE_REQUIRED');
   });
 
-  test('lifecycle fields in the body are ignored — a new trip starts OPEN with 0 filled seats', async () => {
+  // The body schema stops a wrong-typed value before the controller sees it.
+  test.each([
+    [{ originLat: 'abc' }, 'originLat'],
+    [{ flexibleDeparture: 'yes' }, 'flexibleDeparture'],
+  ])('%p → 400 INVALID_FIELD_TYPE on %s, nothing created', async (over, field) => {
     if (guard()) return;
-    const res = await json(
-      'POST',
-      '/api/trips',
-      host.id,
-      tripBody({ status: 'COMPLETED', filledSeats: 99, cancelReason: 'x', fuelSharePerSeat: 9999 })
-    );
-    expect(res.status).toBe(201);
-    const { trip } = await res.json();
-    expect(trip.status).toBe('OPEN');
-    expect(trip.filledSeats).toBe(0);
-    expect(trip.cancelReason).toBeNull();
+    const before = await prisma.trip.count({ where: { hostId: host.id } });
+    const res = await json('POST', '/api/trips', host.id, tripBody(over));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'INVALID_FIELD_TYPE', field });
+    expect(await prisma.trip.count({ where: { hostId: host.id } })).toBe(before);
+  });
 
-    const fresh = await prisma.trip.findUnique({ where: { id: trip.id } });
-    expect(fresh.status).toBe('OPEN');
-    expect(fresh.filledSeats).toBe(0);
-    // fuelSharePerSeat is computed server-side, not taken from the body
-    expect(fresh.fuelSharePerSeat).not.toBe(9999);
+  // Lifecycle and pricing fields are the server's to set: the body is refused.
+  test.each([
+    [{ status: 'COMPLETED' }, 'UNKNOWN_FIELD', 'status'],
+    [{ cancelReason: 'x' }, 'UNKNOWN_FIELD', 'cancelReason'],
+    [{ filledSeats: 99 }, 'FORBIDDEN_FIELD', 'filledSeats'],
+    [{ fuelSharePerSeat: 9999 }, 'FORBIDDEN_FIELD', 'fuelSharePerSeat'],
+  ])('%p → 400 %s, nothing created', async (over, error, field) => {
+    if (guard()) return;
+    const before = await prisma.trip.count({ where: { hostId: host.id } });
+    const res = await json('POST', '/api/trips', host.id, tripBody(over));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error, field });
+    expect(await prisma.trip.count({ where: { hostId: host.id } })).toBe(before);
   });
 });
 
@@ -257,7 +267,7 @@ describe('PATCH /api/trips/:id (edit) — ownership', () => {
     const created = await (await json('POST', '/api/trips', host.id, tripBody())).json();
     const id = created.trip.id;
 
-    const asOther = await json('PATCH', `/api/trips/${id}`, other.id, { userId: host.id, driverNotes: 'hijack' });
+    const asOther = await json('PATCH', `/api/trips/${id}`, other.id, { driverNotes: 'hijack' });
     expect(asOther.status).toBe(403);
 
     const asHost = await json('PATCH', `/api/trips/${id}`, host.id, { driverNotes: 'ok' });

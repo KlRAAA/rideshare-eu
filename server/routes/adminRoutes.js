@@ -10,6 +10,7 @@ const announcements = require('../controllers/announcementController');
 const { requireSuperAdmin } = require('../middleware/requireSuperAdmin');
 const { authAttemptLimiter } = require('../middleware/rateLimit');
 const dataRequests = require('../controllers/admin/dataRequestController');
+const { strictBody } = require('../middleware/strictBody');
 
 const router = express.Router();
 router.use(requireAdmin);
@@ -18,37 +19,37 @@ router.get('/overview', overview);
 router.get('/nav-counts', navCounts);
 router.get('/actions', listActions);
 router.get('/watchlist', watchlist);
-router.put('/fuel-price', setOfficial);
+router.put('/fuel-price', strictBody('admin.fuelPrice'), setOfficial);
 router.get('/fuel-price/history', history);
 
 router.get('/users', users.searchUsers);
 router.get('/users/:id', users.getUserDetail);
-router.post('/users/:id/warnings', users.warn);
-router.post('/users/:id/ban', users.ban);
-router.post('/users/:id/unban', users.unban);
+router.post('/users/:id/warnings', strictBody('admin.warn'), users.warn);
+router.post('/users/:id/ban', strictBody('admin.ban'), users.ban);
+router.post('/users/:id/unban', strictBody('admin.unban'), users.unban);
 // Only the superadmin appoints or removes admins (superadmin spec D6).
-router.post('/users/:id/promote', requireSuperAdmin, users.promote);
-router.post('/users/:id/demote', requireSuperAdmin, users.demote);
+router.post('/users/:id/promote', requireSuperAdmin, strictBody('admin.promote'), users.promote);
+router.post('/users/:id/demote', requireSuperAdmin, strictBody('admin.demote'), users.demote);
 
 router.get('/reports', reports.listReports);
-router.patch('/reports/:id', reports.reviewReport);
+router.patch('/reports/:id', strictBody('admin.reviewReport'), reports.reviewReport);
 
-router.patch('/trips/:id/cancel', cancelTripAsAdmin);
+router.patch('/trips/:id/cancel', strictBody('admin.cancelTrip'), cancelTripAsAdmin);
 
 router.get('/support', support.listTickets);
 router.get('/support/:id', support.getTicket);
-router.post('/support/:id/messages', support.replyToTicket);
-router.patch('/support/:id/close', support.closeTicket);
+router.post('/support/:id/messages', strictBody('admin.supportReply'), support.replyToTicket);
+router.patch('/support/:id/close', strictBody('admin.supportClose'), support.closeTicket);
 
 // Superadmin only (the school's DPO). Releasing re-checks the password and is
 // rate-limited like sign-in.
 router.get('/data-requests', requireSuperAdmin, dataRequests.list);
-router.post('/data-requests', requireSuperAdmin, authAttemptLimiter(), dataRequests.create);
+router.post('/data-requests', requireSuperAdmin, authAttemptLimiter(), strictBody('admin.dataRequestCreate'), dataRequests.create);
 router.get('/data-requests/:id', requireSuperAdmin, dataRequests.open);
-router.patch('/data-requests/:id/paperwork', requireSuperAdmin, dataRequests.markPaperwork);
+router.patch('/data-requests/:id/paperwork', requireSuperAdmin, strictBody('admin.dataRequestPaperwork'), dataRequests.markPaperwork);
 
 router.get('/announcements', announcements.listAll);
-router.post('/announcements', announcements.post);
-router.patch('/announcements/:id/end', announcements.end);
+router.post('/announcements', strictBody('admin.announcementPost'), announcements.post);
+router.patch('/announcements/:id/end', strictBody('admin.announcementEnd'), announcements.end);
 
 module.exports = router;

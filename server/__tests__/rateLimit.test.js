@@ -1,7 +1,14 @@
 require('dotenv').config({ quiet: true });
 const app = require('../app');
 const prisma = require('../config/db');
-const { AUTH_ATTEMPT_LIMIT, EMAIL_SEND_LIMIT } = require('../middleware/rateLimit');
+const {
+  AUTH_ATTEMPT_LIMIT,
+  EMAIL_SEND_LIMIT,
+  API_LIMIT_PER_MINUTE,
+  GEOCODE_LIMIT_PER_MINUTE,
+  REPORT_LIMIT_PER_HOUR,
+} = require('../middleware/rateLimit');
+const { bearer } = require('../test-helpers/auth');
 
 // The limiter is skipped under Jest by default (authFlows.test.js makes ~50
 // auth calls from one IP). This file opts in with RATE_LIMIT_IN_TESTS, and
@@ -64,7 +71,7 @@ describe('auth rate limiting', () => {
     expect(blocked.status).toBe(429);
     expect(await blocked.json()).toEqual({
       error: 'TOO_MANY_REQUESTS',
-      message: 'Too many attempts. Try again in a few minutes.',
+      message: 'Too many requests. Try again in a few minutes.',
     });
     // draft-8 standard headers: a combined RateLimit header plus the policy.
     expect(blocked.headers.get('ratelimit')).toBeTruthy();
@@ -102,4 +109,50 @@ describe('auth rate limiting', () => {
       process.env.RATE_LIMIT_IN_TESTS = '1';
     }
   });
+});
+
+// Signed-in routes count per account. The ids below never resolve to a user,
+// which authenticate lets through (see authenticate.js), so no rows are needed.
+describe('per-account rate limiting on signed-in routes', () => {
+  const as = (userId, method, path, body) =>
+    fetch(`${base}${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...bearer(userId) },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+  const stamp = Date.now();
+
+  test(`address lookup allows ${GEOCODE_LIMIT_PER_MINUTE} a minute per account, then 429; another account is unaffected`, async () => {
+    if (guard()) return;
+    const user = `rl-geo-${stamp}`;
+    // No query, so the route answers 400 without calling Nominatim; it still counts.
+    for (let i = 0; i < GEOCODE_LIMIT_PER_MINUTE; i++) {
+      expect((await as(user, 'GET', '/api/geocode')).status).toBe(400);
+    }
+    const blocked = await as(user, 'GET', '/api/geocode');
+    expect(blocked.status).toBe(429);
+    expect(await blocked.json()).toEqual({ error: 'TOO_MANY_REQUESTS', message: 'Too many requests. Try again in a few minutes.' });
+    expect(blocked.headers.get('ratelimit-policy')).toBeTruthy();
+    expect((await as(`rl-geo-other-${stamp}`, 'GET', '/api/geocode')).status).toBe(400);
+  });
+
+  test(`reports allow ${REPORT_LIMIT_PER_HOUR} an hour per account, then 429`, async () => {
+    if (guard()) return;
+    const user = `rl-report-${stamp}`;
+    for (let i = 0; i < REPORT_LIMIT_PER_HOUR; i++) {
+      expect((await as(user, 'POST', '/api/reports', { category: 'NOT_A_CATEGORY' })).status).toBe(400);
+    }
+    expect((await as(user, 'POST', '/api/reports', { category: 'NOT_A_CATEGORY' })).status).toBe(429);
+  });
+
+  test(`every signed-in route together allows ${API_LIMIT_PER_MINUTE} a minute per account, then 429`, async () => {
+    if (guard()) return;
+    const user = `rl-api-${stamp}`;
+    for (let i = 0; i < API_LIMIT_PER_MINUTE; i++) {
+      const res = await as(user, 'GET', '/api/fuel-price');
+      expect(res.status).toBe(200);
+      await res.arrayBuffer();
+    }
+    expect((await as(user, 'GET', '/api/fuel-price')).status).toBe(429);
+  }, 60000);
 });

@@ -129,7 +129,6 @@ describe('POST /api/matches/show-all — Find a Ride empty-state fallback', () =
     const tFamiliarOnly = await makeTrip(maleHost.id, maleVehicle.id, { familiarRidersOnly: true });
 
     const body = {
-      passengerId: passenger.id,
       origin: { lat: 14.5, lng: 121.0 }, // far from every seeded trip's corridor
       destination: SEARCH_DEST,
       departureMinutes: 420,
@@ -179,12 +178,17 @@ describe('departureMinutes validation (both search endpoints)', () => {
     ['/api/matches/search', { departureMinutes: null }],
     ['/api/matches/search', {}], // missing
     ['/api/matches/search', { departureMinutes: 1440 }], // out of range
-    ['/api/matches/search', { departureMinutes: '60' }], // string
     ['/api/matches/show-all', { departureMinutes: null }],
     ['/api/matches/show-all', { departureMinutes: -1 }],
   ])('%s → 400 INVALID_DEPARTURE_MINUTES for %o', async (path, body) => {
     const res = await post(path, body);
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('INVALID_DEPARTURE_MINUTES');
+  });
+
+  test('a string departureMinutes is stopped by the body schema → 400 INVALID_FIELD_TYPE', async () => {
+    const res = await post('/api/matches/search', { departureMinutes: '60' });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'INVALID_FIELD_TYPE', field: 'departureMinutes' });
   });
 });

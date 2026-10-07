@@ -461,7 +461,7 @@ describe('Full registration flow: start → verify-otp → complete', () => {
       termsAccepted: 'true',
     });
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe('TERMS_NOT_ACCEPTED');
+    expect(await res.json()).toEqual({ error: 'INVALID_FIELD_TYPE', field: 'termsAccepted' });
   });
 });
 

@@ -6,13 +6,14 @@ const {
   replyToMyTicket,
   closeMyTicket,
 } = require('../controllers/supportController');
+const { strictBody } = require('../middleware/strictBody');
 
 const router = express.Router();
 
-router.post('/', createTicket);
+router.post('/', strictBody('support.create'), createTicket);
 router.get('/', listMyTickets);
 router.get('/:id', getMyTicket);
-router.post('/:id/messages', replyToMyTicket);
-router.patch('/:id/close', closeMyTicket);
+router.post('/:id/messages', strictBody('support.reply'), replyToMyTicket);
+router.patch('/:id/close', strictBody('support.close'), closeMyTicket);
 
 module.exports = router;

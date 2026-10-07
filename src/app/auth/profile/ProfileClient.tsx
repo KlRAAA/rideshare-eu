@@ -93,7 +93,13 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
   async function handleSave() {
     setSaving(true);
     try {
-      await apiFetch(`/api/preferences/${user.id}`, { method: 'PATCH', body: JSON.stringify(preference) });
+      await apiFetch(`/api/preferences/${user.id}`, { method: 'PATCH', body: JSON.stringify({
+          genderPreference: preference.genderPreference,
+          flexWindowMinutes: preference.flexWindowMinutes,
+          familiarRidersOnly: preference.familiarRidersOnly,
+          liveLocationSharing: preference.liveLocationSharing,
+        }),
+      });
       setEditing(false);
     } finally {
       setSaving(false);

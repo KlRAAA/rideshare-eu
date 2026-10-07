@@ -75,7 +75,7 @@ describe('official fuel prices, one per fuel type', () => {
     expect(write.status).toBe(403);
   });
 
-  test.each([[undefined], ['KEROSENE'], ['diesel'], [3]])('rejects fuel type %p with 400 INVALID_FUEL_TYPE', async (fuelType) => {
+  test.each([[undefined], ['KEROSENE'], ['diesel']])('rejects fuel type %p with 400 INVALID_FUEL_TYPE', async (fuelType) => {
     if (guard()) return;
     const admin = await makeAdminUser(bag);
     const res = await call('PUT', '/api/admin/fuel-price', admin.id, { fuelType, pricePerLiter: 60 });
@@ -83,13 +83,25 @@ describe('official fuel prices, one per fuel type', () => {
     expect((await res.json()).error).toBe('INVALID_FUEL_TYPE');
   });
 
-  test.each([[19.99], [150.01], ['abc'], [undefined]])('rejects price %p with 400 INVALID_FUEL_PRICE', async (price) => {
+  test.each([[19.99], [150.01], [undefined]])('rejects price %p with 400 INVALID_FUEL_PRICE', async (price) => {
     if (guard()) return;
     const admin = await makeAdminUser(bag);
     const res = await call('PUT', '/api/admin/fuel-price', admin.id, { fuelType: 'REGULAR', pricePerLiter: price });
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('INVALID_FUEL_PRICE');
   });
+
+  // A value of the wrong type never reaches the controller: the body schema stops it.
+  test.each([[{ fuelType: 3, pricePerLiter: 60 }, 'fuelType'], [{ fuelType: 'REGULAR', pricePerLiter: 'abc' }, 'pricePerLiter']])(
+    'rejects %p with 400 INVALID_FIELD_TYPE',
+    async (body, field) => {
+      if (guard()) return;
+      const admin = await makeAdminUser(bag);
+      const res = await call('PUT', '/api/admin/fuel-price', admin.id, body);
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'INVALID_FIELD_TYPE', field });
+    }
+  );
 
   test('setting one type changes only that type, and shows in history and the audit log', async () => {
     if (guard()) return;

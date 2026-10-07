@@ -276,11 +276,18 @@ describe('POST /api/matches (join request)', () => {
     expect(res.status).toBe(401);
   });
 
-  test("passengerId is the verified caller; a body passengerId claiming someone else is ignored", async () => {
+  test('a body passengerId is rejected; the passenger is always the verified caller', async () => {
     if (guard()) return;
-    const res = await req('POST', '/api/matches', {
+    const forged = await req('POST', '/api/matches', {
       token: outsider.id,
       body: { tripId: joinTrip.id, passengerId: passenger.id, score: 0.8, routeOverlap: 0.8, scheduleAlignment: 0.8, preferenceMatch: true },
+    });
+    expect(forged.status).toBe(400);
+    expect(await forged.json()).toEqual({ error: 'FORBIDDEN_FIELD', field: 'passengerId' });
+
+    const res = await req('POST', '/api/matches', {
+      token: outsider.id,
+      body: { tripId: joinTrip.id, score: 0.8, routeOverlap: 0.8, scheduleAlignment: 0.8, preferenceMatch: true },
     });
     expect(res.status).toBe(201);
     const { match } = await res.json();

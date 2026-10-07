@@ -25,7 +25,7 @@ export default function CancelTripModal({ tripId, userId, role, onClose, onCance
     try {
       await apiFetch(`/api/trips/${tripId}/cancel`, {
         method: 'PATCH',
-        body: JSON.stringify({ userId, reason: isHost && reason ? reason : undefined }),
+        body: JSON.stringify({ reason: isHost && reason ? reason : undefined }),
       });
       onCancelled();
     } catch (err) {

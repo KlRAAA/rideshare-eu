@@ -366,7 +366,6 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
         await apiFetch(`/api/trips/${editTrip.id}`, {
           method: 'PATCH',
           body: JSON.stringify({
-            userId: hostId,
             confirmStructural,
             ...(originChanged
               ? { originAddress: origin, originLat: originCoords.lat, originLng: originCoords.lng }
@@ -421,7 +420,6 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
       await apiFetch('/api/trips', {
         method: 'POST',
         body: JSON.stringify({
-          hostId,
           vehicleId: tripVehicle.id,
           originAddress: origin,
           originLat: originCoords.lat,

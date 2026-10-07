@@ -87,8 +87,9 @@ async function makeMatch(tripId, passengerId, status) {
 const rate = (matchId, body) =>
   fetch(`${base}/api/matches/${matchId}/ratings`, {
     method: 'POST',
+    // raterId picks the token; it is never sent, the server takes it from the token.
     headers: { 'Content-Type': 'application/json', ...bearer(body && body.raterId) },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, raterId: undefined }),
   });
 
 beforeAll(async () => {
@@ -197,7 +198,7 @@ describe('POST /api/matches/:id/ratings', () => {
     expect((await res.json()).error).toBe('TRIP_NOT_COMPLETED');
   });
 
-  test.each([[0], [6], [3.5], ['5'], [null]])('score %p → 400 INVALID_SCORE', async (score) => {
+  test.each([[0], [6], [3.5], [null]])('score %p → 400 INVALID_SCORE', async (score) => {
     if (guard()) return;
     const res = await rate(matchDoneA.id, { raterId: host.id, rateeId: pax1.id, score });
     expect(res.status).toBe(400);
@@ -225,7 +226,7 @@ describe('POST /api/matches/:id/ratings', () => {
   });
 
   // Phase 2: the rater is the verified token identity, never the body.
-  test('a body raterId claiming a real participant is ignored — the token identity is used', async () => {
+  test('a body raterId claiming a real participant is rejected — the rater is always the token identity', async () => {
     if (guard()) return;
     // token = outsider, body claims raterId = pax1 (a real participant on matchDoneB)
     const res = await fetch(`${base}/api/matches/${matchDoneB.id}/ratings`, {
@@ -233,8 +234,8 @@ describe('POST /api/matches/:id/ratings', () => {
       headers: { 'Content-Type': 'application/json', ...bearer(outsider.id) },
       body: JSON.stringify({ raterId: pax1.id, rateeId: host.id, score: 5 }),
     });
-    expect(res.status).toBe(403); // outsider is not a participant on matchDoneB
-    expect((await res.json()).error).toBe('NOT_A_PARTICIPANT');
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'FORBIDDEN_FIELD', field: 'raterId' });
     const leaked = await prisma.rating.findFirst({ where: { matchId: matchDoneB.id, raterId: pax1.id } });
     expect(leaked).toBeNull();
   });

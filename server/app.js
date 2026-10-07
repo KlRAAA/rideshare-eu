@@ -19,6 +19,7 @@ const { getOfficial: getOfficialFuelPrice } = require('./controllers/fuelPriceCo
 const { listActive: activeAnnouncements } = require('./controllers/announcementController');
 const { authenticate } = require('./middleware/authenticate');
 const { logAccessDenied } = require('./middleware/logAccessDenied');
+const { apiLimiter, geocodeLimiter } = require('./middleware/rateLimit');
 
 const app = express();
 
@@ -60,8 +61,9 @@ app.use('/api/auth', authRoutes);
 // identity field until phase 2 migrates them.
 app.use('/api', authenticate);
 app.use('/api', logAccessDenied);
+app.use('/api', apiLimiter());
 
-app.get('/api/geocode', geocode);
+app.get('/api/geocode', geocodeLimiter(), geocode);
 app.get('/api/fuel-price', getOfficialFuelPrice);
 app.get('/api/announcements/active', activeAnnouncements);
 app.use('/api/trips', tripRoutes);

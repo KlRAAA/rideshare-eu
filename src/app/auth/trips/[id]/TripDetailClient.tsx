@@ -144,7 +144,7 @@ export default function TripDetailClient({
     let cancelled = false;
     checkCampusProximity().then((isNearCampus) => {
       if (!cancelled && isNearCampus) {
-        apiFetch(`/api/trips/${trip.id}/complete`, { method: 'POST', body: JSON.stringify({ userId: currentUserId }) }).then(
+        apiFetch(`/api/trips/${trip.id}/complete`, { method: 'POST' }).then(
           () => router.refresh()
         );
       }
@@ -224,7 +224,7 @@ export default function TripDetailClient({
   async function markCompleted() {
     setCompleting(true);
     try {
-      await apiFetch(`/api/trips/${trip.id}/complete`, { method: 'POST', body: JSON.stringify({ userId: currentUserId }) });
+      await apiFetch(`/api/trips/${trip.id}/complete`, { method: 'POST' });
       router.refresh();
     } finally {
       setCompleting(false);

@@ -10,13 +10,14 @@ const {
   login,
 } = require('../controllers/authController');
 const { emailSendLimiter, authAttemptLimiter } = require('../middleware/rateLimit');
+const { strictBody } = require('../middleware/strictBody');
 
-router.post('/register/start', emailSendLimiter(), startRegistration);
-router.post('/register/verify-otp', authAttemptLimiter(), verifyRegistrationOtp);
-router.post('/register/complete', authAttemptLimiter(), completeRegistration);
-router.post('/forgot-password', emailSendLimiter(), requestPasswordReset);
-router.post('/verify-reset-otp', authAttemptLimiter(), verifyPasswordResetOtp);
-router.post('/reset-password', authAttemptLimiter(), resetPassword);
-router.post('/verify', authAttemptLimiter(), login); // thesis's traceability matrix names this endpoint "verify"; behavior is login
+router.post('/register/start', emailSendLimiter(), strictBody('auth.registerStart'), startRegistration);
+router.post('/register/verify-otp', authAttemptLimiter(), strictBody('auth.registerVerifyOtp'), verifyRegistrationOtp);
+router.post('/register/complete', authAttemptLimiter(), strictBody('auth.registerComplete'), completeRegistration);
+router.post('/forgot-password', emailSendLimiter(), strictBody('auth.forgotPassword'), requestPasswordReset);
+router.post('/verify-reset-otp', authAttemptLimiter(), strictBody('auth.verifyResetOtp'), verifyPasswordResetOtp);
+router.post('/reset-password', authAttemptLimiter(), strictBody('auth.resetPassword'), resetPassword);
+router.post('/verify', authAttemptLimiter(), strictBody('auth.login'), login); // thesis's traceability matrix names this endpoint "verify"; behavior is login
 
 module.exports = router;

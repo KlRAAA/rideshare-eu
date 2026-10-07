@@ -62,7 +62,6 @@ export default function RequestToJoinModal({
         method: 'POST',
         body: JSON.stringify({
           tripId,
-          passengerId,
           ...matchPayload,
           message: message.trim() || undefined,
         }),
