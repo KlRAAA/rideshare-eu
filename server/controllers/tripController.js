@@ -1,5 +1,6 @@
 const prisma = require('../config/db');
 const { geocodeAddress, reverseGeocode } = require('../services/geocodingService');
+const { suggestAddresses } = require('../services/addressSuggestService');
 const { validateClientRoute } = require('../services/routeSanity');
 const { computeFuelSharePerSeat } = require('../services/fuelShareService');
 const { classifyTripChanges, describeCategories, fuelShareWouldChange } = require('../services/tripUpdateService');
@@ -425,6 +426,14 @@ async function geocode(req, res) {
   res.json(result);
 }
 
+// Up to 5 Philippine places for the address dropdown. Always 200: no match or a
+// Photon outage is an empty list, and the field still accepts typed text.
+const MAX_SUGGEST_QUERY = 200;
+async function suggestAddress(req, res) {
+  const q = typeof req.query.q === 'string' ? req.query.q.slice(0, MAX_SUGGEST_QUERY) : '';
+  res.json({ suggestions: await suggestAddresses(q) });
+}
+
 // Role-aware cancellation: role is resolved from the real DB relationship
 // (hostId match, or an active Match row), never from a client-asserted role
 // field. Host cancels the whole trip; a passenger only withdraws their own
@@ -652,4 +661,4 @@ async function updateTrip(req, res) {
   res.json({ trip: decryptTripFields(updated), notified: notifyMatches.length });
 }
 
-module.exports = { createTrip, listMine, getById, geocode, cancelTrip, markCompleted, updateTrip, updateLocation, getLocation };
+module.exports = { createTrip, listMine, getById, geocode, suggestAddress, cancelTrip, markCompleted, updateTrip, updateLocation, getLocation };

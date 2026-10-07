@@ -14,12 +14,12 @@ const adminRoutes = require('./routes/adminRoutes');
 const warningRoutes = require('./routes/warningRoutes');
 const savedVehicleRoutes = require('./routes/savedVehicleRoutes');
 const supportRoutes = require('./routes/supportRoutes');
-const { geocode } = require('./controllers/tripController');
+const { geocode, suggestAddress } = require('./controllers/tripController');
 const { getOfficial: getOfficialFuelPrice } = require('./controllers/fuelPriceController');
 const { listActive: activeAnnouncements } = require('./controllers/announcementController');
 const { authenticate } = require('./middleware/authenticate');
 const { logAccessDenied } = require('./middleware/logAccessDenied');
-const { apiLimiter, geocodeLimiter } = require('./middleware/rateLimit');
+const { apiLimiter, geocodeLimiter, suggestLimiter } = require('./middleware/rateLimit');
 
 const app = express();
 
@@ -63,6 +63,7 @@ app.use('/api', authenticate);
 app.use('/api', logAccessDenied);
 app.use('/api', apiLimiter());
 
+app.get('/api/geocode/suggest', suggestLimiter(), suggestAddress);
 app.get('/api/geocode', geocodeLimiter(), geocode);
 app.get('/api/fuel-price', getOfficialFuelPrice);
 app.get('/api/announcements/active', activeAnnouncements);

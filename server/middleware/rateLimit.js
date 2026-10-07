@@ -20,6 +20,9 @@ const API_LIMIT_PER_MINUTE = 300;
 // Address lookups all share one Nominatim queue spaced 1.1 s apart, so one
 // account flooding it would slow everyone else's lookups.
 const GEOCODE_LIMIT_PER_MINUTE = 30;
+// The address dropdown asks once per typing pause (the field waits 300 ms), so
+// a long address is a handful of requests; Photon asks callers to be fair.
+const SUGGEST_LIMIT_PER_MINUTE = 60;
 // Each report can trigger the automatic ban ladder and a ban email.
 const REPORT_LIMIT_PER_HOUR = 10;
 
@@ -54,6 +57,7 @@ const emailSendLimiter = () => createLimiter({ limit: EMAIL_SEND_LIMIT });
 const authAttemptLimiter = () => createLimiter({ limit: AUTH_ATTEMPT_LIMIT });
 const apiLimiter = () => createLimiter({ limit: API_LIMIT_PER_MINUTE, windowMs: ONE_MINUTE_MS, perUser: true });
 const geocodeLimiter = () => createLimiter({ limit: GEOCODE_LIMIT_PER_MINUTE, windowMs: ONE_MINUTE_MS, perUser: true });
+const suggestLimiter = () => createLimiter({ limit: SUGGEST_LIMIT_PER_MINUTE, windowMs: ONE_MINUTE_MS, perUser: true });
 const reportLimiter = () => createLimiter({ limit: REPORT_LIMIT_PER_HOUR, windowMs: ONE_HOUR_MS, perUser: true });
 
 module.exports = {
@@ -62,9 +66,11 @@ module.exports = {
   apiLimiter,
   geocodeLimiter,
   reportLimiter,
+  suggestLimiter,
   EMAIL_SEND_LIMIT,
   AUTH_ATTEMPT_LIMIT,
   API_LIMIT_PER_MINUTE,
   GEOCODE_LIMIT_PER_MINUTE,
   REPORT_LIMIT_PER_HOUR,
+  SUGGEST_LIMIT_PER_MINUTE,
 };

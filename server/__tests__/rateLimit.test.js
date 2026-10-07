@@ -7,6 +7,7 @@ const {
   API_LIMIT_PER_MINUTE,
   GEOCODE_LIMIT_PER_MINUTE,
   REPORT_LIMIT_PER_HOUR,
+  SUGGEST_LIMIT_PER_MINUTE,
 } = require('../middleware/rateLimit');
 const { bearer } = require('../test-helpers/auth');
 
@@ -134,6 +135,16 @@ describe('per-account rate limiting on signed-in routes', () => {
     expect(await blocked.json()).toEqual({ error: 'TOO_MANY_REQUESTS', message: 'Too many requests. Try again in a few minutes.' });
     expect(blocked.headers.get('ratelimit-policy')).toBeTruthy();
     expect((await as(`rl-geo-other-${stamp}`, 'GET', '/api/geocode')).status).toBe(400);
+  });
+
+  test(`address suggestions allow ${SUGGEST_LIMIT_PER_MINUTE} a minute per account, then 429`, async () => {
+    if (guard()) return;
+    const user = `rl-suggest-${stamp}`;
+    // Two characters: answered empty without calling Photon, but still counted.
+    for (let i = 0; i < SUGGEST_LIMIT_PER_MINUTE; i++) {
+      expect((await as(user, 'GET', '/api/geocode/suggest?q=lu')).status).toBe(200);
+    }
+    expect((await as(user, 'GET', '/api/geocode/suggest?q=lu')).status).toBe(429);
   });
 
   test(`reports allow ${REPORT_LIMIT_PER_HOUR} an hour per account, then 429`, async () => {
