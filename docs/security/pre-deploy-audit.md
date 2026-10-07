@@ -175,12 +175,14 @@ log entry. Sign-in routes count per IP; signed-in routes count per account.
 | `POST /api/admin/data-requests` | 10 / 15 min / IP | password re-check |
 | **New:** every signed-in route together | 300 / min / account | scraping and runaway loops |
 | **New:** `GET /api/geocode` | 30 / min / account | the one external API the server calls (Nominatim, shared queue) |
+| **New:** `GET /api/geocode/suggest` | 60 / min / account | address dropdown (Photon, which asks callers to be fair) |
 | **New:** `POST /api/reports` | 10 / hour / account | each report can trigger a ban and its email |
 | `POST /api/support` | 5 open, 10 a day / account (429 `TOO_MANY_TICKETS`) | existing business limit |
 
 No server route calls a paid API: maps and routes are drawn in the browser with
 the public Mapbox token (restrict it to the site's URL in the Mapbox dashboard),
-and geocoding uses the free Nominatim service.
+address suggestions use the free Photon service and lookups the free Nominatim
+service.
 
 Behind Railway's proxy, set `TRUST_PROXY=1` so limits count real client IPs.
 The counters are in memory: correct for one API instance; running several would

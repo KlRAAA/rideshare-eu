@@ -321,3 +321,22 @@ Report: `docs/security/pre-deploy-audit.md`.
   proxy was removed.
 - `crossUserAccess.test.js` is the per-route proof that another user gets
   403/404; `SHOW_ACCESS_TABLE=1` prints each attempt's status.
+
+## Address suggestions (Oct 2026)
+
+- Address fields (Post a Trip origin/destination/meeting point, Find a Ride
+  origin/destination) use `src/components/AddressInput.tsx`, an accessible
+  combobox: arrow keys, Enter, Escape, `aria-activedescendant`, and a polite
+  live region announcing the count.
+- Suggestions come from `GET /api/geocode/suggest?q=` → `addressSuggestService`
+  → komoot's public Photon (OpenStreetMap; allows search-as-you-type, "be
+  fair"): Philippines only, ranked toward Lucena, max 5, cached 1 h, 60/min per
+  account. An outage returns `[]`; typing and the map pin still work.
+- Picking a suggestion sets the exact pin. Text typed without picking is looked
+  up once on blur (`onCommit` → `useGeocodedAddress` → Nominatim), never per
+  keystroke: Nominatim's policy forbids autocomplete. `geocodingService` limits
+  Nominatim to the Philippines (`countrycodes=ph`, Lucena viewbox) and ignores
+  pins outside the country.
+- Find a Ride keeps a picked drop-off in the URL (`dlat`/`dlng`).
+- If a new Tailwind class doesn't show in `next dev`, the Turbopack dev cache
+  can be stale: stop the server and delete `.next/dev`.
