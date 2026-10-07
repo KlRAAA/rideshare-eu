@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const Sentry = require('@sentry/node');
 const authRoutes = require('./routes/authRoutes');
 const tripRoutes = require('./routes/tripRoutes');
@@ -41,6 +42,10 @@ if (process.env.TRUST_PROXY) {
 // served from the Next.js app's own public/ dir, not from this server, so
 // that's unaffected too.
 app.use(helmet());
+
+// Gzip JSON responses over 1 KB (images are skipped: already compressed). A
+// trip list or chat page shrinks about 5x, which matters on prepaid mobile data.
+app.use(compression());
 
 // Credentialed CORS: the browser sends the httpOnly `rsu_session` cookie on
 // cross-origin apiFetch calls only when the response echoes a specific origin

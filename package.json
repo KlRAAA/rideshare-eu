@@ -37,6 +37,7 @@
     "@sentry/nextjs": "^10.75.0",
     "@tailwindcss/postcss": "^4.3.3",
     "bcrypt": "^6.0.0",
+    "compression": "^1.8.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
