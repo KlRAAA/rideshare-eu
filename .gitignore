@@ -21,3 +21,5 @@ postman/results/
 .env.sentry-build-plugin
 
 __pycache__/
+
+Claude outputs/
