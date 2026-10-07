@@ -123,7 +123,7 @@ The browser only ever talks to Vercel. The API rejects any request that lacks th
 ### How a ride is matched
 
 ```mermaid
-flowchart TD
+flowchart LR
     q[Rider searches:<br/>pickup, drop-off, date, time] --> elig{Can this rider<br/>join the trip?}
     elig -->|Women+ or familiar-riders rule fails| drop[Hidden]
     elig -->|yes| date{Does the trip run<br/>on that date?}
