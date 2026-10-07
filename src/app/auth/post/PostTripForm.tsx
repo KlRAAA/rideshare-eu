@@ -17,6 +17,7 @@ import { EMPTY_VEHICLE_FIELDS, toVehiclePayload, vehicleFieldsError, type Vehicl
 import { DEFAULT_FUEL_TYPE, FUEL_TYPE_SHORT_LABELS, isFuelType, type FuelType, type OfficialFuelPrices } from '@/lib/fuelTypes';
 import VehicleSection from './VehicleSection';
 import { useGeocodedAddress, reverseGeocodeLabel } from '@/lib/useGeocodedAddress';
+import AddressInput from '@/components/AddressInput';
 import { useFormDraft } from '@/lib/useFormDraft';
 import DraftRestoredBar from '@/components/DraftRestoredBar';
 import { useCurrentLocationAddress } from '@/lib/useCurrentLocationAddress';
@@ -185,12 +186,20 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
   // When editing, start from the trip's stored spots so re-geocoding the same
   // text can't drift them.
   const savedOrigin = editTrip ? { lat: editTrip.originLat, lng: editTrip.originLng } : null;
+  const savedDestination = editTrip ? { lat: editTrip.destinationLat, lng: editTrip.destinationLng } : null;
   const savedMeeting =
     editTrip && editTrip.meetingPointLat != null && editTrip.meetingPointLng != null
       ? { lat: editTrip.meetingPointLat, lng: editTrip.meetingPointLng }
       : null;
   const [originPin, setOriginPin] = useState<Coords | null>(savedOrigin);
   const [meetingPin, setMeetingPin] = useState<Coords | null>(savedMeeting);
+  const [destinationPin, setDestinationPin] = useState<Coords | null>(savedDestination);
+  // Typed text that wasn't picked from the suggestions is looked up once the
+  // field is left (Nominatim forbids lookups on every keystroke). A picked
+  // suggestion sets the matching pin instead, so no lookup is needed.
+  const [originLookup, setOriginLookup] = useState('');
+  const [destinationLookup, setDestinationLookup] = useState(editTrip ? '' : 'Enverga University, Lucena City');
+  const [meetingLookup, setMeetingLookup] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -207,15 +216,13 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
   // the state is just what drives the visible disabled/spinner UI.
   const isSubmittingRef = useRef(false);
 
-  const { coords: geocodedOrigin } = useGeocodedAddress(origin, savedOrigin);
-  const { coords: destinationCoords } = useGeocodedAddress(
-    destination,
-    editTrip ? { lat: editTrip.destinationLat, lng: editTrip.destinationLng } : null
-  );
-  const { coords: geocodedMeeting } = useGeocodedAddress(meetingPointAddress, savedMeeting);
-  // A pin set on the map (or the device's location) beats the approximate
-  // address lookup; typing a new address clears it.
+  const { coords: geocodedOrigin } = useGeocodedAddress(originPin ? '' : originLookup);
+  const { coords: geocodedDestination } = useGeocodedAddress(destinationPin ? '' : destinationLookup);
+  const { coords: geocodedMeeting } = useGeocodedAddress(meetingPin ? '' : meetingLookup);
+  // A picked suggestion, a pin set on the map or the device's location beats
+  // the approximate lookup of typed text; typing a new address clears it.
   const originCoords = originPin ?? geocodedOrigin;
+  const destinationCoords = destinationPin ?? geocodedDestination;
   const meetingCoords = meetingPin ?? geocodedMeeting;
 
   async function placeMeetingPin(point: Coords) {
@@ -358,7 +365,7 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
         // text actually changed — otherwise geocoder drift on re-lookup would
         // register as a route edit the host never made.
         const originChanged = origin !== editTrip.originAddress || !samePoint(originCoords, savedOrigin);
-        const destChanged = destination !== editTrip.destinationAddress;
+        const destChanged = destination !== editTrip.destinationAddress || !samePoint(destinationCoords, savedDestination);
         const routeChanged = originChanged || destChanged;
         const meetingChanged =
           meetingPointAddress !== (editTrip.meetingPointAddress ?? '') || !samePoint(meetingCoords, savedMeeting);
@@ -490,14 +497,21 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
   const draft = useFormDraft(
     editTrip ? `post-trip:edit:${editTrip.id}` : 'post-trip:new',
     {
-      origin, originPin, destination, date, time, recurrence, customDays, seats, fuelPricePerLiter,
+      origin, originPin, destination, destinationPin, date, time, recurrence, customDays, seats, fuelPricePerLiter,
       vehicle, driverNotes, genderPreference, flexibleDeparture, familiarRidersOnly, meetingPointAddress, meetingPin,
     },
     {
       onRestore: (d) => {
-        if (typeof d.origin === 'string') setOrigin(d.origin);
+        if (typeof d.origin === 'string') {
+          setOrigin(d.origin);
+          setOriginLookup(d.origin);
+        }
         if (d.originPin !== undefined) setOriginPin(d.originPin);
-        if (typeof d.destination === 'string') setDestination(d.destination);
+        if (typeof d.destination === 'string') {
+          setDestination(d.destination);
+          setDestinationLookup(d.destination);
+        }
+        if (d.destinationPin !== undefined) setDestinationPin(d.destinationPin);
         if (typeof d.date === 'string') setDate(d.date);
         if (typeof d.time === 'string') setTime(d.time);
         if (d.recurrence) setRecurrence(d.recurrence);
@@ -509,7 +523,10 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
         if (d.genderPreference === 'WOMEN_PLUS' ? canHostWomenPlus : d.genderPreference === 'ANY') setGenderPreference(d.genderPreference);
         if (typeof d.flexibleDeparture === 'boolean') setFlexibleDeparture(d.flexibleDeparture);
         if (typeof d.familiarRidersOnly === 'boolean') setFamiliarRidersOnly(d.familiarRidersOnly);
-        if (typeof d.meetingPointAddress === 'string') setMeetingPointAddress(d.meetingPointAddress);
+        if (typeof d.meetingPointAddress === 'string') {
+          setMeetingPointAddress(d.meetingPointAddress);
+          setMeetingLookup(d.meetingPointAddress);
+        }
         if (d.meetingPin !== undefined) setMeetingPin(d.meetingPin);
       },
     }
@@ -532,7 +549,7 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">Origin</label>
+              <label htmlFor="trip-origin" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">Origin</label>
               <button
                 type="button"
                 onClick={useMyCurrentLocation}
@@ -542,15 +559,20 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
                 {locatingOrigin ? 'Locating...' : 'Use my current location'}
               </button>
             </div>
-            <input
-              type="text"
+            <AddressInput
+              id="trip-origin"
               required
               placeholder="e.g., Lucban, Tayabas, Candelaria"
               value={origin}
-              onChange={(e) => {
-                setOrigin(e.target.value);
+              onChange={(text) => {
+                setOrigin(text);
                 setOriginPin(null);
               }}
+              onSelect={(place) => {
+                setOrigin(place.label);
+                setOriginPin({ lat: place.lat, lng: place.lng });
+              }}
+              onCommit={setOriginLookup}
               className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
             />
             {originLocationError && <p className="text-xs text-red-600 mt-1">{originLocationError}</p>}
@@ -565,13 +587,23 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Destination</label>
-            <input
-              type="text"
+            <label htmlFor="trip-destination" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+              Destination
+            </label>
+            <AddressInput
+              id="trip-destination"
               required
               placeholder="e.g., Enverga University, Lucena"
               value={destination}
-              onChange={(e) => setDestination(e.target.value)}
+              onChange={(text) => {
+                setDestination(text);
+                setDestinationPin(null);
+              }}
+              onSelect={(place) => {
+                setDestination(place.label);
+                setDestinationPin({ lat: place.lat, lng: place.lng });
+              }}
+              onCommit={setDestinationLookup}
               className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
             />
           </div>
@@ -814,18 +846,23 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
                 </p>
               )}
               <div className="mt-3">
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                <label htmlFor="trip-meeting-point" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                   Meeting Point (optional)
                 </label>
-                <input
-                  type="text"
+                <AddressInput
+                  id="trip-meeting-point"
                   placeholder="Defaults to your origin if left blank"
                   value={meetingPointAddress}
-                  onChange={(e) => {
-                    setMeetingPointAddress(e.target.value);
+                  onChange={(text) => {
+                    setMeetingPointAddress(text);
                     setMeetingPin(null);
                   }}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-xs outline-none"
+                  onSelect={(place) => {
+                    setMeetingPointAddress(place.label);
+                    setMeetingPin({ lat: place.lat, lng: place.lng });
+                  }}
+                  onCommit={setMeetingLookup}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
                 />
                 {meetingPin && (
                   <p className="text-[11px] text-gray-500 mt-1">

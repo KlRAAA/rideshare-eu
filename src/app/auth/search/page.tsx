@@ -12,10 +12,11 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 // The form reflects itself into the query string as the user searches, so
 // router.back() from a result page returns here with the same params and the
 // form (and results) rebuild from them.
-function parsePickup(sp: Record<string, string | string[] | undefined>): SearchInitialState['pickup'] {
-  const lat = Number(one(sp.olat));
-  const lng = Number(one(sp.olng));
-  const valid = one(sp.olat) !== '' && one(sp.olng) !== '' && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+// An exact spot carried in the URL (olat/olng for pickup, dlat/dlng for drop-off).
+function parsePoint(rawLat: string, rawLng: string): SearchInitialState['pickup'] {
+  const lat = Number(rawLat);
+  const lng = Number(rawLng);
+  const valid = rawLat !== '' && rawLng !== '' && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
   return valid && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 }
 
@@ -30,7 +31,8 @@ function parseShow(sp: Record<string, string | string[] | undefined>, fallback: 
 function parseInitial(sp: Record<string, string | string[] | undefined>, profilePreference: GenderPreference): SearchInitialState {
   return {
     origin: one(sp.origin),
-    pickup: parsePickup(sp),
+    pickup: parsePoint(one(sp.olat), one(sp.olng)),
+    dropoff: parsePoint(one(sp.dlat), one(sp.dlng)),
     destination: one(sp.destination),
     date: one(sp.date),
     time: one(sp.time),

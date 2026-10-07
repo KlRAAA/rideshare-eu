@@ -25,6 +25,7 @@ import { formatDate, formatTime, roleLabel, phTimeToUtcMinutes, getPhTodayDateSt
 import { tripStatusBadge } from '@/lib/statusBadge';
 import { useCurrentLocationAddress } from '@/lib/useCurrentLocationAddress';
 import { useGeocodedAddress } from '@/lib/useGeocodedAddress';
+import AddressInput from '@/components/AddressInput';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import RouteMap from '@/components/RouteMap';
 import type { LatLng } from '@/lib/directions';
@@ -94,6 +95,7 @@ function defaultSearchTime(): string {
 export interface SearchInitialState {
   origin: string;
   pickup: LatLng | null;
+  dropoff: LatLng | null;
   destination: string;
   date: string;
   time: string;
@@ -168,9 +170,15 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
     setOriginPin(result.coords);
   }
   const [destination, setDestination] = useState(initial.destination || DEFAULT_DESTINATION);
-  const { coords: geocodedOrigin } = useGeocodedAddress(originPin ? '' : origin);
-  const { coords: geocodedDestination } = useGeocodedAddress(destination);
+  // A picked suggestion sets the exact spot. Typed text that wasn't picked is
+  // looked up once the field is left (Nominatim forbids per-keystroke lookups).
+  const [destinationPin, setDestinationPin] = useState<LatLng | null>(initial.dropoff);
+  const [originLookup, setOriginLookup] = useState(initial.origin);
+  const [destinationLookup, setDestinationLookup] = useState(initial.destination || DEFAULT_DESTINATION);
+  const { coords: geocodedOrigin } = useGeocodedAddress(originPin ? '' : originLookup);
+  const { coords: geocodedDestination } = useGeocodedAddress(destinationPin ? '' : destinationLookup);
   const pickupCoords = originPin ?? geocodedOrigin;
+  const dropoffCoords = destinationPin ?? geocodedDestination;
   const [date, setDate] = useState(initial.date);
   const [time, setTime] = useState(() => initial.time || defaultSearchTime());
   const [genderPreference, setGenderPreference] = useState<GenderPreference>(initial.genderPreference);
@@ -208,6 +216,10 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
       q.set('olng', originPin.lng.toFixed(6));
     }
     if (destination && destination !== DEFAULT_DESTINATION) q.set('destination', destination);
+    if (destinationPin) {
+      q.set('dlat', destinationPin.lat.toFixed(6));
+      q.set('dlng', destinationPin.lng.toFixed(6));
+    }
     if (date) q.set('date', date);
     if (time) q.set('time', time);
     if (genderPreference !== profilePreference) q.set('show', genderPreference === 'WOMEN_PLUS' ? 'womenplus' : 'all');
@@ -215,7 +227,7 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
     if (sortBy !== 'best') q.set('sort', sortBy);
     const qs = q.toString();
     router.replace(qs ? `/auth/search?${qs}` : '/auth/search', { scroll: false });
-  }, [origin, originPin, destination, date, time, genderPreference, profilePreference, flexibleTime, sortBy, router]);
+  }, [origin, originPin, destination, destinationPin, date, time, genderPreference, profilePreference, flexibleTime, sortBy, router]);
 
   const isFirstSync = useRef(true);
   useEffect(() => {
@@ -265,7 +277,7 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
     try {
       const [originGeo, destinationGeo] = await Promise.all([
         originPin ?? apiFetch<{ lat: number; lng: number }>(`/api/geocode?q=${encodeURIComponent(origin)}`),
-        apiFetch<{ lat: number; lng: number }>(`/api/geocode?q=${encodeURIComponent(destination)}`),
+        destinationPin ?? apiFetch<{ lat: number; lng: number }>(`/api/geocode?q=${encodeURIComponent(destination)}`),
       ]);
       setSearchGeo({ origin: originGeo, destination: destinationGeo });
 
@@ -367,7 +379,7 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
       <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Pickup spot</p>
       <RouteMap
         origin={pickupCoords}
-        destination={geocodedDestination}
+        destination={dropoffCoords}
         onOriginChange={setOriginPin}
         heightClassName="h-44"
       />
@@ -386,11 +398,15 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
     </div>
   ) : null;
 
-  const renderFilterFields = (showPickupMap: boolean) => (
+  // idPrefix keeps ids unique: the desktop form stays in the page (hidden on a
+  // phone) while the phone's filter sheet renders a second copy.
+  const renderFilterFields = (showPickupMap: boolean, idPrefix: string) => (
     <>
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">Origin</label>
+          <label htmlFor={`${idPrefix}-origin`} className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+            Origin
+          </label>
           <button
             type="button"
             onClick={useMyCurrentLocation}
@@ -400,28 +416,43 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
             {locatingOrigin ? 'Locating...' : 'Use my current location'}
           </button>
         </div>
-        <input
-          type="text"
+        <AddressInput
+          id={`${idPrefix}-origin`}
           required
           placeholder="e.g., Lucban, Tayabas"
           value={origin}
-          onChange={(e) => {
-            setOrigin(e.target.value);
+          onChange={(text) => {
+            setOrigin(text);
             setOriginPin(null);
           }}
+          onSelect={(place) => {
+            setOrigin(place.label);
+            setOriginPin({ lat: place.lat, lng: place.lng });
+          }}
+          onCommit={setOriginLookup}
           className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
         />
         {originLocationError && <p className="text-xs text-red-600 mt-1">{originLocationError}</p>}
         {showPickupMap && pickupMap}
       </div>
       <div>
-        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Destination</label>
-        <input
-          type="text"
+        <label htmlFor={`${idPrefix}-destination`} className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+          Destination
+        </label>
+        <AddressInput
+          id={`${idPrefix}-destination`}
           required
           placeholder="e.g., Enverga University"
           value={destination}
-          onChange={(e) => setDestination(e.target.value)}
+          onChange={(text) => {
+            setDestination(text);
+            setDestinationPin(null);
+          }}
+          onSelect={(place) => {
+            setDestination(place.label);
+            setDestinationPin({ lat: place.lat, lng: place.lng });
+          }}
+          onCommit={setDestinationLookup}
           className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
         />
       </div>
@@ -453,11 +484,11 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
         <div className="space-y-3">
           {canUseWomenPlus && (
             <div>
-              <label htmlFor="search-show" className="block text-[11px] text-gray-500 mb-1">
+              <label htmlFor={`${idPrefix}-show`} className="block text-[11px] text-gray-500 mb-1">
                 Show
               </label>
               <Select
-                id="search-show"
+                id={`${idPrefix}-show`}
                 value={genderPreference}
                 onChange={(e) => {
                   setGenderPreference(e.target.value as GenderPreference);
@@ -504,7 +535,7 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <form onSubmit={handleSearch} className="hidden md:block rsu-card space-y-4 h-fit">
         <h2 className="text-sm font-bold text-gray-900">Search</h2>
-        {renderFilterFields(isDesktop)}
+        {renderFilterFields(isDesktop, 'search')}
       </form>
 
       <div className="md:hidden">
@@ -528,7 +559,7 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
               className="bg-white rounded-t-2xl w-full max-h-[85vh] overflow-y-auto p-5 pb-8 space-y-4"
             >
               <h2 className="text-sm font-bold text-gray-900">Search</h2>
-              {renderFilterFields(!isDesktop)}
+              {renderFilterFields(!isDesktop, 'search-sheet')}
             </form>
           </div>
         )}

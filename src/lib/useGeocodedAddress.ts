@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { apiFetch } from './api';
 import type { LatLng } from './directions';
 
-// Debounced forward-geocoding of typed address text (via /api/geocode →
-// Nominatim). The result is approximate; callers let the user drag a map pin
-// to override it.
+// Forward-geocoding of address text (via /api/geocode → Nominatim). Callers
+// pass text the user has finished with (the field was left), not every
+// keystroke: Nominatim forbids search-as-you-type, which the suggestion list
+// (AddressInput → Photon) covers. The result is approximate; callers let the
+// user drag a map pin to override it.
 export function useGeocodedAddress(query: string, initial: LatLng | null = null) {
   const [coords, setCoords] = useState<LatLng | null>(initial);
   const [resolving, setResolving] = useState(false);
