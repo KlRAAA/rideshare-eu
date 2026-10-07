@@ -53,7 +53,7 @@ function Pin({ icon, inverted = false }: { icon: React.ReactNode; inverted?: boo
   return (
     <div
       className={`w-7 h-7 rounded-full flex items-center justify-center shadow-md ring-2 ring-white text-xs ${
-        inverted ? 'bg-white text-[#800000] ring-[#800000]' : 'bg-[#800000] text-white'
+        inverted ? 'bg-[#ffffff] text-[#800000] ring-[#800000]' : 'bg-[#800000] text-white'
       }`}
     >
       {icon}
@@ -297,7 +297,7 @@ export default function RouteMapView({
           type="button"
           onClick={() => setFullScreen((v) => !v)}
           aria-label={fullScreen ? 'Close full-screen map' : 'Open map full screen'}
-          className="absolute right-2 flex items-center gap-1.5 rounded-full bg-white/95 text-gray-800 shadow-md px-3 py-1.5 text-xs font-semibold hover:bg-white"
+          className="absolute right-2 flex items-center gap-1.5 rounded-full bg-white/95 text-[#1f2937] shadow-md px-3 py-1.5 text-xs font-semibold hover:bg-[#ffffff]"
           style={{ top: fullScreen ? 'calc(env(safe-area-inset-top, 0px) + 12px)' : '8px' }}
         >
           {fullScreen ? (
@@ -313,7 +313,7 @@ export default function RouteMapView({
 
         {editable && fullScreen && (
           <p
-            className="absolute left-2 right-2 rounded-lg bg-white/95 text-gray-700 shadow px-2.5 py-1.5 text-xs leading-snug pointer-events-none"
+            className="absolute left-2 right-2 rounded-lg bg-white/95 text-[#374151] shadow px-2.5 py-1.5 text-xs leading-snug pointer-events-none"
             style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
           >
             {editHint}
