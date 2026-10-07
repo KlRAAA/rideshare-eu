@@ -736,7 +736,7 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
             <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Driver Notes</label>
             <textarea
               rows={3}
-              placeholder="e.g., Please bring exact cash or GCash. I drop my kid off at school first before heading to campus."
+              placeholder="e.g., Please bring exact cash or GCash."
               value={driverNotes}
               onChange={(e) => setDriverNotes(e.target.value)}
               className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none"
