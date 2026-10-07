@@ -170,6 +170,13 @@ Added at the research adviser's request. Spec and plan:
 - Never generate or fill in judgments — they must come from the human evaluators.
 - Regenerate `validation/method_rankings.json` (`python validation/run_methods.py`)
   whenever `validation/psga.py` or the dataset changes; it is deterministic.
+- `run_methods.py` shuffles each query's posting order (seeded): the generator
+  always creates the clear positive (T1) first, which handed FIFO the ideal
+  trip and broke route-only ties in its favor. Familiarity is per
+  (passenger, trip) pair, never read once per query.
+- `python validation/compare_methods.py` compares each method's top pick
+  without human labels (rule-breaking, outside route/time, minutes off), for
+  the committed rankings and averaged over 200 posting orders.
 - Tests: `python -m unittest discover -s validation/labeling`.
 
 ## Help, support and admin monitoring (Oct 2026)
