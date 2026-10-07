@@ -93,3 +93,31 @@ describe('geocoding cache and throttle', () => {
     expect(fetchImpl.mock.calls[0][1].headers['User-Agent']).toMatch(/RideShareEU/);
   });
 });
+
+describe('Philippines only', () => {
+  test('an address search is limited to the Philippines and prefers Lucena and its neighbouring towns', async () => {
+    const { geocoder, calls } = setup();
+    await geocoder.geocodeAddress('SM City Lucena');
+    const url = new URL(calls[0].url);
+    expect(url.searchParams.get('countrycodes')).toBe('ph');
+    expect(url.searchParams.get('viewbox')).toBe('121.3,14.15,121.9,13.75');
+    expect(url.searchParams.get('bounded')).toBeNull(); // a preference, not a fence: Manila still works
+  });
+
+  test('a result outside the Philippines is treated as no result', async () => {
+    const { geocoder } = setup({ respond: () => jsonResponse([{ lat: '37.41', lon: '-4.48', display_name: 'Lucena, Córdoba, Spain' }]) });
+    expect(await geocoder.geocodeAddress('Lucena')).toBeNull();
+  });
+
+  test('a pin outside the Philippines is not looked up', async () => {
+    const { geocoder, fetchImpl } = setup();
+    expect(await geocoder.reverseGeocode(35.68, 139.69)).toBeNull(); // Tokyo
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  test('a pin in the Philippines is still looked up', async () => {
+    const { geocoder, fetchImpl } = setup({ respond: () => jsonResponse({ lat: '13.93', lon: '121.62', display_name: 'Lucena City' }) });
+    expect(await geocoder.reverseGeocode(13.93, 121.62)).toEqual({ lat: 13.93, lng: 121.62, displayName: 'Lucena City' });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});

@@ -7,6 +7,25 @@
 
 const USER_AGENT = 'RideShareEU-MSEUF-Thesis-Prototype/1.0';
 const BASE_URL = 'https://nominatim.openstreetmap.org';
+// The app serves MSEUF Lucena, so lookups stay in the Philippines: searches
+// are limited to it, ranked toward Lucena and its neighbouring towns (a preference,
+// not a fence — Manila still resolves), and anything that still lands outside
+// the country's bounding box is treated as no result.
+const COUNTRY_CODE = 'ph';
+// Lucena with Tayabas, Sariaya, Candelaria and Pagbilao. A wider box (all of
+// Quezon) let Cavite and Mindoro matches win for "Grand Terminal" or "Puregold".
+const NEAR_LUCENA_VIEWBOX = '121.3,14.15,121.9,13.75'; // west,north,east,south
+const PH_BOUNDS = { south: 4.5, north: 21.5, west: 116.0, east: 127.0 };
+
+function inPhilippines(lat, lng) {
+  return lat >= PH_BOUNDS.south && lat <= PH_BOUNDS.north && lng >= PH_BOUNDS.west && lng <= PH_BOUNDS.east;
+}
+
+function toPlace(result) {
+  const place = { lat: parseFloat(result.lat), lng: parseFloat(result.lon), displayName: result.display_name };
+  return inPhilippines(place.lat, place.lng) ? place : null;
+}
+
 const DEFAULTS = {
   minIntervalMs: 1100,
   ttlMs: 24 * 60 * 60 * 1000,
@@ -84,23 +103,18 @@ function createGeocoder({
 
   function geocodeAddress(query) {
     const normalized = String(query).trim().toLowerCase().replace(/\s+/g, ' ');
-    const url = `${BASE_URL}/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
-    return lookup(`fwd:${normalized}`, url, (results) =>
-      Array.isArray(results) && results.length
-        ? { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon), displayName: results[0].display_name }
-        : null
-    );
+    const url =
+      `${BASE_URL}/search?format=json&limit=1&countrycodes=${COUNTRY_CODE}` +
+      `&viewbox=${NEAR_LUCENA_VIEWBOX}&q=${encodeURIComponent(query)}`;
+    return lookup(`fwd:${normalized}`, url, (results) => (Array.isArray(results) && results.length ? toPlace(results[0]) : null));
   }
 
   // A failed reverse lookup comes back as 200 with an `error` field, not a non-2xx.
   function reverseGeocode(lat, lng) {
+    if (!inPhilippines(Number(lat), Number(lng))) return Promise.resolve(null);
     const key = `rev:${Number(lat).toFixed(5)},${Number(lng).toFixed(5)}`;
     const url = `${BASE_URL}/reverse?format=json&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`;
-    return lookup(key, url, (result) =>
-      result && !result.error && result.display_name
-        ? { lat: parseFloat(result.lat), lng: parseFloat(result.lon), displayName: result.display_name }
-        : null
-    );
+    return lookup(key, url, (result) => (result && !result.error && result.display_name ? toPlace(result) : null));
   }
 
   return { geocodeAddress, reverseGeocode };
