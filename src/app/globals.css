@@ -610,7 +610,7 @@ header .app-desktop > div:first-child { min-width: 0; }
 	   surface — the same reasoning as the maroon accent above. */
 	.text-red-600, .text-red-500 { color: #f87171; }
 	.text-emerald-600, .text-emerald-700 { color: #34d399; }
-	.text-amber-400, .text-amber-500, .text-amber-700, .text-amber-800 { color: #fbbf24; }
+	.text-amber-400, .text-amber-500, .text-amber-700, .text-amber-800, .text-amber-900 { color: #fbbf24; }
 	.text-blue-600 { color: #60a5fa; }
 	.border-red-200 { border-color: color-mix(in srgb, #dc2626 40%, var(--color-surface-alt)); }
 	.border-amber-200 { border-color: color-mix(in srgb, #f59e0b 40%, var(--color-surface-alt)); }
