@@ -69,9 +69,8 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
     setAvatarUploading(true);
     try {
       const form = new FormData();
-      form.append('userId', user.id);
       form.append('avatar', file);
-      const res = await fetch(`${API_BASE}/api/users/me/avatar`, { method: 'POST', body: form });
+      const res = await fetch(`${API_BASE}/api/users/me/avatar`, { method: 'POST', body: form, credentials: 'include' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setAvatarError(AVATAR_ERROR_COPY[data.error] ?? 'Couldn’t upload that image. Try again.');
