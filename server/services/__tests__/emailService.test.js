@@ -90,12 +90,16 @@ describe('HTTPS email APIs (Railway Hobby blocks SMTP)', () => {
     const [url, init] = fetchSpy.mock.calls[0];
     expect(url).toBe('https://api.resend.com/emails');
     expect(init.headers.Authorization).toBe('Bearer re_test');
-    expect(JSON.parse(init.body)).toEqual({
+    const body = JSON.parse(init.body);
+    expect(body).toMatchObject({
       from: 'RideShareEU <no-reply@rideshare.example>',
       to: ['A00-00000@student.mseuf.edu.ph'],
-      subject: 'Your RideShareEU verification code',
-      text: 'Your verification code is 123456. It expires in 10 minutes.',
+      // the code leads the subject, so it shows in the inbox list and notifications
+      subject: '123456 is your RideShareEU verification code',
     });
+    expect(body.text).toMatch(/^Your RideShareEU verification code is 123456\./);
+    expect(body.text).toMatch(/within 10 minutes/);
+    expect(body.html).toContain('>123456</div>');
     expect(nodemailer.__sendMail).not.toHaveBeenCalled();
   });
 
@@ -109,8 +113,11 @@ describe('HTTPS email APIs (Railway Hobby blocks SMTP)', () => {
     expect(JSON.parse(init.body)).toMatchObject({
       sender: { name: 'RideShareEU', email: 'no-reply@rideshare.example' },
       to: [{ email: 'A00-00000@student.mseuf.edu.ph' }],
-      textContent: 'Your verification code is 654321. It expires in 10 minutes.',
+      subject: '654321 is your RideShareEU verification code',
     });
+    const body = JSON.parse(init.body);
+    expect(body.textContent).toMatch(/verification code is 654321\./);
+    expect(body.htmlContent).toContain('>654321</div>');
   });
 
   test('a refused send is an error, so the caller does not report "code sent"', async () => {
