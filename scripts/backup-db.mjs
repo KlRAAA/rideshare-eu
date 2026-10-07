@@ -1,6 +1,7 @@
 // Snapshot every table from the database DATABASE_URL points at into
-// backups/<timestamp>/ (gitignored). Portable JSON — no pg_dump / version
-// matching needed. Restore with scripts/restore-db.mjs.
+// <BACKUP_DIR or backups>/<timestamp>/ (backups/ is gitignored). Portable
+// JSON — no pg_dump / version matching needed. Restore with
+// scripts/restore-db.mjs. Production backups: scripts/backup-production.ps1.
 //
 //   node scripts/backup-db.mjs
 import 'dotenv/config';
@@ -8,8 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-
-const MODELS = ['user', 'vehicle', 'trip', 'match', 'notification', 'preference', 'rating', 'emailVerification'];
+import MODELS from './backupModels.cjs';
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL, max: 1 }) });
 const retry = async (fn, n = 12) => {
@@ -24,8 +24,19 @@ const retry = async (fn, n = 12) => {
   throw new Error('database unreachable after retries');
 };
 
+// The manifest names the source database, never its password.
+function withoutPassword(url) {
+  try {
+    const u = new URL(url);
+    if (u.password) u.password = '***';
+    return u.toString();
+  } catch {
+    return 'unknown';
+  }
+}
+
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-const dir = path.join('backups', stamp);
+const dir = path.join(process.env.BACKUP_DIR || 'backups', stamp);
 fs.mkdirSync(dir, { recursive: true });
 
 const data = {};
@@ -40,7 +51,7 @@ for (const m of MODELS) {
 fs.writeFileSync(path.join(dir, 'data.json'), JSON.stringify(data, null, 2));
 fs.writeFileSync(
   path.join(dir, 'manifest.json'),
-  JSON.stringify({ takenAt: new Date().toISOString(), source: process.env.DATABASE_URL, counts, models: MODELS }, null, 2),
+  JSON.stringify({ takenAt: new Date().toISOString(), source: withoutPassword(process.env.DATABASE_URL), counts, models: MODELS }, null, 2),
 );
 fs.writeFileSync(
   path.join(dir, 'identity-check.json'),

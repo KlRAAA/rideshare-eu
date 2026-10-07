@@ -14,8 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-
-const MODELS = ['user', 'vehicle', 'trip', 'match', 'notification', 'preference', 'rating', 'emailVerification'];
+import MODELS from './backupModels.cjs';
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
@@ -54,7 +53,7 @@ const retry = async (fn, n = 8) => {
 };
 
 console.log(`Restoring from ${backupDir}`);
-console.log(`  → ${process.env.DATABASE_URL}\n`);
+console.log(`  → ${process.env.DATABASE_URL.replace(/\/\/([^:@/]+):[^@/]*@/, '//$1:***@')}\n`);
 
 const existingUsers = await retry(() => prisma.user.count());
 if (existingUsers > 0 && !force) {
