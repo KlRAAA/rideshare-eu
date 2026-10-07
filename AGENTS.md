@@ -367,9 +367,10 @@ Guide: `docs/deployment/railway-vercel.md`.
   `npm run server`, healthcheck `/api/health`, one replica (the cron jobs run
   in-process). Auto-deploy needs the Railway GitHub app installed on the repo.
 - Backups: Hobby can't create Railway backups. `scripts/backup-production.ps1`
-  (weekly via Task Scheduler) runs `backup-db.mjs` against
-  `DATABASE_PUBLIC_URL` from `%USERPROFILE%\.rideshare\production-database-url.txt`
-  into `%USERPROFILE%ideshare-backups\production`. Every table is listed in
+  (weekly via Task Scheduler) opens `railway connect Postgres --tunnel-only`
+  (no public database address; needs `railway login` + `railway link`), runs
+  `backup-db.mjs` through it into `%USERPROFILE%\rideshare-backups\production`,
+  and logs OK/FAILED to `backup.log` there. Every table is listed in
   `scripts/backupModels.cjs` (restore order); `backupModels.test.js` fails if a
   model is missing. Manifests never contain the database password.
 - Uptime: `.github/workflows/uptime.yml` checks the live `/api/health` every
