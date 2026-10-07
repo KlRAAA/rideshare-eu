@@ -340,3 +340,31 @@ Report: `docs/security/pre-deploy-audit.md`.
 - Find a Ride keeps a picked drop-off in the URL (`dlat`/`dlng`).
 - If a new Tailwind class doesn't show in `next dev`, the Turbopack dev cache
   can be stale: stop the server and delete `.next/dev`.
+
+## Deployment: Railway + Vercel (Oct 2026)
+
+Guide: `docs/deployment/railway-vercel.md`.
+
+- Production: Vercel (Next.js, `vercel.json` → `sin1`) forwards `/api/*`
+  (except its own `/api/session`) and `/uploads/*` to the Railway API in
+  `src/proxy.ts`, adding `x-origin-secret`. The browser never calls Railway
+  directly; `NEXT_PUBLIC_API_URL` is unset there, so `API_BASE` is `''`.
+  Server rendering calls `API_ORIGIN` directly with the same header
+  (`src/lib/api.ts`).
+- The API refuses requests without `ORIGIN_SECRET` (`middleware/
+  requireOriginSecret.js`; off when unset, i.e. locally), except
+  `GET /api/health` (DB check, used by Railway's deploy check and the uptime
+  monitor). `checkEnv` requires `ORIGIN_SECRET`, an email API key and
+  `EMAIL_FROM` in production.
+- Railway Hobby blocks SMTP: `emailService` sends through Brevo
+  (`BREVO_API_KEY`) or Resend (`RESEND_API_KEY`) when set, SMTP otherwise.
+- Photos: `server/config/uploads.js` (`UPLOADS_DIR`, a Railway volume at
+  `/data/uploads`; defaults to `public/uploads` locally). The API serves
+  `/uploads/*` with a 30-day immutable cache.
+- `railway.json`: build `npx prisma generate`, pre-deploy `npx prisma db push`,
+  start `npm run server`, one replica (the cron jobs run in-process).
+- CI: `.github/workflows/ci.yml` (Postgres 17, server + web tests, `tsc`).
+  Tests must create their own data; CI's database starts empty.
+- To rehearse production routing locally: launch configs `api-prodsim`
+  (:4100, secret on, separate uploads folder) and `web-prodsim` (:3002).
+  Only one `next dev` can run per folder, so stop `web`/`web-demo` first.
