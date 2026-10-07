@@ -11,7 +11,7 @@ const { logSecurityEvent } = require('../services/securityLog');
 const { normalizeGender } = require('../services/riderRules');
 const { changeGender } = require('../services/genderChangeService');
 
-const AVATAR_DIR = path.join(__dirname, '..', '..', 'public', 'uploads', 'avatars');
+const { AVATAR_DIR } = require('../config/uploads');
 const AVATAR_URL_PREFIX = '/uploads/avatars';
 
 async function getById(req, res) {

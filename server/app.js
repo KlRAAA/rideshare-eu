@@ -20,6 +20,9 @@ const { listActive: activeAnnouncements } = require('./controllers/announcementC
 const { authenticate } = require('./middleware/authenticate');
 const { logAccessDenied } = require('./middleware/logAccessDenied');
 const { apiLimiter, geocodeLimiter, suggestLimiter } = require('./middleware/rateLimit');
+const { requireOriginSecret } = require('./middleware/requireOriginSecret');
+const { UPLOADS_DIR } = require('./config/uploads');
+const prisma = require('./config/db');
 
 const app = express();
 
@@ -51,6 +54,24 @@ const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
   .map((o) => o.trim())
   .filter(Boolean);
 app.use(cors({ origin: corsOrigins, credentials: true }));
+
+// For Railway's deploy check and the uptime monitor, so it skips the origin
+// secret. Says only whether the API can reach its database.
+app.get('/api/health', async (req, res) => {
+  try {
+    await prisma.$queryRawUnsafe('SELECT 1');
+    res.json({ status: 'ok' });
+  } catch {
+    res.status(503).json({ status: 'unavailable' });
+  }
+});
+
+app.use(requireOriginSecret());
+
+// Profile photos. File names are random and never reused, so they can be
+// cached for a long time.
+app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '30d', immutable: true, index: false }));
+
 app.use(express.json());
 
 // Public — no session required (registration, login, email verification, reset).

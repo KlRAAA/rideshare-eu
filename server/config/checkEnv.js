@@ -20,6 +20,13 @@ function checkEnv(env = process.env) {
     if (origins.length === 0 || origins.some((o) => !o.startsWith('https://'))) {
       problems.push('CORS_ORIGIN must list the site\'s https:// origin(s) in production');
     }
+    if ((env.ORIGIN_SECRET || '').length < MIN_JWT_SECRET_LENGTH) {
+      problems.push(`ORIGIN_SECRET must be a random string of at least ${MIN_JWT_SECRET_LENGTH} characters, the same value as on the website`);
+    }
+    if (!env.RESEND_API_KEY && !env.BREVO_API_KEY && !env.SMTP_HOST) {
+      problems.push('Set RESEND_API_KEY or BREVO_API_KEY (Railway Hobby blocks SMTP) so sign-up codes can be emailed');
+    }
+    if (!env.EMAIL_FROM && !env.SMTP_FROM) problems.push('EMAIL_FROM is not set');
   }
   return problems;
 }

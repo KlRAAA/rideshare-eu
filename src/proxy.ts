@@ -22,10 +22,30 @@ import { NextRequest, NextResponse } from 'next/server';
 // arbitrary CSS), so this is the standard, accepted trade-off rather than a
 // gap — same reasoning most CSP guides give for map-heavy or canvas-heavy
 // apps.
+// Production only (API_ORIGIN set): API calls and profile photos are requested
+// from this site, so the session cookie stays first-party, and forwarded to the
+// API on Railway with a secret header the API requires (server/middleware/
+// requireOriginSecret.js), so nobody can reach the API around this site.
+// /api/session is this app's own route and is never forwarded.
+function forwardToApi(request: NextRequest): NextResponse | null {
+  const apiOrigin = process.env.API_ORIGIN;
+  const { pathname, search } = request.nextUrl;
+  const forApi = (pathname.startsWith('/api/') && pathname !== '/api/session') || pathname.startsWith('/uploads/');
+  if (!apiOrigin || !forApi) return null;
+  const headers = new Headers(request.headers);
+  if (process.env.ORIGIN_SECRET) headers.set('x-origin-secret', process.env.ORIGIN_SECRET);
+  return NextResponse.rewrite(new URL(`${pathname}${search}`, apiOrigin), { request: { headers } });
+}
+
 export function proxy(request: NextRequest) {
+  const forwarded = forwardToApi(request);
+  if (forwarded) return forwarded;
+  if (request.nextUrl.pathname.startsWith('/api/')) return NextResponse.next();
+
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   const isDev = process.env.NODE_ENV !== 'production';
-  const apiOrigin = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  // Empty in production: the browser calls this site's own /api/*.
+  const apiOrigin = process.env.NEXT_PUBLIC_API_URL ?? (isDev ? 'http://localhost:4000' : '');
 
   const cspHeader = `
     default-src 'self';
@@ -51,10 +71,13 @@ export function proxy(request: NextRequest) {
   return response;
 }
 
-// Excludes static assets and prefetches, per the same guide — they don't
-// need a per-request nonce and forcing them dynamic would just add overhead.
+// Pages: everything except static assets and prefetches, per the same guide —
+// they don't need a per-request nonce. Plus /api/* and /uploads/*, which are
+// only forwarded (production) and otherwise passed straight through.
 export const config = {
   matcher: [
+    '/api/:path*',
+    '/uploads/:path*',
     {
       source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
       missing: [

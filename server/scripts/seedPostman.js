@@ -21,7 +21,7 @@ const prisma = require('../config/db');
 const { encryptField } = require('../services/encryptionService');
 
 const ENV_FILE = path.join(__dirname, '..', '..', 'postman', 'local.postman_environment.json');
-const AVATAR_DIR = path.join(__dirname, '..', '..', 'public', 'uploads', 'avatars');
+const { AVATAR_DIR } = require('../config/uploads');
 const BCRYPT_ROUNDS = 10;
 
 function readEnvironment() {

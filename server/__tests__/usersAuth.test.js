@@ -1,4 +1,5 @@
 require('dotenv').config({ quiet: true });
+const { AVATAR_DIR } = require('../config/uploads');
 const fs = require('fs');
 const path = require('path');
 const app = require('../app');
@@ -45,7 +46,7 @@ afterAll(async () => {
     for (const u of fresh) {
       if (u.avatarUrl && u.avatarUrl.startsWith('/uploads/avatars/')) {
         fs.promises
-          .rm(path.join(__dirname, '..', '..', 'public', 'uploads', 'avatars', path.basename(u.avatarUrl)), { force: true })
+          .rm(path.join(AVATAR_DIR, path.basename(u.avatarUrl)), { force: true })
           .catch(() => {});
       }
     }

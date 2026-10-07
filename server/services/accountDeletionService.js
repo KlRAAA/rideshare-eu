@@ -6,7 +6,7 @@ const prisma = require('../config/db');
 const { encryptField, decryptTripFields } = require('./encryptionService');
 const { cancelWholeTrip, cancelPassengerMatch, ACTIVE_MATCH_STATUSES } = require('./tripCancellationService');
 
-const AVATAR_DIR = path.join(__dirname, '..', '..', 'public', 'uploads', 'avatars');
+const { AVATAR_DIR } = require('../config/uploads');
 const ACTIVE_TRIP_STATUSES = ['OPEN', 'FULL'];
 const DELETED_NAME = 'Deleted user';
 const REMOVED_ADDRESS = 'Removed';

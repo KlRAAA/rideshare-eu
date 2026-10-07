@@ -1,4 +1,20 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+// Where the browser sends API calls. Locally that is the Express server on
+// :4000. In production NEXT_PUBLIC_API_URL is left unset, so calls go to this
+// site's own /api/* (keeping the session cookie first-party) and src/proxy.ts
+// forwards them to the API on Railway.
+export const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ?? (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:4000');
+
+// Server rendering can't use a relative URL, so it calls the API directly
+// (API_ORIGIN) with the same secret header the proxy adds. Both are server-only
+// variables, so neither reaches the browser bundle.
+function serverSide(): { base: string; headers: Record<string, string> } | null {
+  if (typeof window !== 'undefined') return null;
+  return {
+    base: process.env.API_ORIGIN || API_BASE,
+    headers: process.env.ORIGIN_SECRET ? { 'x-origin-secret': process.env.ORIGIN_SECRET } : {},
+  };
+}
 
 export class ApiError extends Error {
   status: number;
@@ -16,13 +32,14 @@ export class ApiError extends Error {
 }
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const server = serverSide();
+  const res = await fetch(`${server?.base ?? API_BASE}${path}`, {
     ...options,
     // Send the httpOnly `rsu_session` cookie on cross-origin browser calls so
     // the Express auth middleware can verify the session. No-op server-side
     // (RSC calls forward the token as a Bearer header via lib/api-server.ts).
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers: { 'Content-Type': 'application/json', ...server?.headers, ...(options.headers || {}) },
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
