@@ -33,7 +33,7 @@ async function getUserDetail(req, res) {
   const { id } = req.params;
   const userRaw = await prisma.user.findUnique({
     where: { id },
-    select: { ...safeUserSelect, gender: true, isAdmin: true, isSuperAdmin: true, bannedUntil: true, banReason: true, banSeverity: true, createdAt: true },
+    select: { ...safeUserSelect, email: true, universityId: true, gender: true, isAdmin: true, isSuperAdmin: true, bannedUntil: true, banReason: true, banSeverity: true, createdAt: true },
   });
   if (!userRaw) return res.status(404).json({ error: 'USER_NOT_FOUND' });
 

@@ -2,22 +2,18 @@
 // into a response — it carries passwordHash. Any query that includes a User
 // relation in a response payload should use this as its `select`.
 //
-// `email` is deliberately included, not an oversight: this is a verified
-// institutional address (the platform's whole trust model rests on that),
-// and matched riders realistically need it to coordinate a pickup — there's
-// no in-app messaging in scope. It's still gated by `safeUserSelect` so a
-// non-matched user browsing search results never sees it embedded in a
-// response that doesn't need it (callers choose per-query whether to use
-// this select at all).
+// `email` and `universityId` are deliberately absent: other students see a
+// name and photo, never a school email or student number (trip chat covers
+// pickup coordination). They come back only on your own profile and to admins,
+// which ask for them explicitly. The Privacy Policy (/privacy) promises this,
+// and crossUserAccess.test.js checks it.
 //
 // `gender` is deliberately absent: it's returned only on your own profile and
 // to admins (Women+ spec §6), so trips and search never reveal anyone's gender.
 module.exports = {
   id: true,
-  email: true,
   fullName: true,
   role: true,
-  universityId: true,
   trustScore: true,
   tripCount: true,
   verified: true,

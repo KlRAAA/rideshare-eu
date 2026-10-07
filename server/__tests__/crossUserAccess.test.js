@@ -155,6 +155,27 @@ describe('user B cannot read, change or delete user A’s records', () => {
     expect(JSON.stringify(await res.json())).not.toContain('AAA 1111');
   });
 
+  // The Privacy Policy says other students see your name and photo, never your
+  // school email or university ID.
+  test.each([
+    ['A’s trip listing (A is the host)', () => `/api/trips/${a.trip.id}`],
+    ['a trip A asked to join (A is a passenger)', () => `/api/trips/${a.match.tripId}`],
+    ['A’s public profile', () => `/api/users/${userA.id}`],
+  ])('B never sees A’s email or university ID on %s', async (_label, path) => {
+    if (!dbUp) return;
+    const res = await call('GET', path(), userB.id);
+    expect(res.status).toBe(200);
+    const body = JSON.stringify(await res.json()).toLowerCase();
+    expect(body).not.toContain(userA.email.toLowerCase());
+    expect(body).not.toContain(userA.universityId.toLowerCase());
+  });
+
+  test('A still sees their own email and university ID on their profile', async () => {
+    if (!dbUp) return;
+    const { user } = await (await call('GET', `/api/users/${userA.id}`, userA.id)).json();
+    expect(user).toMatchObject({ email: userA.email, universityId: userA.universityId });
+  });
+
   test('after every attempt, A’s records are unchanged', async () => {
     if (!dbUp) return;
     const [car, trip, ticket, pref, match, note, warning] = await Promise.all([
