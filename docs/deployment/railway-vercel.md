@@ -220,31 +220,33 @@ the forwarding, the API and the database. A failed run makes GitHub email you.
 ## 9. Backups
 
 Railway's Hobby plan can't create database backups, so they run from your PC
-with `scripts/backup-production.ps1`. It copies every table into
+with `scripts/backup-production.ps1`. It opens Railway's private tunnel to the
+database (`railway connect Postgres --tunnel-only`; the database never gets a
+public address, so leave **Add Public Access** off), copies every table into
 `%USERPROFILE%\rideshare-backups\production\<timestamp>\` (outside the
-repo) and never writes the database password into the backup.
+repo), then closes the tunnel. The password is never saved, and each run adds
+an `OK` or `FAILED` line to `%USERPROFILE%\rideshare-backups\backup.log`.
 
 **One-time setup**
 
-1. Railway → **Postgres** → **Settings → Networking → TCP Proxy** → enable it.
-   This gives the database a public address protected by its long random
-   password; the backup needs it because your PC is outside Railway's private
-   network.
-2. Postgres → **Variables** → copy **`DATABASE_PUBLIC_URL`**.
-3. Save it as the only line of
-   `%USERPROFILE%\.rideshare\production-database-url.txt`
-   (in Git Bash: `mkdir -p ~/.rideshare && powershell -NoProfile -Command "Get-Clipboard" > ~/.rideshare/production-database-url.txt`).
+1. Install the Railway CLI: `npm install -g @railway/cli`
+2. `railway login` (approve it in the browser that opens).
+3. From the repo folder: `railway link`, and choose the project and the
+   `production` environment.
 4. Run the first backup (do this before UAT starts):
    `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/backup-production.ps1`
 5. Schedule it weekly (Sunday 9 PM; if the PC is off then, it runs at the next
    chance), in PowerShell:
 
    ```powershell
-   $a = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -ExecutionPolicy Bypass -File "C:\Users\Spider-Man\rideshare-eu\scripts\backup-production.ps1"'
+   $a = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\Users\Spider-Man\rideshare-eu\scripts\backup-production.ps1"'
    $t = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At 9pm
    $s = New-ScheduledTaskSettingsSet -StartWhenAvailable
    Register-ScheduledTask -TaskName 'RideShareEU production backup' -Action $a -Trigger $t -Settings $s
    ```
+
+   Check `backup.log` now and then. If a run says `FAILED` with a login error,
+   run `railway login` again.
 
 The backups hold real student data: keep them on this PC (not GitHub or a
 shared drive), and delete them when the study ends, as the Privacy Policy says.
