@@ -74,7 +74,7 @@ beforeAll(async () => {
   }))).ticket;
 
   // A's ride preferences
-  await created(await call('PATCH', `/api/preferences/${userA.id}`, userA.id, { flexWindowMinutes: 30, liveLocationSharing: true }));
+  await created(await call('PATCH', `/api/preferences/${userA.id}`, userA.id, { flexWindowMinutes: 30 }));
 
   // A's join request on someone else's trip
   const hostCar = await makeVehicle(bag, otherHost.id);
@@ -115,7 +115,7 @@ const ATTEMPTS = [
   ['close A’s support request', 'PATCH', () => `/api/support/${a.ticket.id}/close`],
   // Preferences
   ['read A’s preferences', 'GET', () => `/api/preferences/${userA.id}`],
-  ['change A’s preferences', 'PATCH', () => `/api/preferences/${userA.id}`, { liveLocationSharing: false }],
+  ['change A’s preferences', 'PATCH', () => `/api/preferences/${userA.id}`, { flexWindowMinutes: 120 }],
   // Join request (B is neither the passenger nor the host)
   ['approve A’s join request', 'PATCH', () => `/api/matches/${a.match.id}`, { status: 'APPROVED' }],
   ['rate on A’s join request', 'POST', () => `/api/matches/${a.match.id}/ratings`, () => ({ rateeId: userA.id, score: 1 })],
@@ -188,10 +188,10 @@ describe('user B cannot read, change or delete user A’s records', () => {
       prisma.userWarning.findUnique({ where: { id: a.warning.id } }),
     ]);
     expect(car).toMatchObject({ color: 'White', isDefault: true });
-    expect(trip).toMatchObject({ status: 'OPEN', driverNotes: null, lastKnownLat: null });
+    expect(trip).toMatchObject({ status: 'OPEN', driverNotes: null });
     expect(ticket.status).toBe('OPEN');
     expect(ticket.messages).toHaveLength(1);
-    expect(pref.liveLocationSharing).toBe(true);
+    expect(pref.flexWindowMinutes).toBe(30);
     expect(match.status).toBe('PENDING');
     expect(note.isRead).toBe(false);
     expect(warning.acknowledgedAt).toBeNull();

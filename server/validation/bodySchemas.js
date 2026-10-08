@@ -96,7 +96,7 @@ const SCHEMAS = {
   'trip.start': NONE,
   'trip.end': NONE,
   'trip.arrived': NONE,
-  'trip.location': LAT_LNG,
+  'trip.location': { ...LAT_LNG, etaSeconds: 'number' },
   'trip.message': MESSAGE,
 
   // Cars
@@ -127,7 +127,6 @@ const SCHEMAS = {
     genderPreference: 'string',
     flexWindowMinutes: 'number',
     familiarRidersOnly: 'boolean',
-    liveLocationSharing: 'boolean',
   },
   'user.avatar': NONE, // the image itself is the multipart file, not a body field
   'user.onboarding': NONE,

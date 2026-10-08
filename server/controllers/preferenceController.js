@@ -30,7 +30,6 @@ async function getByUser(req, res) {
       genderPreference: 'ANY',
       flexWindowMinutes: 15,
       familiarRidersOnly: false,
-      liveLocationSharing: false,
     };
   }
   // A stale or ineligible "Trips I see" value reads as All trips (Women+ spec S24).
@@ -41,7 +40,7 @@ async function getByUser(req, res) {
 async function upsert(req, res) {
   if (!requireSelf(req, res)) return;
   const { userId } = req.params;
-  const { genderPreference, flexWindowMinutes, familiarRidersOnly, liveLocationSharing } = req.body;
+  const { genderPreference, flexWindowMinutes, familiarRidersOnly } = req.body;
   if (genderPreference !== undefined && !GENDER_PREFERENCES.includes(genderPreference)) {
     return res.status(400).json({ error: 'INVALID_PREFERENCE' });
   }
@@ -51,8 +50,8 @@ async function upsert(req, res) {
 
   const preference = await prisma.preference.upsert({
     where: { userId },
-    update: { genderPreference, flexWindowMinutes, familiarRidersOnly, liveLocationSharing },
-    create: { userId, genderPreference, flexWindowMinutes, familiarRidersOnly, liveLocationSharing },
+    update: { genderPreference, flexWindowMinutes, familiarRidersOnly },
+    create: { userId, genderPreference, flexWindowMinutes, familiarRidersOnly },
   });
 
   res.json({ preference });

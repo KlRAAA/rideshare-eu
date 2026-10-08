@@ -22,7 +22,7 @@ const call = (method, path, userId, body) =>
   });
 
 const changeGender = (user, body) => call('PATCH', '/api/users/me/gender', user.id, body);
-const prefBody = (genderPreference) => ({ genderPreference, flexWindowMinutes: 15, familiarRidersOnly: false, liveLocationSharing: false });
+const prefBody = (genderPreference) => ({ genderPreference, flexWindowMinutes: 15, familiarRidersOnly: false });
 
 async function womenPlusTrip(overrides = {}) {
   const host = await makeUser(bag, { fullName: 'Ana Host', gender: 'WOMAN' });

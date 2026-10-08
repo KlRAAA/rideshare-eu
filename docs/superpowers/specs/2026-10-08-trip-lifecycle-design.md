@@ -62,9 +62,11 @@ model TripRun {
 }
 ```
 
-- `Trip` loses `lastKnownLat`, `lastKnownLng`, `lastLocationUpdatedAt` (moved to
-  the run; they only ever held a transient position).
-- `Preference` loses `liveLocationSharing`.
+- The driver's position moves to the run. `Trip.lastKnownLat`, `lastKnownLng`,
+  `lastLocationUpdatedAt` and `Preference.liveLocationSharing` are no longer
+  read or written, but the columns stay: dropping them is a data-loss change
+  that the deploy's plain `prisma db push` refuses. They go with the move to
+  versioned migrations after UAT.
 - `NotificationType` gains `TRIP_STARTED`.
 - A day nobody started has no row. `Trip.status` keeps its four values.
 - `scripts/backupModels.cjs` lists `tripRun` after `trip` (the backup test

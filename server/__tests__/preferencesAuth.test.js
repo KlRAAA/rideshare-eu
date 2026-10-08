@@ -76,7 +76,6 @@ describe('PATCH /api/preferences/:userId', () => {
       genderPreference: 'WOMEN_PLUS',
       flexWindowMinutes: 30,
       familiarRidersOnly: true,
-      liveLocationSharing: false,
     });
     expect(res.status).toBe(200);
     const fresh = await prisma.preference.findUnique({ where: { userId: alice.id } });
@@ -89,7 +88,6 @@ describe('PATCH /api/preferences/:userId', () => {
       genderPreference: 'WOMEN_PLUS',
       flexWindowMinutes: 60,
       familiarRidersOnly: true,
-      liveLocationSharing: true,
     });
     expect(res.status).toBe(403);
     const bobPref = await prisma.preference.findUnique({ where: { userId: bob.id } });

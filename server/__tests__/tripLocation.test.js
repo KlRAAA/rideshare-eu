@@ -4,11 +4,11 @@ const prisma = require('../config/db');
 const { bearer } = require('../test-helpers/auth');
 const { newBag, makeUser, makeVehicle, makeTrip, makeMatch, cleanup } = require('../test-helpers/seed');
 
-// POST/GET /api/trips/:id/location — the host's own device writes its
-// current position; only the host and this specific trip's APPROVED
-// passengers may read it back. liveLocationSharing is re-checked
-// server-side on every call (write AND read), never trusted from the
-// client or assumed to still hold just because a point was written earlier.
+// POST/GET /api/trips/:id/location — the driver's position belongs to a
+// started run (sub-project B): the host's phone writes it (with a live ETA)
+// only while today's run is ongoing, and only the host and this trip's
+// APPROVED riders may read it back. Before the start and after the end,
+// nothing is served.
 
 let server;
 let base;
@@ -20,23 +20,14 @@ let approvedPax;
 let pendingPax;
 let outsider;
 let otherTripApprovedPax; // approved, but on a DIFFERENT trip
-let trip; // OPEN, host has liveLocationSharing on
-let inactiveTrip; // COMPLETED
+let trip; // OPEN, departs in 10 minutes, so it can be started
 
-const req = (method, path, token, body) =>
+const req = (method, path, userId, body) =>
   fetch(`${base}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', ...(token ? bearer(token) : {}) },
+    headers: { 'Content-Type': 'application/json', ...(userId ? bearer(userId) : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-
-async function setSharing(userId, enabled) {
-  await prisma.preference.upsert({
-    where: { userId },
-    update: { liveLocationSharing: enabled },
-    create: { userId, genderPreference: 'ANY', flexWindowMinutes: 15, familiarRidersOnly: false, liveLocationSharing: enabled },
-  });
-}
 
 beforeAll(async () => {
   try {
@@ -56,19 +47,17 @@ beforeAll(async () => {
   otherTripApprovedPax = await makeUser(bag, { fullName: 'Other Trip Pax' });
 
   const vehicle = await makeVehicle(bag, host.id);
-  trip = await makeTrip(bag, host.id, vehicle.id, { status: 'OPEN' });
-  inactiveTrip = await makeTrip(bag, host.id, vehicle.id, { status: 'COMPLETED' });
-
+  trip = await makeTrip(bag, host.id, vehicle.id, {
+    status: 'OPEN',
+    departureTime: new Date(Date.now() + 10 * 60 * 1000),
+    durationSeconds: 1800,
+  });
   await makeMatch(bag, trip.id, approvedPax.id, { status: 'APPROVED' });
   await makeMatch(bag, trip.id, pendingPax.id, { status: 'PENDING' });
 
-  // otherTripApprovedPax is genuinely approved, just on a trip that isn't
-  // this one — the read endpoint must still reject them for `trip`.
   const otherVehicle = await makeVehicle(bag, outsider.id);
   const otherTrip = await makeTrip(bag, outsider.id, otherVehicle.id, { status: 'OPEN' });
   await makeMatch(bag, otherTrip.id, otherTripApprovedPax.id, { status: 'APPROVED' });
-
-  await setSharing(host.id, true);
 });
 
 afterAll(async () => {
@@ -84,143 +73,69 @@ const guard = () => {
 
 const VALID_COORDS = { lat: 13.9312, lng: 121.6142 };
 
-describe('POST /api/trips/:id/location', () => {
+// Tests run in order: before the start, during the run, after the end.
+describe('driver location during a run', () => {
   test('no token → 401', async () => {
     if (guard()) return;
-    const res = await req('POST', `/api/trips/${trip.id}/location`, null, VALID_COORDS);
-    expect(res.status).toBe(401);
+    expect((await req('POST', `/api/trips/${trip.id}/location`, null, VALID_COORDS)).status).toBe(401);
   });
 
-  test('a non-host authenticated user → 403 NOT_AUTHORIZED, nothing written', async () => {
+  test('writing before the run starts → 409 NO_ONGOING_RUN', async () => {
     if (guard()) return;
-    const res = await req('POST', `/api/trips/${trip.id}/location`, approvedPax.id, VALID_COORDS);
-    expect(res.status).toBe(403);
-    expect((await res.json()).error).toBe('NOT_AUTHORIZED');
-  });
-
-  test('the host, with sharing OFF → 403 LOCATION_SHARING_DISABLED', async () => {
-    if (guard()) return;
-    await setSharing(host.id, false);
     const res = await req('POST', `/api/trips/${trip.id}/location`, host.id, VALID_COORDS);
-    expect(res.status).toBe(403);
-    expect((await res.json()).error).toBe('LOCATION_SHARING_DISABLED');
-    await setSharing(host.id, true); // restore for the rest of the suite
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe('NO_ONGOING_RUN');
   });
 
-  test('the host, on a COMPLETED trip → 409 TRIP_NOT_ACTIVE', async () => {
+  test('before the start, riders get no location', async () => {
     if (guard()) return;
-    const res = await req('POST', `/api/trips/${inactiveTrip.id}/location`, host.id, VALID_COORDS);
-    expect(res.status).toBe(409);
-    expect((await res.json()).error).toBe('TRIP_NOT_ACTIVE');
+    const body = await (await req('GET', `/api/trips/${trip.id}/location`, approvedPax.id)).json();
+    expect(body).toEqual({ location: null, etaAt: null });
+  });
+
+  test('once started, the host writes position and ETA; approved riders read them', async () => {
+    if (guard()) return;
+    expect((await req('POST', `/api/trips/${trip.id}/start`, host.id, {})).status).toBe(201);
+    const write = await req('POST', `/api/trips/${trip.id}/location`, host.id, { ...VALID_COORDS, etaSeconds: 600 });
+    expect(write.status).toBe(200);
+    const body = await (await req('GET', `/api/trips/${trip.id}/location`, approvedPax.id)).json();
+    expect(body.location).toMatchObject(VALID_COORDS);
+    expect(new Date(body.etaAt).getTime()).toBeGreaterThan(Date.now() + 500 * 1000);
   });
 
   test.each([
-    [{ lat: 999, lng: 121.6 }],
-    [{ lat: 13.9, lng: -999 }],
-    [{ lat: null, lng: 121.6 }],
-  ])('invalid coordinates %p → 400 INVALID_COORDINATES', async (coords) => {
+    ['a pending rider', () => pendingPax],
+    ['an outsider', () => outsider],
+    ['a rider approved on another trip', () => otherTripApprovedPax],
+  ])('%s cannot read it → 403', async (_label, who) => {
     if (guard()) return;
-    const res = await req('POST', `/api/trips/${trip.id}/location`, host.id, coords);
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe('INVALID_COORDINATES');
+    expect((await req('GET', `/api/trips/${trip.id}/location`, who().id)).status).toBe(403);
   });
 
-  test('a non-numeric coordinate is stopped by the body schema → 400 INVALID_FIELD_TYPE', async () => {
+  test('a non-host cannot write; bad coordinates and ETA are refused', async () => {
     if (guard()) return;
-    const res = await req('POST', `/api/trips/${trip.id}/location`, host.id, { lat: 'not-a-number', lng: 121.6 });
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: 'INVALID_FIELD_TYPE', field: 'lat' });
+    expect((await req('POST', `/api/trips/${trip.id}/location`, approvedPax.id, VALID_COORDS)).status).toBe(403);
+    const badLat = await req('POST', `/api/trips/${trip.id}/location`, host.id, { lat: 91, lng: 0 });
+    expect(badLat.status).toBe(400);
+    expect((await badLat.json()).error).toBe('INVALID_COORDINATES');
+    const badEta = await req('POST', `/api/trips/${trip.id}/location`, host.id, { ...VALID_COORDS, etaSeconds: -5 });
+    expect(badEta.status).toBe(400);
+    expect((await badEta.json()).error).toBe('INVALID_ETA');
   });
 
-  test('the host, sharing ON, trip OPEN → 200, persisted with a fresh timestamp', async () => {
+  test('a position older than 90 seconds is not served', async () => {
     if (guard()) return;
-    const before = Date.now();
-    const res = await req('POST', `/api/trips/${trip.id}/location`, host.id, VALID_COORDS);
-    expect(res.status).toBe(200);
-    const fresh = await prisma.trip.findUnique({ where: { id: trip.id } });
-    expect(fresh.lastKnownLat).toBeCloseTo(VALID_COORDS.lat, 5);
-    expect(fresh.lastKnownLng).toBeCloseTo(VALID_COORDS.lng, 5);
-    expect(fresh.lastLocationUpdatedAt.getTime()).toBeGreaterThanOrEqual(before);
-  });
-});
-
-describe('GET /api/trips/:id/location', () => {
-  beforeEach(async () => {
-    if (!dbUp) return;
-    await setSharing(host.id, true);
-    await prisma.trip.update({
-      where: { id: trip.id },
-      data: { lastKnownLat: VALID_COORDS.lat, lastKnownLng: VALID_COORDS.lng, lastLocationUpdatedAt: new Date() },
+    await prisma.tripRun.updateMany({
+      where: { tripId: trip.id },
+      data: { lastLocationUpdatedAt: new Date(Date.now() - 5 * 60 * 1000) },
     });
+    expect((await (await req('GET', `/api/trips/${trip.id}/location`, approvedPax.id)).json()).location).toBeNull();
   });
 
-  test('no token → 401', async () => {
+  test('after the run ends nothing is served and writes are refused', async () => {
     if (guard()) return;
-    const res = await req('GET', `/api/trips/${trip.id}/location`, null);
-    expect(res.status).toBe(401);
-  });
-
-  test('the host can read their own trip\'s location', async () => {
-    if (guard()) return;
-    const res = await req('GET', `/api/trips/${trip.id}/location`, host.id);
-    expect(res.status).toBe(200);
-    const { location } = await res.json();
-    expect(location).not.toBeNull();
-    expect(location.lat).toBeCloseTo(VALID_COORDS.lat, 5);
-  });
-
-  test('an APPROVED passenger on this trip can read it', async () => {
-    if (guard()) return;
-    const res = await req('GET', `/api/trips/${trip.id}/location`, approvedPax.id);
-    expect(res.status).toBe(200);
-    const { location } = await res.json();
-    expect(location).not.toBeNull();
-  });
-
-  test('a PENDING requester on this trip → 403, never a location leak', async () => {
-    if (guard()) return;
-    const res = await req('GET', `/api/trips/${trip.id}/location`, pendingPax.id);
-    expect(res.status).toBe(403);
-    expect((await res.json()).error).toBe('NOT_AUTHORIZED');
-  });
-
-  test('a passenger APPROVED on a different trip → 403, not just filtered to null', async () => {
-    if (guard()) return;
-    const res = await req('GET', `/api/trips/${trip.id}/location`, otherTripApprovedPax.id);
-    expect(res.status).toBe(403);
-    expect((await res.json()).error).toBe('NOT_AUTHORIZED');
-  });
-
-  test('a complete outsider → 403', async () => {
-    if (guard()) return;
-    const res = await req('GET', `/api/trips/${trip.id}/location`, outsider.id);
-    expect(res.status).toBe(403);
-  });
-
-  test('an inactive (COMPLETED) trip → 200 with a null location, not an error', async () => {
-    if (guard()) return;
-    const res = await req('GET', `/api/trips/${inactiveTrip.id}/location`, host.id);
-    expect(res.status).toBe(200);
-    expect((await res.json()).location).toBeNull();
-  });
-
-  test('sharing turned off after a point was already written → null, not the stale point', async () => {
-    if (guard()) return;
-    await setSharing(host.id, false);
-    const res = await req('GET', `/api/trips/${trip.id}/location`, approvedPax.id);
-    expect(res.status).toBe(200);
-    expect((await res.json()).location).toBeNull();
-    await setSharing(host.id, true);
-  });
-
-  test('a stale point (older than the freshness window) → null', async () => {
-    if (guard()) return;
-    await prisma.trip.update({
-      where: { id: trip.id },
-      data: { lastLocationUpdatedAt: new Date(Date.now() - 5 * 60 * 1000) }, // 5 min old
-    });
-    const res = await req('GET', `/api/trips/${trip.id}/location`, approvedPax.id);
-    expect(res.status).toBe(200);
-    expect((await res.json()).location).toBeNull();
+    expect((await req('POST', `/api/trips/${trip.id}/end`, host.id, {})).status).toBe(200);
+    expect((await (await req('GET', `/api/trips/${trip.id}/location`, host.id)).json()).location).toBeNull();
+    expect((await req('POST', `/api/trips/${trip.id}/location`, host.id, VALID_COORDS)).status).toBe(409);
   });
 });

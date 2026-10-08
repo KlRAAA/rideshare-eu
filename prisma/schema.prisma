@@ -316,11 +316,9 @@ model Trip {
   durationSeconds     Int?             // from the Mapbox Directions call at creation; null if routing failed/implausible — auto-completion skips those, manual override still works
   cancelReason        String?          // host's optional reason, shown in the passenger cancellation notification
   cancelledAt         DateTime?
-  // Host's last-known position while liveLocationSharing is on — one current
-  // value, not a trail, so flat columns on Trip match the rest of this
-  // model's mutable single-value fields (filledSeats, status) rather than a
-  // separate history table nothing here needs. Written by the host's own
-  // device, read by the host + this trip's APPROVED passengers only.
+  // The driver's position lives on the day's TripRun (sub-project B). These
+  // three are unused since then; they stay only so deploys (plain `db push`)
+  // don't need a data-loss change. Drop them with the move to migrations.
   lastKnownLat          Float?
   lastKnownLng          Float?
   lastLocationUpdatedAt DateTime?
@@ -401,7 +399,9 @@ model Preference {
   genderPreference     GenderPreference @default(ANY)
   flexWindowMinutes    Int              @default(15)
   familiarRidersOnly   Boolean          @default(false)
-  liveLocationSharing  Boolean          @default(false) // gates the optional Geolocation campus-proximity signal
+  // Unused since Start Trip shares location (sub-project B); kept so deploys
+  // don't need a data-loss change. Drop with the move to migrations.
+  liveLocationSharing  Boolean          @default(false)
 }
 
 model Rating {

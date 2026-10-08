@@ -81,12 +81,13 @@ async function deleteAccount(userId) {
           meetingPointLat: null,
           meetingPointLng: null,
           driverNotes: null,
-          lastKnownLat: null,
-          lastKnownLng: null,
-          lastLocationUpdatedAt: null,
         },
       });
     }
+    await tx.tripRun.updateMany({
+      where: { trip: { hostId: userId } },
+      data: { lastKnownLat: null, lastKnownLng: null, lastLocationUpdatedAt: null, etaAt: null },
+    });
 
     await tx.vehicle.updateMany({ where: { ownerId: userId }, data: { plate: null } });
     await tx.savedVehicle.deleteMany({ where: { ownerId: userId } });
