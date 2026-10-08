@@ -20,11 +20,11 @@ describe('departureOnDay', () => {
 });
 
 describe('startCheck', () => {
-  test('opens 30 minutes before departure and closes 2 hours after', () => {
+  test('opens 30 minutes before departure and closes 60 minutes after', () => {
     expect(startCheck(trip(), at('2026-06-01T22:29:59Z'), none)).toMatchObject({ error: 'TOO_EARLY_TO_START', opensAt: at('2026-06-01T22:30:00Z') });
     expect(startCheck(trip(), at('2026-06-01T22:30:00Z'), none)).toEqual({ departure: FIRST, runDate: phDateOnly(FIRST) });
-    expect(startCheck(trip(), at('2026-06-02T01:00:00Z'), none)).toEqual({ departure: FIRST, runDate: phDateOnly(FIRST) });
-    expect(startCheck(trip(), at('2026-06-02T01:00:01Z'), none)).toEqual({ error: 'TOO_LATE_TO_START' });
+    expect(startCheck(trip(), at('2026-06-02T00:00:00Z'), none)).toEqual({ departure: FIRST, runDate: phDateOnly(FIRST) });
+    expect(startCheck(trip(), at('2026-06-02T00:00:01Z'), none)).toEqual({ error: 'TOO_LATE_TO_START' });
   });
   test('refuses a day the trip does not run, a second start, and a trip that is not active', () => {
     expect(startCheck(trip(), at('2026-06-05T23:00:00Z'), none)).toEqual({ error: 'NOT_A_TRIP_DAY' });
@@ -50,11 +50,11 @@ describe('plannedArrival and nextDeparture', () => {
     expect(nextDeparture(t, at('2026-06-02T05:00:00Z'))).toEqual({
       departure: at('2026-06-02T23:00:00Z'),
       opensAt: at('2026-06-02T22:30:00Z'),
-      closesAt: at('2026-06-03T01:00:00Z'),
+      closesAt: at('2026-06-03T00:00:00Z'),
     });
-    expect(nextDeparture(trip(), at('2026-06-03T00:00:00Z'))).toBeNull();
+    expect(nextDeparture(trip(), at('2026-06-02T00:00:01Z'))).toBeNull();
   });
-  test('startWindow is −30 min / +2 h', () => {
-    expect(startWindow(FIRST)).toEqual({ opensAt: at('2026-06-01T22:30:00Z'), closesAt: at('2026-06-02T01:00:00Z') });
+  test('startWindow is −30 min / +60 min', () => {
+    expect(startWindow(FIRST)).toEqual({ opensAt: at('2026-06-01T22:30:00Z'), closesAt: at('2026-06-02T00:00:00Z') });
   });
 });

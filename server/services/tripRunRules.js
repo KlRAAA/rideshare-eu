@@ -6,7 +6,7 @@ const { recurrenceRunsOnDay, phDateOnly } = require('./recurrenceMath');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const START_EARLY_MS = 30 * 60 * 1000;
-const START_LATE_MS = 2 * 60 * 60 * 1000;
+const START_LATE_MS = 60 * 60 * 1000; // the no-show time (sub-project D)
 const AUTO_END_AFTER_ARRIVAL_MS = 60 * 60 * 1000;
 const ACTIVE = ['OPEN', 'FULL'];
 
