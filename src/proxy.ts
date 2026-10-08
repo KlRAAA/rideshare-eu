@@ -34,6 +34,13 @@ function forwardToApi(request: NextRequest): NextResponse | null {
   if (!apiOrigin || !forApi) return null;
   const headers = new Headers(request.headers);
   if (process.env.ORIGIN_SECRET) headers.set('x-origin-secret', process.env.ORIGIN_SECRET);
+  // The visitor's address, for the API's per-visitor sign-in limits. Vercel
+  // sets x-real-ip / x-forwarded-for itself (overwriting what the browser
+  // sent), so they can be trusted here; any x-client-ip the browser sent is
+  // replaced.
+  const clientIp = request.headers.get('x-real-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0].trim();
+  if (clientIp) headers.set('x-client-ip', clientIp);
+  else headers.delete('x-client-ip');
   return NextResponse.rewrite(new URL(`${pathname}${search}`, apiOrigin), { request: { headers } });
 }
 
