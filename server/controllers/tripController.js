@@ -277,7 +277,7 @@ async function getById(req, res) {
       host: { select: safeUserSelect },
       vehicle: true,
       matches: { include: { passenger: { select: safeUserSelect } } },
-      runs: { orderBy: { startedAt: 'desc' }, take: 1 },
+      runs: { where: { status: { in: ['ONGOING', 'COMPLETED'] } }, orderBy: { startedAt: 'desc' }, take: 1 },
     },
   });
   if (!tripRaw) return res.status(404).json({ error: 'Trip not found' });

@@ -142,3 +142,32 @@ describe('run state in the trip APIs', () => {
     expect(hosted.hosted.find((h) => h.id === trip.id).inProgress).toBe(true);
   });
 });
+
+describe('starting on a confirmed or skipped day (sub-project D)', () => {
+  const { phDateOnly } = require('../services/recurrenceMath');
+  const runRow = (trip, status) =>
+    prisma.tripRun.create({
+      data: { tripId: trip.id, runDate: phDateOnly(trip.departureTime), status, plannedArrivalAt: trip.departureTime },
+    });
+
+  test('a confirmed day becomes the ongoing run', async () => {
+    if (guard()) return;
+    const { host, trip } = await seedTrip();
+    await runRow(trip, 'CONFIRMED');
+    const res = await req('POST', `/api/trips/${trip.id}/start`, host.id, {});
+    expect(res.status).toBe(201);
+    const runs = await prisma.tripRun.findMany({ where: { tripId: trip.id } });
+    expect(runs).toHaveLength(1);
+    expect(runs[0].status).toBe('ONGOING');
+    expect(runs[0].startedAt).toBeInstanceOf(Date);
+  });
+
+  test('a skipped day cannot be started', async () => {
+    if (guard()) return;
+    const { host, trip } = await seedTrip({ recurrenceType: 'DAILY' });
+    await runRow(trip, 'SKIPPED');
+    const res = await req('POST', `/api/trips/${trip.id}/start`, host.id, {});
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe('DAY_SKIPPED');
+  });
+});

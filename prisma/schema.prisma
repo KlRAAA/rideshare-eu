@@ -51,6 +51,11 @@ enum NotificationType {
   ANNOUNCEMENT
   WARNING
   TRIP_STARTED
+  CONFIRM_REQUEST
+  DRIVER_UNCONFIRMED
+  DRIVER_LATE
+  DRIVER_NO_SHOW
+  TRIP_SKIPPED
 }
 
 enum ReportStatus {
@@ -576,8 +581,11 @@ enum AppMode {
 }
 
 enum RunStatus {
+  CONFIRMED // driver confirmed the day ahead of time (sub-project D)
   ONGOING
   COMPLETED
+  SKIPPED // driver isn't driving that day (recurring trips)
+  NO_SHOW // not started 60 minutes after departure, with approved riders
 }
 
 enum RunEndReason {
@@ -595,7 +603,9 @@ model TripRun {
   trip                  Trip          @relation(fields: [tripId], references: [id])
   runDate               DateTime
   status                RunStatus     @default(ONGOING)
-  startedAt             DateTime      @default(now())
+  startedAt             DateTime? // set only by Start Trip
+  confirmedAt           DateTime?
+  skipReason            String?
   plannedArrivalAt      DateTime
   endedAt               DateTime?
   endReason             RunEndReason?

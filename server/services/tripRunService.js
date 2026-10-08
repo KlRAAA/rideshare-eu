@@ -6,6 +6,7 @@ const { startCheck, plannedArrival, AUTO_END_AFTER_ARRIVAL_MS } = require('./tri
 const { completeTrip, completeRecurringOccurrence } = require('./tripCompletionService');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const NOT_STARTED = ['CONFIRMED', 'SKIPPED'];
 
 function ongoingRun(tripId) {
   return prisma.tripRun.findFirst({ where: { tripId, status: 'ONGOING' } });
@@ -19,18 +20,24 @@ async function startRun(tripId, userId, now = new Date()) {
   const today = phDateOnly(now);
   const existing = await prisma.tripRun.findMany({
     where: { tripId, runDate: { in: [today, new Date(today - DAY_MS)] } },
-    select: { runDate: true },
+    select: { id: true, runDate: true, status: true },
   });
-  const check = startCheck(trip, now, new Set(existing.map((r) => r.runDate.getTime())));
+  // A confirmed or skipped day hasn't been driven yet; startCheck only needs the others.
+  const started = existing.filter((r) => !NOT_STARTED.includes(r.status));
+  const check = startCheck(trip, now, new Set(started.map((r) => r.runDate.getTime())));
   if (check.error) return { status: 409, body: check };
+  const planned = existing.find((r) => r.runDate.getTime() === check.runDate.getTime());
+  if (planned?.status === 'SKIPPED') return { status: 409, body: { error: 'DAY_SKIPPED' } };
 
+  const data = { status: 'ONGOING', startedAt: now, plannedArrivalAt: plannedArrival(trip, check.departure) };
   let run;
   try {
-    run = await prisma.tripRun.create({
-      data: { tripId, runDate: check.runDate, startedAt: now, plannedArrivalAt: plannedArrival(trip, check.departure) },
-    });
+    run = planned
+      ? await prisma.tripRun.update({ where: { id: planned.id, status: 'CONFIRMED' }, data })
+      : await prisma.tripRun.create({ data: { ...data, tripId, runDate: check.runDate } });
   } catch (err) {
-    if (err.code === 'P2002') return { status: 409, body: { error: 'ALREADY_STARTED' } };
+    // P2002: a second Start created the row first; P2025: it already moved the confirmed row on.
+    if (err.code === 'P2002' || err.code === 'P2025') return { status: 409, body: { error: 'ALREADY_STARTED' } };
     throw err;
   }
   const { destinationAddress } = decryptTripFields(trip);
