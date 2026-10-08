@@ -44,11 +44,13 @@ function startCheck(trip, now, startedDays) {
 }
 
 // For the trip page: the soonest departure that can still be started.
-function nextDeparture(trip, now) {
+// closedDays: run days (ms) that were skipped or recorded as no-shows.
+function nextDeparture(trip, now, closedDays = new Set()) {
   const today = phDateOnly(now);
   for (let i = -1; i <= 7; i++) {
-    const departure = departureOnDay(trip, new Date(today.getTime() + i * DAY_MS));
-    if (!departure) continue;
+    const day = new Date(today.getTime() + i * DAY_MS);
+    const departure = departureOnDay(trip, day);
+    if (!departure || closedDays.has(day.getTime())) continue;
     const window = startWindow(departure);
     if (window.closesAt >= now) return { departure, ...window };
   }

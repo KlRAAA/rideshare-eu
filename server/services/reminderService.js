@@ -56,8 +56,15 @@ async function sendDueReminders(now = new Date()) {
   const due = candidates
     .map((trip) => ({ trip, run: upcomingDeparture(trip, now) }))
     .filter(({ run }) => run)
-    .map(({ trip, run }) => ({ trip: decryptTripFields(trip), occurrenceDate: run.occurrenceDate }));
+    .map(({ trip, run }) => ({ trip: decryptTripFields(trip), occurrenceDate: run.occurrenceDate, day: phDateOnly(run.departure) }));
   if (due.length === 0) return;
+
+  // Sub-project D: nobody is driving a skipped day, and a no-show day is over.
+  const closedRuns = await prisma.tripRun.findMany({
+    where: { tripId: { in: due.map(({ trip }) => trip.id) }, status: { in: ['SKIPPED', 'NO_SHOW'] }, runDate: { in: due.map(({ day }) => day) } },
+    select: { tripId: true, runDate: true },
+  });
+  const closed = new Set(closedRuns.map((r) => `${r.tripId}:${r.runDate.getTime()}`));
 
   // One query for every due trip's existing reminders (it used to be one per
   // trip), compared per trip, recipient and day.
@@ -68,7 +75,8 @@ async function sendDueReminders(now = new Date()) {
   const sent = new Set(alreadyNotified.map((n) => reminderKey(n.relatedTripId, n.userId, n.occurrenceDate)));
 
   const toCreate = [];
-  for (const { trip, occurrenceDate } of due) {
+  for (const { trip, occurrenceDate, day } of due) {
+    if (closed.has(`${trip.id}:${day.getTime()}`)) continue;
     for (const userId of reminderRecipients(trip)) {
       if (sent.has(reminderKey(trip.id, userId, occurrenceDate))) continue;
       toCreate.push({

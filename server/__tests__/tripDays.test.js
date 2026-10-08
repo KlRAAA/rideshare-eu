@@ -124,3 +124,42 @@ test("only the host can confirm or skip; an unknown trip is 404", async () => {
   expect((await req('POST', `${days(trip)}/${date}/skip`, rider.id, {})).status).toBe(403);
   expect((await req('POST', `/api/trips/nope/days/${date}/confirm`, rider.id, {})).status).toBe(404);
 });
+
+describe('a skipped day elsewhere (sub-project D)', () => {
+  const SEARCH_DEST = { lat: 13.95, lng: 121.62 };
+  const search = async (passengerId, departure) => {
+    const res = await req('POST', '/api/matches/show-all', passengerId, {
+      origin: { lat: 13.9, lng: 121.6 },
+      destination: SEARCH_DEST,
+      departureMinutes: 420,
+      flexWindowMinutes: 0,
+      genderPreference: 'ANY',
+      date: dateStr(departure),
+    });
+    const body = await res.json();
+    return body.status === 'MATCHED' ? body.matches.map((m) => m.tripId) : [];
+  };
+
+  test('search leaves the trip out on the skipped date only', async () => {
+    if (guard()) return;
+    const { host, trip } = await seedTrip();
+    const searcher = await makeUser(bag, { fullName: 'Day Searcher' });
+    const later = new Date(trip.departureTime.getTime() + DAY_MS);
+    expect((await req('POST', `${days(trip)}/${dateStr(later)}/skip`, host.id, {})).status).toBe(200);
+    expect(await search(searcher.id, later)).not.toContain(trip.id);
+    expect(await search(searcher.id, new Date(later.getTime() + DAY_MS))).toContain(trip.id);
+  });
+
+  test('the trip page lists the next 7 days with their status', async () => {
+    if (guard()) return;
+    const { host, rider, trip } = await seedTrip();
+    const later = new Date(trip.departureTime.getTime() + DAY_MS);
+    await req('POST', `${days(trip)}/${dateStr(trip.departureTime)}/confirm`, host.id, {});
+    await req('POST', `${days(trip)}/${dateStr(later)}/skip`, host.id, {});
+    const body = await (await req('GET', `/api/trips/${trip.id}`, rider.id)).json();
+    expect(body.trip.days).toHaveLength(7);
+    expect(body.trip.days[0]).toMatchObject({ date: dateStr(trip.departureTime), status: 'CONFIRMED' });
+    expect(body.trip.days[1]).toMatchObject({ date: dateStr(later), status: 'SKIPPED' });
+    expect(body.trip.days[2].status).toBeNull();
+  });
+});

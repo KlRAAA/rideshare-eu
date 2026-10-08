@@ -11,6 +11,7 @@ const { computeFuelSharePerSeat } = require('../services/fuelShareService');
 const { classifyTripChanges, describeCategories, fuelShareWouldChange } = require('../services/tripUpdateService');
 const { completeTrip } = require('../services/tripCompletionService');
 const { settleTrips } = require('../services/tripDayService');
+const { upcomingDays, DAY_MS } = require('../services/tripDayRules');
 const safeUserSelect = require('../config/safeUserSelect');
 const { encryptField, decryptUserFields, decryptTripFields } = require('../services/encryptionService');
 
@@ -315,7 +316,21 @@ async function getById(req, res) {
     latestRun && (latestRun.status === 'ONGOING' || latestRun.runDate.getTime() === phDateOnly(now).getTime())
       ? { status: latestRun.status, startedAt: latestRun.startedAt, plannedArrivalAt: latestRun.plannedArrivalAt, etaAt: latestRun.etaAt }
       : null;
-  const next = ['OPEN', 'FULL'].includes(trip.status) ? nextDeparture(tripRaw, now) : null;
+  const active = ['OPEN', 'FULL'].includes(trip.status);
+  // Sub-project D: the next 7 run days, with what the driver said about each.
+  const upcoming = active ? upcomingDays(tripRaw, now, 7) : [];
+  const dayRuns = await prisma.tripRun.findMany({
+    where: { tripId: tripRaw.id, runDate: { gte: new Date(phDateOnly(now).getTime() - DAY_MS) } },
+    select: { runDate: true, status: true },
+  });
+  const statusOn = new Map(dayRuns.map((r) => [r.runDate.getTime(), r.status]));
+  trip.days = upcoming.map(({ day, departure }) => ({
+    date: day.toISOString().slice(0, 10),
+    departure,
+    status: statusOn.get(day.getTime()) ?? null,
+  }));
+  const closedDays = new Set(dayRuns.filter((r) => ['SKIPPED', 'NO_SHOW'].includes(r.status)).map((r) => r.runDate.getTime()));
+  const next = active ? nextDeparture(tripRaw, now, closedDays) : null;
   trip.nextDeparture = next && { ...next, plannedArrivalAt: plannedArrival(tripRaw, next.departure) };
 
   res.json({ trip });

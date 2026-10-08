@@ -1,7 +1,7 @@
 const prisma = require('../config/db');
 const { conflictWithHosted, conflictBody } = require('../services/scheduleConflicts');
 const { runPSGA, runShowAllFallback, computeRouteOverlapDetail, tripRunsOnSearchDate } = require('../services/psgaService');
-const { settleTrips } = require('../services/tripDayService');
+const { settleTrips, phDay } = require('../services/tripDayService');
 const psgaConfig = require('../config/psgaConfig');
 const safeUserSelect = require('../config/safeUserSelect');
 const { checkJoinEligibility } = require('../services/joinRequestService');
@@ -92,9 +92,19 @@ async function loadSearchCandidates(passengerId, passengerRequest) {
   // candidate at all, not just low-scored. Validated by the caller
   // (search/showAll) before this function runs, so passengerRequest.date is
   // already a real "YYYY-MM-DD" here.
-  const openTrips = candidateTrips.filter(
+  const runningTrips = candidateTrips.filter(
     (t) => t.status === 'OPEN' && tripRunsOnSearchDate(t, passengerRequest.date)
   );
+  // Sub-project D: the driver said they aren't driving that day.
+  const skipped = new Set(
+    (
+      await prisma.tripRun.findMany({
+        where: { tripId: { in: runningTrips.map((t) => t.id) }, runDate: phDay(passengerRequest.date), status: 'SKIPPED' },
+        select: { tripId: true },
+      })
+    ).map((r) => r.tripId)
+  );
+  const openTrips = runningTrips.filter((t) => !skipped.has(t.id));
 
   // Per-host familiarity comes from real completed rides, never client input,
   // so a client can't claim it to get around familiar-riders-only.

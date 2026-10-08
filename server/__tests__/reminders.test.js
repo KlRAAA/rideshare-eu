@@ -101,6 +101,23 @@ describe('sendDueReminders', () => {
     ]);
   });
 
+  test('a skipped or no-show day gets no reminder (sub-project D)', async () => {
+    if (guard()) return;
+    const { trip } = await seed('DAILY');
+    const day = (iso) => new Date(iso);
+    await prisma.tripRun.createMany({
+      data: [
+        { tripId: trip.id, runDate: day('2020-06-03T00:00:00Z'), status: 'SKIPPED', plannedArrivalAt: FIRST_DEPARTURE },
+        { tripId: trip.id, runDate: day('2020-06-04T00:00:00Z'), status: 'NO_SHOW', plannedArrivalAt: FIRST_DEPARTURE },
+      ],
+    });
+    await sendDueReminders(at('2020-06-02T23:30:00Z')); // Wednesday: skipped
+    await sendDueReminders(at('2020-06-03T23:30:00Z')); // Thursday: no-show already recorded
+    expect(await remindersFor(trip.id)).toHaveLength(0);
+    await sendDueReminders(at('2020-06-04T23:30:00Z')); // Friday
+    expect(await remindersFor(trip.id)).toHaveLength(2);
+  });
+
   test('a weekday trip sends nothing for Saturday', async () => {
     if (guard()) return;
     const { trip } = await seed('WEEKDAYS');
