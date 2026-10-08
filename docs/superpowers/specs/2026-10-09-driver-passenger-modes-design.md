@@ -107,7 +107,7 @@ Where it applies (409 `SCHEDULE_CONFLICT` with `conflictTripId` and
 
 - Switching fails: the button shows "Couldn't switch. Try again." and the mode
   stays.
-- A notification whose trip was deleted counts as account-wide.
+- A notification about a trip the user doesn't host counts as Passenger mode (trips are never deleted, only cancelled or anonymized).
 
 ## Testing
 
