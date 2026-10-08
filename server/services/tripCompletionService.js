@@ -245,7 +245,18 @@ async function completeRecurringOccurrence(tripOrId, occurrenceDate) {
 // its APPROVED matches are never touched; only a due occurrence's PENDING
 // matches lapse, mutated in place the same way matchChanges is.
 async function applyLazyCompletion(trips, now = new Date()) {
+  // A started run ends through End Trip or the overdue-run job, never here:
+  // otherwise a trip that left late would complete while still on the road.
+  const onRoad = new Set(
+    (
+      await prisma.tripRun.findMany({
+        where: { tripId: { in: trips.map((t) => t.id) }, status: 'ONGOING' },
+        select: { tripId: true },
+      })
+    ).map((r) => r.tripId)
+  );
   for (const t of trips) {
+    if (onRoad.has(t.id)) continue;
     if (t.status !== 'OPEN' && t.status !== 'FULL') continue;
 
     // Pass the trip itself, not just its id, when the caller already

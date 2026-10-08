@@ -1,5 +1,6 @@
 const prisma = require('../config/db');
 const { inLuzon } = require('../config/serviceArea');
+const { ongoingRun, finishRun } = require('../services/tripRunService');
 const { geocodeAddress, reverseGeocode } = require('../services/geocodingService');
 const { suggestAddresses } = require('../services/addressSuggestService');
 const { validateClientRoute } = require('../services/routeSanity');
@@ -400,6 +401,13 @@ async function markCompleted(req, res) {
     return res.status(409).json({ error: 'TRIP_NOT_ACTIVE' });
   }
 
+  // While a run is on the road, completing it means ending that run.
+  const run = await ongoingRun(id);
+  if (run) {
+    await finishRun(run, 'DRIVER');
+    return res.json({ trip: await prisma.trip.findUnique({ where: { id } }) });
+  }
+
   const { trip: updated } = await completeTrip(id);
   res.json({ trip: updated });
 }
@@ -453,6 +461,7 @@ async function cancelTrip(req, res) {
   if (trip.status === 'CANCELLED' || trip.status === 'COMPLETED') {
     return res.status(409).json({ error: 'TRIP_NOT_CANCELLABLE' });
   }
+  if (await ongoingRun(trip.id)) return res.status(409).json({ error: 'TRIP_IN_PROGRESS' });
 
   if (userId === trip.hostId) {
     // Host cancels: whole trip + every active match, notify every affected passenger.

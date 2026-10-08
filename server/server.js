@@ -20,6 +20,7 @@ Sentry.init({
 const cron = require('node-cron');
 const app = require('./app');
 const { sendDueReminders } = require('./services/reminderService');
+const { endOverdueRuns } = require('./services/tripRunService');
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`RideShareEU API listening on :${PORT}`));
 
@@ -29,6 +30,7 @@ app.listen(PORT, () => console.log(`RideShareEU API listening on :${PORT}`));
 if (process.env.NODE_ENV !== 'test') {
   cron.schedule('*/5 * * * *', () => {
     sendDueReminders().catch((err) => console.error(`[reminders] run failed: ${err.message}`));
+    endOverdueRuns().catch((err) => console.error(`[trip runs] auto-end failed: ${err.message}`));
   });
 
   // Keep a database copy of security events for the admin console (no IP or
