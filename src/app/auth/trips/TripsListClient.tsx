@@ -48,6 +48,7 @@ export interface HostedTrip {
   status: string;
   fuelSharePerSeat: number | null;
   matches: HostedMatch[];
+  inProgress?: boolean;
 }
 
 export interface JoinedTrip extends HostedTrip {
@@ -140,7 +141,7 @@ export default function TripsListClient({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {visibleHosted.map((trip) => {
-            const status = tripStatusBadge(trip.status);
+            const status = tripStatusBadge(trip.status, trip.inProgress);
             return (
               <Card key={`host-${trip.id}`}>
                 <div className="flex items-center justify-between mb-3">
@@ -262,7 +263,7 @@ export default function TripsListClient({
           })}
 
           {visibleJoined.map((trip) => {
-            const status = matchStatusBadge(trip.matchStatus);
+            const status = trip.inProgress ? tripStatusBadge(trip.status, true) : matchStatusBadge(trip.matchStatus);
             const alreadyRated = hasRated(trip.matchId, trip.ratedByMe);
             return (
               <Card key={`join-${trip.matchId}`}>

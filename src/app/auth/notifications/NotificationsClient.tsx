@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen, FaCommentDots, FaLifeRing, FaBullhorn, FaExclamationTriangle, FaBell } from 'react-icons/fa';
+import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen, FaCommentDots, FaLifeRing, FaBullhorn, FaExclamationTriangle, FaBell, FaCar } from 'react-icons/fa';
 import Card from '@/components/Card';
 import { apiFetch } from '@/lib/api';
 import { formatDateTimeAgo } from '@/lib/format';
@@ -20,7 +20,8 @@ export interface NotificationItem {
     | 'MESSAGE'
     | 'SUPPORT_REPLY'
     | 'ANNOUNCEMENT'
-    | 'WARNING';
+    | 'WARNING'
+    | 'TRIP_STARTED';
   message: string;
   isRead: boolean;
   createdAt: string;
@@ -39,6 +40,7 @@ const TYPE_ICON: Record<NotificationItem['type'], React.ComponentType<{ classNam
   SUPPORT_REPLY: FaLifeRing,
   ANNOUNCEMENT: FaBullhorn,
   WARNING: FaExclamationTriangle,
+  TRIP_STARTED: FaCar,
 };
 
 interface NotificationsClientProps {

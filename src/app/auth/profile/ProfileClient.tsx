@@ -29,7 +29,6 @@ export interface Preference {
   genderPreference: GenderPreference;
   flexWindowMinutes: number;
   familiarRidersOnly: boolean;
-  liveLocationSharing: boolean;
 }
 
 const FLEX_OPTIONS = [5, 15, 30, 60];
@@ -96,7 +95,6 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
           genderPreference: preference.genderPreference,
           flexWindowMinutes: preference.flexWindowMinutes,
           familiarRidersOnly: preference.familiarRidersOnly,
-          liveLocationSharing: preference.liveLocationSharing,
         }),
       });
       setEditing(false);
@@ -244,19 +242,6 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-800">Live Location Sharing</p>
-                <p className="text-xs text-gray-500">Optional — lets a trip near campus auto-mark as completed</p>
-              </div>
-              <input
-                type="checkbox"
-                disabled={!editing}
-                checked={preference.liveLocationSharing}
-                onChange={(e) => setPreference((p) => ({ ...p, liveLocationSharing: e.target.checked }))}
-                className="w-5 h-5 accent-[color:var(--rsu-color-primary)]"
-              />
-            </div>
           </div>
 
           {editing && (

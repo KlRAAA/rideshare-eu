@@ -1,6 +1,8 @@
 type Tone = 'success' | 'warning' | 'neutral' | 'primary' | 'info';
 
-export function tripStatusBadge(status: string): { label: string; tone: Tone } {
+// inProgress: today's run has started (sub-project B).
+export function tripStatusBadge(status: string, inProgress = false): { label: string; tone: Tone } {
+  if (inProgress) return { label: 'In progress', tone: 'primary' };
   switch (status) {
     case 'OPEN':
       return { label: 'Open', tone: 'success' };

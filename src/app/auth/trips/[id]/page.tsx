@@ -31,8 +31,6 @@ export default async function TripDetailPage({
     throw err;
   }
 
-  const { preference } = await apiFetch<{ preference: { liveLocationSharing: boolean } }>(`/api/preferences/${user.id}`);
-
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <Header active="trips" />
@@ -41,7 +39,6 @@ export default async function TripDetailPage({
         <TripDetailClient
           trip={trip}
           currentUserId={user.id}
-          liveLocationSharing={preference.liveLocationSharing}
           highlightRequestId={requestId ?? null}
         />
       </main>

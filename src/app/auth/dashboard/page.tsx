@@ -29,6 +29,7 @@ interface Trip {
   vehicle: Vehicle;
   status: string;
   matchStatus?: string;
+  inProgress?: boolean;
 }
 
 interface Notification {
@@ -51,7 +52,7 @@ export default async function DashboardPage() {
       apiFetch<{ notifications: Notification[] }>(`/api/alerts?userId=${user.id}`),
     ]);
     upcoming = [
-      ...hosted.filter((t) => t.status === 'OPEN').map((t) => ({ ...t, role: 'Host' as const })),
+      ...hosted.filter((t) => t.status === 'OPEN' || t.status === 'FULL').map((t) => ({ ...t, role: 'Host' as const })),
       ...joined
         .filter((t) => t.matchStatus === 'PENDING' || t.matchStatus === 'APPROVED')
         .map((t) => ({ ...t, role: 'Passenger' as const })),
@@ -140,7 +141,10 @@ export default async function DashboardPage() {
                 {upcoming.map((trip) => (
                   <Card key={`${trip.role}-${trip.id}`}>
                     <div className="flex justify-between items-start mb-2">
-                      <Badge tone={trip.role === 'Host' ? 'primary' : 'success'}>{trip.role}</Badge>
+                      <span className="flex items-center gap-1.5">
+                        <Badge tone={trip.role === 'Host' ? 'primary' : 'success'}>{trip.role}</Badge>
+                        {trip.inProgress && <Badge tone="info">In progress</Badge>}
+                      </span>
                       <span className="text-xs text-gray-400">{recurrenceLabel(trip.recurrenceType)}</span>
                     </div>
                     <p className="text-sm font-semibold text-gray-900">

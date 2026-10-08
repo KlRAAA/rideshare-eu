@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaFlag, FaBan, FaPen } from 'react-icons/fa';
@@ -15,8 +15,10 @@ import CoRidersCard from '@/components/CoRidersCard';
 import ChatCard from '@/components/ChatCard';
 import ReportModal from '@/components/ReportModal';
 import { apiFetch, ApiError } from '@/lib/api';
-import { checkCampusProximity, getCurrentCoords } from '@/lib/geoProximity';
+import { getCurrentCoords, isNearCampus } from '@/lib/geoProximity';
 import { LOCATION_POLL_INTERVAL_MS } from '@/lib/constants';
+import { fetchRoute } from '@/lib/directions';
+import TripRunPanel, { type CurrentRun, type NextDeparture } from '@/components/TripRunPanel';
 import RuleBadges from '@/components/RuleBadges';
 import { whoCanJoinLabel } from '@/lib/riderRules';
 
@@ -75,14 +77,17 @@ export interface TripDetail {
   flexibleDeparture: boolean;
   flexWindowMinutes: number;
   familiarRidersOnly: boolean;
+  durationSeconds?: number | null;
   host: SafeUser;
   matches: MatchInfo[];
+  // Sub-project B: today's run and the next startable departure.
+  currentRun: CurrentRun | null;
+  nextDeparture: NextDeparture | null;
 }
 
 interface TripDetailClientProps {
   trip: TripDetail;
   currentUserId: string;
-  liveLocationSharing?: boolean;
   // Match id from a "requested to join" notification — scrolled into view and
   // ringed on arrival so the host doesn't hunt through multiple pending rows.
   highlightRequestId?: string | null;
@@ -91,7 +96,6 @@ interface TripDetailClientProps {
 export default function TripDetailClient({
   trip,
   currentUserId,
-  liveLocationSharing = false,
   highlightRequestId = null,
 }: TripDetailClientProps) {
   const router = useRouter();
@@ -126,64 +130,63 @@ export default function TripDetailClient({
     ratedThisSession.has(matchId) || (trip.matches.find((m) => m.id === matchId)?.ratedByMe ?? false);
 
   const tripIsActive = trip.status === 'OPEN' || trip.status === 'FULL';
-  const canCancel = (isHost && tripIsActive) || (!isHost && Boolean(myActiveMatch));
+  // Nobody cancels a trip that's on the road (sub-project B; the server refuses too).
+  const canCancel = trip.currentRun?.status !== 'ONGOING' && ((isHost && tripIsActive) || (!isHost && Boolean(myActiveMatch)));
   // Group chat: host + every APPROVED passenger, only while the trip is
   // still active — a hard cutoff, so this simply stops rendering once the
   // trip ends rather than showing a closed/archived state; the server
   // enforces the identical window independently (messageController.js).
   const canUseChat = tripIsActive && (isHost || myActiveMatch?.status === 'APPROVED');
 
-  // Optional nice-to-have (Task 13, item 3): a single opportunistic
-  // proximity check on mount, only for the host (the manual-complete
-  // endpoint this reuses is host-only server-side, matching "the person
-  // driving" as the meaningful signal), only while opted in, only while
-  // the trip is still active. Never blocks anything — checkCampusProximity
-  // resolves null on any failure and this effect just no-ops on null.
-  useEffect(() => {
-    if (!isHost || !liveLocationSharing || !tripIsActive) return;
-    let cancelled = false;
-    checkCampusProximity().then((isNearCampus) => {
-      if (!cancelled && isNearCampus) {
-        apiFetch(`/api/trips/${trip.id}/complete`, { method: 'POST' }).then(
-          () => router.refresh()
-        );
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip.id, isHost, liveLocationSharing, tripIsActive]);
+  const runOngoing = trip.currentRun?.status === 'ONGOING';
+  const [liveEtaAt, setLiveEtaAt] = useState<string | null>(null);
 
-  // Live location sharing — host side: broadcasts the current position every
-  // ~30s while sharing is on and the trip is active. Deliberately its own
-  // interval, not folded into the proximity-check effect above: that one is
-  // correctly one-shot (check once on mount), this one needs to repeat for
-  // the trip's whole active lifetime — sharing one loop would mean either
-  // the proximity check re-firing repeatedly (changing existing behavior) or
-  // this being one-shot (useless for a live pin). Fails soft exactly like
-  // the proximity check: getCurrentCoords resolves null on any failure
-  // (permission denied, unsupported, timeout) and a tick just no-ops.
+  // The driver's phone while a run is ongoing (sub-project B): every ~30 s it
+  // sends its position, and every 4th tick (~2 min) the remaining drive time
+  // from Mapbox as the live ETA. Arriving near campus ends the run (the server
+  // only allows that once started). The screen is kept awake, because a web
+  // page can't send location from a locked phone. A failed tick is skipped.
+  const arrivedRef = useRef(false);
   useEffect(() => {
-    if (!isHost || !liveLocationSharing || !tripIsActive) return;
+    if (!isHost || !runOngoing) return;
     let cancelled = false;
-    const broadcast = () => {
-      getCurrentCoords().then((coords) => {
-        if (cancelled || !coords) return;
-        apiFetch(`/api/trips/${trip.id}/location`, {
-          method: 'POST',
-          body: JSON.stringify({ lat: coords.lat, lng: coords.lng }),
-        }).catch(() => {}); // a missed tick just means the next one tries again
-      });
+    let tick = 0;
+    let wakeLock: { release: () => Promise<void> } | null = null;
+    const nav = navigator as Navigator & { wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void> }> } };
+    nav.wakeLock?.request('screen').then((lock) => {
+      if (cancelled) lock.release().catch(() => {});
+      else wakeLock = lock;
+    }).catch(() => {});
+
+    const send = async () => {
+      const coords = await getCurrentCoords({ timeout: 10000, maximumAge: 15000 });
+      if (cancelled || !coords) return;
+      if (isNearCampus(coords) && !arrivedRef.current) {
+        arrivedRef.current = true;
+        apiFetch(`/api/trips/${trip.id}/arrived`, { method: 'POST', body: JSON.stringify({}) })
+          .then(() => router.refresh())
+          .catch(() => {});
+        return;
+      }
+      let etaSeconds: number | undefined;
+      if (tick++ % 4 === 0) {
+        const route = await fetchRoute(coords, { lat: trip.destinationLat, lng: trip.destinationLng });
+        if (route) etaSeconds = route.durationSeconds;
+      }
+      apiFetch(`/api/trips/${trip.id}/location`, {
+        method: 'POST',
+        body: JSON.stringify({ lat: coords.lat, lng: coords.lng, ...(etaSeconds != null && { etaSeconds }) }),
+      }).catch(() => {});
     };
-    broadcast();
-    const intervalId = setInterval(broadcast, LOCATION_POLL_INTERVAL_MS);
+    send();
+    const intervalId = setInterval(send, LOCATION_POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
       clearInterval(intervalId);
+      wakeLock?.release().catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip.id, isHost, liveLocationSharing, tripIsActive]);
+  }, [trip.id, isHost, runOngoing]);
 
   // Live location sharing — passenger side: whether this viewer may watch the
   // host's live position (confirmed seat, active trip). The actual ~30s poll
@@ -193,7 +196,7 @@ export default function TripDetailClient({
   // only the map itself reads. The server re-checks the host's sharing
   // preference and point staleness on every read regardless, so this side
   // never needs to know the host's preference, only whether to poll at all.
-  const canWatchDriverLocation = !isHost && myActiveMatch?.status === 'APPROVED' && tripIsActive;
+  const canWatchDriverLocation = !isHost && myActiveMatch?.status === 'APPROVED' && runOngoing;
 
   // Arriving from a "requested to join" notification: bring that row into view.
   useEffect(() => {
@@ -245,7 +248,18 @@ export default function TripDetailClient({
           }
           routeWaypoints={trip.routeWaypoints}
           canWatchDriverLocation={canWatchDriverLocation}
+          onEta={setLiveEtaAt}
         />
+
+        {tripIsActive && (isHost || myActiveMatch?.status === 'APPROVED') && (
+          <TripRunPanel
+            tripId={trip.id}
+            isHost={isHost}
+            currentRun={trip.currentRun}
+            nextDeparture={trip.nextDeparture}
+            liveEtaAt={liveEtaAt}
+          />
+        )}
 
         <DriverIdentityCard
           name={trip.host.fullName}
@@ -406,7 +420,7 @@ export default function TripDetailClient({
           </Link>
         )}
 
-        {isHost && tripIsActive && (
+        {isHost && tripIsActive && !runOngoing && (
           <button type="button" onClick={markCompleted} disabled={completing} className="rsu-btn-secondary w-full disabled:opacity-60">
             {completing ? 'Marking Completed...' : 'Mark Trip as Completed'}
           </button>

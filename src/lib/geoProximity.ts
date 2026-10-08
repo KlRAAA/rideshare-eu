@@ -52,6 +52,10 @@ export function getCurrentCoords(options: PositionOptions = { timeout: 10000, ma
 // "signal not available" and fall back to the lazy/manual completion paths
 // without any special-casing. Behavior unchanged from before this was
 // rewritten atop getCurrentCoords — same options, same signature.
+export function isNearCampus(coords: GeoCoords): boolean {
+  return haversineMeters(coords, MSEUF_LUCENA) <= PROXIMITY_THRESHOLD_METERS;
+}
+
 export function checkCampusProximity(): Promise<boolean | null> {
   return getCurrentCoords({ timeout: 10000, maximumAge: 60000 }).then((coords) => {
     if (!coords) return null;

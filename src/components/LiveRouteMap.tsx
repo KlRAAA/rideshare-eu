@@ -19,6 +19,8 @@ interface LiveRouteMapProps {
   // Precomputed by the caller (passenger side, APPROVED match, active trip) —
   // this component only needs to know whether to poll, not why.
   canWatchDriverLocation: boolean;
+  // The live ETA the driver's phone last sent (null when there's none).
+  onEta?: (etaAt: string | null) => void;
 }
 
 // Owns the driverLocation poll and its ~30s interval so that tick only
@@ -35,6 +37,7 @@ export default function LiveRouteMap({
   meetingPoint,
   routeWaypoints,
   canWatchDriverLocation,
+  onEta,
 }: LiveRouteMapProps) {
   const [driverLocation, setDriverLocation] = useState<LatLng | null>(null);
 
@@ -45,10 +48,13 @@ export default function LiveRouteMap({
     }
     let cancelled = false;
     const poll = () => {
-      apiFetch<{ location: { lat: number; lng: number; updatedAt: string } | null }>(`/api/trips/${tripId}/location`)
+      apiFetch<{ location: { lat: number; lng: number; updatedAt: string } | null; etaAt?: string | null }>(
+        `/api/trips/${tripId}/location`
+      )
         .then((data) => {
           if (cancelled) return;
           setDriverLocation(data.location ? { lat: data.location.lat, lng: data.location.lng } : null);
+          onEta?.(data.etaAt ?? null);
         })
         .catch(() => {
           if (!cancelled) setDriverLocation(null);

@@ -30,7 +30,7 @@ export interface RouteMapProps {
   // Passenger straight-line vs host-corridor classification from
   // POST /api/matches/route-overlap. Draws the shared/detour split + legend.
   overlap?: OverlapData | null;
-  // Host's live position (liveLocationSharing), polled by the caller — this
+  // Host's live position during a started run, polled by the caller — this
   // component only renders it. Deliberately excluded from the bounds-fit
   // calculation below: including a point that moves every ~25-30s would
   // re-center/re-zoom the map on every update, which is jarring for someone
