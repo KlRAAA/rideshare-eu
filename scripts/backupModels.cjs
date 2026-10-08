@@ -7,6 +7,7 @@ module.exports = [
   'vehicle',
   'savedVehicle',
   'trip',
+  'tripRun',
   'match',
   'preference',
   'message',

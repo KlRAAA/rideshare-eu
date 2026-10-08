@@ -50,6 +50,7 @@ enum NotificationType {
   SUPPORT_REPLY
   ANNOUNCEMENT
   WARNING
+  TRIP_STARTED
 }
 
 enum ReportStatus {
@@ -326,6 +327,7 @@ model Trip {
 
   matches             Match[]
   messages            Message[]
+  runs                TripRun[]
 
   @@index([hostId])
   @@index([status])
@@ -563,4 +565,38 @@ model SecurityEvent {
   @@index([createdAt])
   @@index([event, createdAt])
   @@index([userId, createdAt])
+}
+
+enum RunStatus {
+  ONGOING
+  COMPLETED
+}
+
+enum RunEndReason {
+  DRIVER  // End Trip
+  AUTO    // 60 minutes after planned arrival
+  ARRIVED // near campus while ongoing
+}
+
+// One day's run of a trip, created when the driver taps Start Trip
+// (sub-project B). A day nobody started has no row. runDate is the
+// departure's Philippine calendar day, as phDateOnly() gives it.
+model TripRun {
+  id                    String        @id @default(cuid())
+  tripId                String
+  trip                  Trip          @relation(fields: [tripId], references: [id])
+  runDate               DateTime
+  status                RunStatus     @default(ONGOING)
+  startedAt             DateTime      @default(now())
+  plannedArrivalAt      DateTime
+  endedAt               DateTime?
+  endReason             RunEndReason?
+  lastKnownLat          Float?
+  lastKnownLng          Float?
+  lastLocationUpdatedAt DateTime?
+  etaAt                 DateTime?
+  createdAt             DateTime      @default(now())
+
+  @@unique([tripId, runDate])
+  @@index([status])
 }
