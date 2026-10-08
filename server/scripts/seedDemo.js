@@ -58,27 +58,12 @@ function assertDemoDatabase() {
   }
 }
 
+// Every table, children first: the shared backup list (parents first),
+// reversed, so a new table can't be missed here.
+const MODELS = require('../../scripts/backupModels.cjs');
+
 async function wipe() {
-  // Children before parents.
-  await prisma.supportMessage.deleteMany();
-  await prisma.supportTicket.deleteMany();
-  await prisma.announcement.deleteMany();
-  await prisma.securityEvent.deleteMany();
-  await prisma.rating.deleteMany();
-  await prisma.report.deleteMany();
-  await prisma.message.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.match.deleteMany();
-  await prisma.trip.deleteMany();
-  await prisma.vehicle.deleteMany();
-  await prisma.savedVehicle.deleteMany();
-  await prisma.preference.deleteMany();
-  await prisma.adminAction.deleteMany();
-  await prisma.dataRequest.deleteMany();
-  await prisma.userWarning.deleteMany();
-  await prisma.fuelPrice.deleteMany();
-  await prisma.emailVerification.deleteMany();
-  await prisma.user.deleteMany();
+  for (const model of [...MODELS].reverse()) await prisma[model].deleteMany();
 }
 
 async function createUsers() {
@@ -276,13 +261,13 @@ async function main() {
       make: 'Honda', model: 'Click 125', color: 'Black', plate: 'DMO 2001', fuelEfficiencyKmL: 45,
     });
     await api(u.ana.id, 'PATCH', `/api/preferences/${u.ana.id}`, {
-      genderPreference: 'WOMEN_PLUS', flexWindowMinutes: 15, familiarRidersOnly: false, liveLocationSharing: true,
+      genderPreference: 'WOMEN_PLUS', flexWindowMinutes: 15, familiarRidersOnly: false,
     });
     await api(u.maria.id, 'PATCH', `/api/preferences/${u.maria.id}`, {
-      genderPreference: 'WOMEN_PLUS', flexWindowMinutes: 15, familiarRidersOnly: false, liveLocationSharing: false,
+      genderPreference: 'WOMEN_PLUS', flexWindowMinutes: 15, familiarRidersOnly: false,
     });
     await api(u.juan.id, 'PATCH', `/api/preferences/${u.juan.id}`, {
-      genderPreference: 'ANY', flexWindowMinutes: 15, familiarRidersOnly: false, liveLocationSharing: true,
+      genderPreference: 'ANY', flexWindowMinutes: 15, familiarRidersOnly: false,
     });
 
     // Last week's rides, so profiles carry trust scores and reviews.
@@ -321,6 +306,12 @@ async function main() {
       from: PLACES.lucban, to: CAMPUS, departureTime: nextWeekdayAt('06:15'), recurrenceType: 'WEEKDAYS', totalSeats: 4,
       driverNotes: 'Faculty commute, MWF and TTh. Students welcome.',
     });
+    // Leaves 10 minutes after seeding, so the demo can show Start Trip, the
+    // trip in progress and End Trip (sub-project B).
+    const soonTrip = await postTrip(api, u.miguel.id, vehicleIds.miguel, {
+      from: PLACES.sariayaEast, to: CAMPUS, departureTime: new Date(Date.now() + 10 * 60 * 1000), totalSeats: 2,
+      driverNotes: 'Leaving in a few minutes from the highway stop.',
+    });
     const homeTrip = await postTrip(api, u.juan.id, vehicleIds.juan, {
       from: CAMPUS, to: PLACES.sariayaPlaza, departureTime: nextWeekdayAt('17:30'), totalSeats: 3,
       driverNotes: 'Heading home after my last class. Meet at the main gate.',
@@ -330,6 +321,8 @@ async function main() {
     await api(u.juan.id, 'PATCH', `/api/matches/${mariaMatch.id}`, { status: 'APPROVED' });
     await join(api, u.paolo.id, juanTrip, { from: PLACES.sariayaPlaza, wantOffset: 10, message: 'Pwede po makisabay? I have an 8 AM class.' });
     await join(api, u.rico.id, homeTrip, { from: CAMPUS, message: 'Going to Sariaya too, thanks!' });
+    const paoloSoon = await join(api, u.paolo.id, soonTrip, { from: PLACES.sariayaEast, message: 'Sabay po, I am at the stop.' });
+    await api(u.miguel.id, 'PATCH', `/api/matches/${paoloSoon.id}`, { status: 'APPROVED' });
     const beaMatch = await join(api, u.bea.id, anaTrip, { from: PLACES.tayabas, wantOffset: -3, message: 'Hi Ate Ana, see you at the basilica!' });
     await api(u.ana.id, 'PATCH', `/api/matches/${beaMatch.id}`, { status: 'APPROVED' });
 
