@@ -172,8 +172,10 @@ export default function RouteMapView({
     if (meetingPoint) pts.push(meetingPoint);
     if (roadLine) pts.push(...roadLine);
     if (overlap?.samples) pts.push(...overlap.samples);
+    // The driver may still be on the way to the start, outside the route.
+    if (driverLocation) pts.push(driverLocation);
     return pts;
-  }, [origin, dest, meetingPoint, roadLine, overlap]);
+  }, [origin, dest, meetingPoint, roadLine, overlap, driverLocation]);
 
   const bounds = useMemo(() => {
     if (allPoints.length === 0) return null;
