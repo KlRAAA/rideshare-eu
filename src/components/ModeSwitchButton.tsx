@@ -34,11 +34,12 @@ export default function ModeSwitchButton({ className = '', compact = false }: { 
       <button
         type="button"
         onClick={switchMode}
+        aria-label={`Switch to ${modeLabel(target)} mode`}
         disabled={busy}
         className={`inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60 ${className}`}
       >
         <FaExchangeAlt className="w-3 h-3" aria-hidden />
-        {busy ? 'Switching…' : compact ? modeLabel(target) : `Switch to ${modeLabel(target)}`}
+        {busy ? 'Switching…' : compact ? `To ${modeLabel(target)}` : `Switch to ${modeLabel(target)}`}
       </button>
       {error && <span className="text-[11px] text-red-600 mt-0.5">Couldn’t switch. Try again.</span>}
     </span>

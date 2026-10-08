@@ -468,3 +468,30 @@ plan `docs/superpowers/plans/2026-10-08-trip-lifecycle.md`.
 - Demo: the seed adds Miguel's trip leaving 10 minutes after seeding (Paolo
   approved). Postman: folder "18. Trip runs"; `seed:postman` deletes runs
   before trips.
+
+**C. Driver and passenger modes (done):** spec `docs/superpowers/specs/2026-10-09-driver-passenger-modes-design.md`,
+plan `docs/superpowers/plans/2026-10-09-driver-passenger-modes.md`.
+- `User.activeMode` (`AppMode`: PASSENGER default | DRIVER), set by
+  `PATCH /api/users/me/mode { mode }` (400 `INVALID_MODE`); returned only on
+  your own `GET /api/users/:id`. A view setting: no API refuses a call because
+  of the caller's mode. Anyone can switch until sub-project E gates Driver mode.
+- Overlap rule (`services/scheduleRules.js`, pure; DB side in
+  `services/scheduleConflicts.js`): two trips clash when they share a PH day
+  (one-time dates, `recurrenceRunsOnDay`, or shared weekdays) and their spans
+  (departure time of day + `durationSeconds`, 60 min when unknown) intersect;
+  back-to-back is fine. 409 `SCHEDULE_CONFLICT` (`conflictTripId`,
+  `conflictDepartureTime`) on join (vs trips you host), post and schedule edits
+  (vs rides you have PENDING/APPROVED), and approve (vs the rider's hosted trips).
+- `GET /api/alerts?mode=driver|passenger`: notifications about trips you host
+  are Driver mode, about other trips Passenger mode, ones without a trip show in
+  both; adds `otherModeUnread`. Without `mode` it's unchanged.
+- Web: `getCurrentUser` is React-`cache`d; the `/auth` layout (and `HelpShell`)
+  wraps pages in `ModeProvider` (`useMode()`). `Header`/`BottomNav` render
+  `tabsFor(mode)` from `src/lib/modeNav.ts` (Passenger: Home, Find a Ride, My
+  Rides, Alerts, Profile; Driver: Home, Post a Trip, My Trips, Alerts, Profile).
+  `ModeSwitchButton` in the header ("To Driver") and Profile; `WrongModeNotice`
+  on Find a Ride in Driver mode and Post a Trip in Passenger mode; the dashboard,
+  My Trips/My Rides and Alerts show only the current mode. The onboarding tour
+  points at the mode switch.
+- Demo: Juan, Miguel, Ana and Carlo start in Driver mode. Postman: folder
+  "19. Modes and schedule conflicts".

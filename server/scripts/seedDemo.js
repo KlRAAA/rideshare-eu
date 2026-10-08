@@ -237,6 +237,11 @@ async function main() {
   try {
     await wipe();
     const u = await createUsers();
+    // People who post trips start in Driver mode; everyone else in Passenger mode.
+    await prisma.user.updateMany({
+      where: { id: { in: [u.juan.id, u.miguel.id, u.ana.id, u.carlo.id] } },
+      data: { activeMode: 'DRIVER' },
+    });
 
     for (const [fuelType, pricePerLiter] of Object.entries(FUEL_PRICES)) {
       await api(u.liza.id, 'PUT', '/api/admin/fuel-price', { fuelType, pricePerLiter });

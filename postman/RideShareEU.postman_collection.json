@@ -148,6 +148,14 @@
     {
       "key": "runDepartureTime",
       "value": ""
+    },
+    {
+      "key": "clashTripId",
+      "value": ""
+    },
+    {
+      "key": "clashDepartureTime",
+      "value": ""
     }
   ],
   "item": [
@@ -4844,6 +4852,418 @@
                       "type": "string"
                     }
                   ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "19. Modes and schedule conflicts",
+          "description": "Driver and Passenger mode on the account, notifications per mode, and the overlapping-times rule (sub-project C).",
+          "item": [
+            {
+              "name": "Host switches to Driver mode",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('now in Driver mode', () => pm.expect(pm.response.json().activeMode).to.eql('DRIVER'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/users/me/mode",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mode\": \"DRIVER\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "An unknown mode is refused",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "pm.test('error is INVALID_MODE', () => pm.expect(pm.response.json().error).to.eql('INVALID_MODE'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/users/me/mode",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mode\": \"PILOT\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Passenger sees their own mode",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Passenger mode', () => pm.expect(pm.response.json().user.activeMode).to.eql('PASSENGER'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/users/{{passengerId}}",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Nobody sees someone else's mode",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('mode hidden', () => pm.expect(pm.response.json().user.activeMode).to.eql(undefined));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/users/{{hostId}}",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Passenger-mode notifications count the other side",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('has otherModeUnread', () => pm.expect(pm.response.json().otherModeUnread).to.be.a('number'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/alerts?mode=passenger",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Host posts a trip in three days",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const d = new Date(); d.setUTCDate(d.getUTCDate() + 3); d.setUTCHours(1, 0, 0, 0);",
+                      "pm.collectionVariables.set('clashDepartureTime', d.toISOString());"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set('clashTripId', pm.response.json().trip.id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"originAddress\": \"Sariaya, Quezon\",\n  \"originLat\": 13.9629837,\n  \"originLng\": 121.5243402,\n  \"destinationAddress\": \"Manuel S. Enverga University Foundation, Lucena City\",\n  \"destinationLat\": 13.9490188,\n  \"destinationLng\": 121.6202904,\n  \"departureTime\": \"{{clashDepartureTime}}\",\n  \"recurrenceType\": \"ONE_TIME\",\n  \"customDays\": [],\n  \"totalSeats\": 3,\n  \"driverNotes\": \"Clash check.\",\n  \"genderPreference\": \"ANY\",\n  \"flexibleDeparture\": true,\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": false,\n  \"fuelPricePerLiter\": {{tripFuelPrice}},\n  \"durationSeconds\": 1200\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Passenger asks to join it",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/matches",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tripId\": \"{{clashTripId}}\",\n  \"score\": 0.9,\n  \"routeOverlap\": 0.9,\n  \"scheduleAlignment\": 0.9,\n  \"preferenceMatch\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Passenger cannot drive at the same time",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 409', () => pm.response.to.have.status(409));",
+                      "pm.test('error is SCHEDULE_CONFLICT', () => pm.expect(pm.response.json().error).to.eql('SCHEDULE_CONFLICT'));",
+                      "pm.test('names the ride they joined', () => pm.expect(pm.response.json().conflictTripId).to.eql(pm.collectionVariables.get('clashTripId')));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"originAddress\": \"Lucena City\",\n  \"originLat\": 13.94,\n  \"originLng\": 121.61,\n  \"destinationAddress\": \"Tayabas, Quezon\",\n  \"destinationLat\": 14.02,\n  \"destinationLng\": 121.59,\n  \"departureTime\": \"{{clashDepartureTime}}\",\n  \"recurrenceType\": \"ONE_TIME\",\n  \"customDays\": [],\n  \"totalSeats\": 2,\n  \"genderPreference\": \"ANY\",\n  \"flexibleDeparture\": false,\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Host cancels the trip (clean-up)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{clashTripId}}/cancel",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Host goes back to Passenger mode",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/users/me/mode",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mode\": \"PASSENGER\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 }
               }
             }
