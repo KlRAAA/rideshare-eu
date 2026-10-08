@@ -440,9 +440,8 @@ plan `docs/superpowers/plans/2026-10-08-trip-lifecycle.md`.
   `runDate` = the departure's PH day via `phDateOnly`), created by
   `POST /api/trips/:id/start` (host; 201). The posted trip keeps
   OPEN/FULL/CANCELLED/COMPLETED. Rules are pure in `services/tripRunRules.js`
-  (start window: 30 min before to 60 min after that day's departure (2 h
-  before D); a
-  near-midnight departure can still start after midnight); DB actions in
+  (start window: 30 min before to 60 min after that day's departure, 2 h
+  until D; a near-midnight departure can still start after midnight); DB actions in
   `services/tripRunService.js`; routes in `controllers/tripRunController.js`.
 - Start 409s: `TRIP_NOT_ACTIVE`, `NOT_A_TRIP_DAY`, `TOO_EARLY_TO_START` (with
   `opensAt`), `TOO_LATE_TO_START`, `ALREADY_STARTED`. Approved riders get a
