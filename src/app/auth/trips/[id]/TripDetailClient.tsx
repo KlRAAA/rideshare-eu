@@ -482,6 +482,7 @@ export default function TripDetailClient({
           tripId={trip.id}
           userId={currentUserId}
           role={isHost ? 'host' : 'passenger'}
+          activePassengers={trip.matches.filter((m) => m.status === 'APPROVED' || m.status === 'PENDING').length}
           onClose={() => setShowCancelModal(false)}
           onCancelled={() => {
             setShowCancelModal(false);

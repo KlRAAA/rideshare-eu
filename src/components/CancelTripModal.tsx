@@ -8,11 +8,13 @@ interface CancelTripModalProps {
   tripId: string;
   userId: string;
   role: 'host' | 'passenger';
+  // Approved or pending passengers who would be told (host only).
+  activePassengers?: number;
   onClose: () => void;
   onCancelled: () => void;
 }
 
-export default function CancelTripModal({ tripId, userId, role, onClose, onCancelled }: CancelTripModalProps) {
+export default function CancelTripModal({ tripId, userId, role, activePassengers = 0, onClose, onCancelled }: CancelTripModalProps) {
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,12 +48,14 @@ export default function CancelTripModal({ tripId, userId, role, onClose, onCance
         </div>
 
         <p className="text-sm text-gray-500 mb-4">
-          {isHost
-            ? 'Every approved and pending passenger will be notified, and this trip will no longer be joinable.'
-            : 'The host will be notified. Your spot opens up for other riders.'}
+          {!isHost
+            ? 'The host will be notified. Your spot opens up for other riders.'
+            : activePassengers > 0
+              ? 'Every approved and pending passenger will be notified, and this trip will no longer be joinable.'
+              : 'No one has joined yet. The trip will be removed from search and can’t be joined.'}
         </p>
 
-        {isHost && (
+        {isHost && activePassengers > 0 && (
           <div className="mb-4">
             <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
               Reason (optional)
