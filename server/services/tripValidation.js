@@ -9,6 +9,7 @@ const MAX_SEATS = 6;
 const MAX_FLEX_WINDOW_MINUTES = 120;
 const RECURRENCE_TYPES = ['ONE_TIME', 'DAILY', 'WEEKDAYS', 'CUSTOM'];
 const { GENDER_PREFERENCES } = require('./riderRules');
+const { inLuzon } = require('../config/serviceArea');
 
 const isText = (v, max) => typeof v === 'string' && v.trim() !== '' && v.length <= max;
 const isLat = (v) => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= 90;
@@ -22,6 +23,9 @@ function validateNewTrip(body, now = new Date()) {
   if (!isText(body.destinationAddress, MAX_ADDRESS_LENGTH)) return 'destinationAddress';
   if (!isLat(body.destinationLat)) return 'destinationLat';
   if (!isLng(body.destinationLng)) return 'destinationLng';
+  // Places must be in Luzon (config/serviceArea.js), however they were picked.
+  if (!inLuzon(body.originLat, body.originLng)) return 'origin';
+  if (!inLuzon(body.destinationLat, body.destinationLng)) return 'destination';
 
   const departure = typeof body.departureTime === 'string' ? new Date(body.departureTime) : null;
   if (!departure || Number.isNaN(departure.getTime()) || departure <= now) return 'departureTime';
@@ -50,6 +54,7 @@ function validateNewTrip(body, now = new Date()) {
   if (hasMeeting) {
     if (!isLat(body.meetingPointLat)) return 'meetingPointLat';
     if (!isLng(body.meetingPointLng)) return 'meetingPointLng';
+    if (!inLuzon(body.meetingPointLat, body.meetingPointLng)) return 'meetingPoint';
   }
   if (body.meetingPointAddress != null && (typeof body.meetingPointAddress !== 'string' || body.meetingPointAddress.length > MAX_ADDRESS_LENGTH)) {
     return 'meetingPointAddress';

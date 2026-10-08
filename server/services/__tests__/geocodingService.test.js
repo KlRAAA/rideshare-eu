@@ -94,7 +94,9 @@ describe('geocoding cache and throttle', () => {
   });
 });
 
-describe('Philippines only', () => {
+describe('Luzon only', () => {
+  const CEBU = { lat: '10.31', lon: '123.89', display_name: 'Cebu City, Central Visayas' };
+
   test('an address search is limited to the Philippines and prefers Lucena and its neighbouring towns', async () => {
     const { geocoder, calls } = setup();
     await geocoder.geocodeAddress('SM City Lucena');
@@ -102,6 +104,7 @@ describe('Philippines only', () => {
     expect(url.searchParams.get('countrycodes')).toBe('ph');
     expect(url.searchParams.get('viewbox')).toBe('121.3,14.15,121.9,13.75');
     expect(url.searchParams.get('bounded')).toBeNull(); // a preference, not a fence: Manila still works
+    expect(url.searchParams.get('limit')).toBe('5'); // room to skip matches outside Luzon
   });
 
   test('a result outside the Philippines is treated as no result', async () => {
@@ -109,13 +112,24 @@ describe('Philippines only', () => {
     expect(await geocoder.geocodeAddress('Lucena')).toBeNull();
   });
 
-  test('a pin outside the Philippines is not looked up', async () => {
+  test('a result elsewhere in the Philippines but outside Luzon is treated as no result', async () => {
+    const { geocoder } = setup({ respond: () => jsonResponse([CEBU]) });
+    expect(await geocoder.geocodeAddress('SM City')).toBeNull();
+  });
+
+  test('the first match inside Luzon wins over earlier matches outside it', async () => {
+    const { geocoder } = setup({ respond: () => jsonResponse([CEBU, ...SARIAYA]) });
+    expect(await geocoder.geocodeAddress('Plaza')).toEqual({ lat: 13.96, lng: 121.52, displayName: 'Sariaya, Quezon' });
+  });
+
+  test('a pin outside Luzon is not looked up', async () => {
     const { geocoder, fetchImpl } = setup();
     expect(await geocoder.reverseGeocode(35.68, 139.69)).toBeNull(); // Tokyo
+    expect(await geocoder.reverseGeocode(10.31, 123.89)).toBeNull(); // Cebu
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  test('a pin in the Philippines is still looked up', async () => {
+  test('a pin in Luzon is still looked up', async () => {
     const { geocoder, fetchImpl } = setup({ respond: () => jsonResponse({ lat: '13.93', lon: '121.62', display_name: 'Lucena City' }) });
     expect(await geocoder.reverseGeocode(13.93, 121.62)).toEqual({ lat: 13.93, lng: 121.62, displayName: 'Lucena City' });
     expect(fetchImpl).toHaveBeenCalledTimes(1);

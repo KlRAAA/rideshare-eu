@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { FaSearch } from 'react-icons/fa';
 import { apiFetch } from '@/lib/api';
 import {
   MIN_SUGGEST_LENGTH,
@@ -22,9 +23,12 @@ interface AddressInputProps {
   placeholder?: string;
   required?: boolean;
   className?: string;
+  // The caller is looking the typed text up (e.g. after the field is left);
+  // shows the same spinner as a suggestion search.
+  busy?: boolean;
 }
 
-// An address field with a list of Philippine places that updates as you type
+// An address field with a list of places in Luzon that updates as you type
 // (WAI-ARIA combobox pattern): arrow keys move through it, Enter picks, Escape
 // closes, and a screen reader hears how many places were found. Typing
 // without picking still works; the caller looks that text up when the field
@@ -38,12 +42,14 @@ export default function AddressInput({
   placeholder,
   required,
   className = '',
+  busy = false,
 }: AddressInputProps) {
   const listId = `${id}-suggestions`;
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(-1);
   const [announcement, setAnnouncement] = useState('');
+  const [searching, setSearching] = useState(false);
   // True after a keystroke, false once a place is picked: only typing fetches,
   // so the field doesn't reopen the list right after a choice.
   const typed = useRef(false);
@@ -59,6 +65,7 @@ export default function AddressInput({
     }
     const thisRequest = ++requestId.current;
     const timer = setTimeout(async () => {
+      setSearching(true);
       try {
         const { suggestions: found } = await apiFetch<{ suggestions: PlaceSuggestion[] }>(
           `/api/geocode/suggest?q=${encodeURIComponent(query)}`
@@ -70,6 +77,8 @@ export default function AddressInput({
         setAnnouncement(suggestionAnnouncement(found.length));
       } catch {
         if (thisRequest === requestId.current) setOpen(false);
+      } finally {
+        if (thisRequest === requestId.current) setSearching(false);
       }
     }, SUGGEST_DELAY_MS);
     return () => clearTimeout(timer);
@@ -78,6 +87,7 @@ export default function AddressInput({
   function pick(place: PlaceSuggestion) {
     typed.current = false;
     requestId.current++;
+    setSearching(false);
     setOpen(false);
     setHighlight(-1);
     setAnnouncement(`Selected ${place.label}.`);
@@ -105,9 +115,14 @@ export default function AddressInput({
   }
 
   const showList = open && value.trim().length >= MIN_SUGGEST_LENGTH;
+  const spinning = searching || busy;
 
   return (
     <div className="relative">
+      <FaSearch
+        aria-hidden
+        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400"
+      />
       <input
         id={id}
         type="text"
@@ -116,6 +131,7 @@ export default function AddressInput({
         aria-expanded={showList}
         aria-controls={listId}
         aria-activedescendant={showList && highlight >= 0 ? `${listId}-${highlight}` : undefined}
+        aria-busy={spinning || undefined}
         autoComplete="off"
         required={required}
         placeholder={placeholder}
@@ -131,7 +147,16 @@ export default function AddressInput({
           if (typed.current && value.trim()) onCommit?.(value);
         }}
         className={className}
+        // Inline so it wins over the caller's padding classes: room for the
+        // search icon on the left and the spinner on the right.
+        style={{ paddingLeft: '2.25rem', paddingRight: '2.25rem' }}
       />
+      {spinning && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-3 top-1/2 -mt-2 w-4 h-4 rounded-full border-2 border-gray-300 border-t-[color:var(--rsu-color-primary)] animate-spin"
+        />
+      )}
       <p className="sr-only" aria-live="polite">
         {announcement}
       </p>

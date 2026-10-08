@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { inLuzon } = require('../config/serviceArea');
 const { geocodeAddress, reverseGeocode } = require('../services/geocodingService');
 const { suggestAddresses } = require('../services/addressSuggestService');
 const { validateClientRoute } = require('../services/routeSanity');
@@ -492,6 +493,20 @@ const EDITABLE_TRIP_FIELDS = [
 const EDITABLE_VEHICLE_FIELDS = ['make', 'model', 'color', 'plate', 'fuelEfficiencyKmL'];
 const LATLNG_FIELDS = new Set(['originLat', 'originLng', 'destinationLat', 'destinationLng', 'meetingPointLat', 'meetingPointLng']);
 
+// An edited point must stay in Luzon, like a new trip's (tripValidation.js).
+// Returns the first point moved outside it, or null.
+function pointOutsideLuzon(trip, incoming) {
+  for (const point of ['origin', 'destination', 'meetingPoint']) {
+    const latKey = `${point}Lat`;
+    const lngKey = `${point}Lng`;
+    if (!(latKey in incoming) && !(lngKey in incoming)) continue;
+    const lat = Number(latKey in incoming ? incoming[latKey] : trip[latKey]);
+    const lng = Number(lngKey in incoming ? incoming[lngKey] : trip[lngKey]);
+    if (!inLuzon(lat, lng)) return point;
+  }
+  return null;
+}
+
 // "Who can join" (Women+ spec D3, D5, S13): only a Women+ host may choose
 // Women+, and the rule can't change once a rider is approved, since riders
 // agreed to the trip as it was. Switching to Women+ declines pending riders who
@@ -547,6 +562,9 @@ async function updateTrip(req, res) {
 
   const { changed, structural } = classifyTripChanges(trip, incoming);
   if (changed.length === 0) return res.json({ trip });
+
+  const outside = pointOutsideLuzon(trip, incoming);
+  if (outside) return res.status(400).json({ error: 'INVALID_TRIP', field: outside });
 
   const approvedCount = trip.matches.filter((m) => m.status === 'APPROVED').length;
 

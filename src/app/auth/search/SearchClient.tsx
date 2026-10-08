@@ -175,8 +175,8 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
   const [destinationPin, setDestinationPin] = useState<LatLng | null>(initial.dropoff);
   const [originLookup, setOriginLookup] = useState(initial.origin);
   const [destinationLookup, setDestinationLookup] = useState(initial.destination || DEFAULT_DESTINATION);
-  const { coords: geocodedOrigin } = useGeocodedAddress(originPin ? '' : originLookup);
-  const { coords: geocodedDestination } = useGeocodedAddress(destinationPin ? '' : destinationLookup);
+  const { coords: geocodedOrigin, resolving: resolvingOrigin } = useGeocodedAddress(originPin ? '' : originLookup);
+  const { coords: geocodedDestination, resolving: resolvingDestination } = useGeocodedAddress(destinationPin ? '' : destinationLookup);
   const pickupCoords = originPin ?? geocodedOrigin;
   const dropoffCoords = destinationPin ?? geocodedDestination;
   const [date, setDate] = useState(initial.date);
@@ -418,6 +418,7 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
         </div>
         <AddressInput
           id={`${idPrefix}-origin`}
+          busy={resolvingOrigin}
           required
           placeholder="e.g., Lucban, Tayabas"
           value={origin}
@@ -441,6 +442,7 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
         </label>
         <AddressInput
           id={`${idPrefix}-destination`}
+          busy={resolvingDestination}
           required
           placeholder="e.g., Enverga University"
           value={destination}

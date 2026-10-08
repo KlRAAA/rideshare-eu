@@ -1,15 +1,17 @@
 // Suggestions for the address fields, from komoot's public Photon service
 // (photon.komoot.io), which is built on OpenStreetMap and, unlike Nominatim,
-// allows search-as-you-type ("please be fair"). Results are limited to the
-// Philippines and ranked toward Lucena; repeated queries come from a cache.
+// allows search-as-you-type ("please be fair"). Results are limited to Luzon
+// (config/serviceArea.js) and ranked toward Lucena; repeated queries come from
+// a cache.
+
+const { LUZON_BBOX, inLuzon } = require('../config/serviceArea');
 
 const USER_AGENT = 'RideShareEU-MSEUF-Thesis-Prototype/1.0';
 const PHOTON_URL = 'https://photon.komoot.io/api/';
 const LUCENA = { lat: '13.94', lon: '121.62' };
-const PH_BBOX = '116,4.5,127,21.5'; // west,south,east,north
 const MIN_QUERY_LENGTH = 3;
 const MAX_SUGGESTIONS = 5;
-const ASK_FOR = 10; // extra, since non-PH and duplicate entries are dropped
+const ASK_FOR = 10; // extra, since entries outside Luzon and duplicates are dropped
 const DEFAULTS = { ttlMs: 60 * 60 * 1000, maxEntries: 2000, timeoutMs: 4000 };
 
 // "Puregold" + "Doña Aurora Boulevard, Ilayang Iyam, Lucena". In Philippine
@@ -38,7 +40,7 @@ function toSuggestions(collection) {
   for (const f of features) {
     const p = f.properties || {};
     const [lng, lat] = f.geometry?.coordinates || [];
-    if (p.countrycode !== 'PH' || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    if (p.countrycode !== 'PH' || !Number.isFinite(lat) || !Number.isFinite(lng) || !inLuzon(lat, lng)) continue;
     const { primary, secondary } = placeLabel(p);
     if (!primary) continue;
     const label = secondary ? `${primary}, ${secondary}` : primary;
@@ -61,7 +63,7 @@ function createSuggester({
 
   async function fetchSuggestions(query) {
     const url = new URL(PHOTON_URL);
-    url.search = new URLSearchParams({ q: query, limit: String(ASK_FOR), lat: LUCENA.lat, lon: LUCENA.lon, bbox: PH_BBOX }).toString();
+    url.search = new URLSearchParams({ q: query, limit: String(ASK_FOR), lat: LUCENA.lat, lon: LUCENA.lon, bbox: LUZON_BBOX }).toString();
     try {
       const res = await fetchImpl(url.toString(), { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(timeoutMs) });
       if (!res.ok) {

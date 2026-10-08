@@ -128,6 +128,10 @@ describe('POST /api/trips', () => {
     [{ flexWindowMinutes: 500 }, 'flexWindowMinutes'],
     [{ driverNotes: 'x'.repeat(501) }, 'driverNotes'],
     [{ meetingPointLat: 13.95 }, 'meetingPointLng'],
+    // Luzon only (panel revisions §7): Cebu is in the Philippines but not Luzon.
+    [{ originLat: 10.31, originLng: 123.89 }, 'origin'],
+    [{ destinationLat: 10.31, destinationLng: 123.89 }, 'destination'],
+    [{ meetingPointLat: 10.31, meetingPointLng: 123.89 }, 'meetingPoint'],
   ])('%p → 400 INVALID_TRIP on %s, nothing created', async (over, field) => {
     if (guard()) return;
     const before = await prisma.trip.count({ where: { hostId: host.id } });
@@ -274,6 +278,21 @@ describe('PATCH /api/trips/:id (edit) — ownership', () => {
     expect(asHost.status).toBe(200);
     const fresh = await prisma.trip.findUnique({ where: { id } });
     expect(fresh.driverNotes).toBe('ok');
+  });
+
+  test.each([
+    [{ originLat: 10.31, originLng: 123.89 }, 'origin'],
+    [{ destinationLat: 10.31, destinationLng: 123.89 }, 'destination'],
+    [{ meetingPointLat: 10.31, meetingPointLng: 123.89 }, 'meetingPoint'],
+  ])('moving a point outside Luzon %p → 400 INVALID_TRIP on %s, trip unchanged', async (patch, field) => {
+    if (guard()) return;
+    const id = (await (await json('POST', '/api/trips', host.id, tripBody())).json()).trip.id;
+    const res = await json('PATCH', `/api/trips/${id}`, host.id, patch);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'INVALID_TRIP', field });
+    const fresh = await prisma.trip.findUnique({ where: { id } });
+    expect(fresh.originLat).not.toBe(10.31);
+    expect(fresh.destinationLat).not.toBe(10.31);
   });
 });
 

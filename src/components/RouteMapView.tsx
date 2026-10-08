@@ -7,6 +7,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { FaHome, FaUniversity, FaMapMarkerAlt, FaCar, FaExpand, FaTimes } from 'react-icons/fa';
 import { MSEUF_LUCENA } from '@/lib/constants';
 import { fetchRoute, hasMapboxToken, type LatLng } from '@/lib/directions';
+import { inLuzon, OUTSIDE_LUZON_MESSAGE } from '@/lib/serviceArea';
 
 const MAROON = '#800000'; // --rsu-color-primary
 const SHARED = '#059669'; // emerald-600 — route overlap
@@ -81,10 +82,22 @@ export default function RouteMapView({
   // Releasing a dragged pin also fires a map click; without this guard the
   // drop point would be taken as "place the meeting point here".
   const lastDragEndRef = useRef(0);
-  const endDrag = (handler?: (p: LatLng) => void) => (e: { lngLat: { lat: number; lng: number } }) => {
-    lastDragEndRef.current = Date.now();
-    handler?.({ lat: e.lngLat.lat, lng: e.lngLat.lng });
-  };
+  // Pins must stay in Luzon (lib/serviceArea.ts): a pin dropped outside snaps
+  // back to where it was, and a tap outside places nothing.
+  const [outsideLuzon, setOutsideLuzon] = useState(false);
+  const endDrag =
+    (handler: ((p: LatLng) => void) | undefined, previous: LatLng | null | undefined) =>
+    (e: { lngLat: { lat: number; lng: number }; target: { setLngLat: (p: [number, number]) => unknown } }) => {
+      lastDragEndRef.current = Date.now();
+      const point = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+      if (!inLuzon(point)) {
+        if (previous) e.target.setLngLat([previous.lng, previous.lat]);
+        setOutsideLuzon(true);
+        return;
+      }
+      setOutsideLuzon(false);
+      handler?.(point);
+    };
   const editHint = canTapToPlaceMeeting
     ? 'Drag the home pin to your exact spot. Tap the map to set a meeting point.'
     : onMeetingPointChange
@@ -237,7 +250,9 @@ export default function RouteMapView({
             canTapToPlaceMeeting
               ? (e) => {
                   if (Date.now() - lastDragEndRef.current < DRAG_CLICK_GUARD_MS) return;
-                  onMeetingPointChange?.({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+                  const point = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+                  setOutsideLuzon(!inLuzon(point));
+                  if (inLuzon(point)) onMeetingPointChange?.(point);
                 }
               : undefined
           }
@@ -265,7 +280,7 @@ export default function RouteMapView({
               latitude={origin.lat}
               anchor="center"
               draggable={Boolean(onOriginChange)}
-              onDragEnd={endDrag(onOriginChange)}
+              onDragEnd={endDrag(onOriginChange, origin)}
             >
               <Pin icon={<FaHome />} />
             </Marker>
@@ -279,7 +294,7 @@ export default function RouteMapView({
               latitude={meetingPoint.lat}
               anchor="center"
               draggable={Boolean(onMeetingPointChange)}
-              onDragEnd={endDrag(onMeetingPointChange)}
+              onDragEnd={endDrag(onMeetingPointChange, meetingPoint)}
             >
               <Pin icon={<FaMapMarkerAlt />} inverted />
             </Marker>
@@ -316,12 +331,17 @@ export default function RouteMapView({
             className="absolute left-2 right-2 rounded-lg bg-white/95 text-[#374151] shadow px-2.5 py-1.5 text-xs leading-snug pointer-events-none"
             style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
           >
-            {editHint}
+            {outsideLuzon ? OUTSIDE_LUZON_MESSAGE : editHint}
           </p>
         )}
       </div>
 
       {editable && !fullScreen && <p className="mt-1.5 text-[11px] text-gray-500">{editHint}</p>}
+      {outsideLuzon && (
+        <p role="alert" className="mt-1.5 text-xs font-medium text-red-600">
+          {OUTSIDE_LUZON_MESSAGE}
+        </p>
+      )}
 
       {(overlap || meetingPoint || driverLocation) && (
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">

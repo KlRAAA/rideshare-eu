@@ -13,6 +13,7 @@ const PUREGOLD_LUCENA = feature(
 );
 const PUREGOLD_SAN_PABLO = feature({ countrycode: 'PH', name: 'Puregold', street: 'Maharlika Highway', city: 'San Pablo', county: 'Laguna', state: 'Calabarzon' }, 121.32, 14.07);
 const LUCENA_SPAIN = feature({ countrycode: 'ES', name: 'Lucena', state: 'Andalucía' }, -4.48, 37.41);
+const PUREGOLD_CEBU = feature({ countrycode: 'PH', name: 'Puregold', city: 'Cebu City', state: 'Central Visayas' }, 123.89, 10.31);
 
 function setup(features = [PUREGOLD_LUCENA, PUREGOLD_SAN_PABLO]) {
   const calls = [];
@@ -26,7 +27,7 @@ function setup(features = [PUREGOLD_LUCENA, PUREGOLD_SAN_PABLO]) {
 }
 
 describe('address suggestions (Photon)', () => {
-  test('asks Photon for Philippine places near Lucena', async () => {
+  test('asks Photon for places in Luzon near Lucena', async () => {
     const { suggester, calls } = setup();
     await suggester.suggest('puregold');
     const url = new URL(calls[0]);
@@ -34,7 +35,7 @@ describe('address suggestions (Photon)', () => {
     expect(url.searchParams.get('q')).toBe('puregold');
     expect(url.searchParams.get('lat')).toBe('13.94');
     expect(url.searchParams.get('lon')).toBe('121.62');
-    expect(url.searchParams.get('bbox')).toBe('116,4.5,127,21.5');
+    expect(url.searchParams.get('bbox')).toBe('119.4,12,124.6,21.2');
   });
 
   test('returns readable labels with coordinates, nearest first as Photon ranked them', async () => {
@@ -52,6 +53,11 @@ describe('address suggestions (Photon)', () => {
     expect(result).toHaveLength(5);
     expect(result.map((s) => s.label)).not.toContain('Lucena, Andalucía');
     expect(result.filter((s) => s.primary === 'Puregold')).toHaveLength(1);
+  });
+
+  test('drops Philippine places outside Luzon', async () => {
+    const { suggester } = setup([PUREGOLD_CEBU, PUREGOLD_LUCENA]);
+    expect((await suggester.suggest('puregold')).map((s) => s.secondary)).toEqual(['Doña Aurora Boulevard, Ilayang Iyam, Lucena']);
   });
 
   test('fewer than 3 characters asks nothing', async () => {

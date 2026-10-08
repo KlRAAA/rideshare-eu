@@ -46,6 +46,9 @@ const INVALID_TRIP_MESSAGES: Record<string, string> = {
   driverNotes: 'Keep driver notes under 500 characters.',
   meetingPointLat: 'Set the meeting point again on the map.',
   meetingPointLng: 'Set the meeting point again on the map.',
+  origin: 'Your starting point must be in Luzon. Pick a place in Luzon.',
+  destination: 'Your destination must be in Luzon. Pick a place in Luzon.',
+  meetingPoint: 'The meeting point must be in Luzon. Move it to a place in Luzon.',
 };
 
 function samePoint(a: Coords | null, b: Coords | null): boolean {
@@ -216,9 +219,9 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
   // the state is just what drives the visible disabled/spinner UI.
   const isSubmittingRef = useRef(false);
 
-  const { coords: geocodedOrigin } = useGeocodedAddress(originPin ? '' : originLookup);
-  const { coords: geocodedDestination } = useGeocodedAddress(destinationPin ? '' : destinationLookup);
-  const { coords: geocodedMeeting } = useGeocodedAddress(meetingPin ? '' : meetingLookup);
+  const { coords: geocodedOrigin, resolving: resolvingOrigin } = useGeocodedAddress(originPin ? '' : originLookup);
+  const { coords: geocodedDestination, resolving: resolvingDestination } = useGeocodedAddress(destinationPin ? '' : destinationLookup);
+  const { coords: geocodedMeeting, resolving: resolvingMeeting } = useGeocodedAddress(meetingPin ? '' : meetingLookup);
   // A picked suggestion, a pin set on the map or the device's location beats
   // the approximate lookup of typed text; typing a new address clears it.
   const originCoords = originPin ?? geocodedOrigin;
@@ -561,6 +564,7 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
             </div>
             <AddressInput
               id="trip-origin"
+              busy={resolvingOrigin}
               required
               placeholder="e.g., Lucban, Tayabas, Candelaria"
               value={origin}
@@ -592,6 +596,7 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
             </label>
             <AddressInput
               id="trip-destination"
+              busy={resolvingDestination}
               required
               placeholder="e.g., Enverga University, Lucena"
               value={destination}
@@ -851,6 +856,7 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
                 </label>
                 <AddressInput
                   id="trip-meeting-point"
+                  busy={resolvingMeeting}
                   placeholder="Defaults to your origin if left blank"
                   value={meetingPointAddress}
                   onChange={(text) => {
