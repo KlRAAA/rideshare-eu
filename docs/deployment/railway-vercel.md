@@ -185,7 +185,7 @@ The production database starts empty, with no demo accounts.
 | Direct API blocked | open `https://<api>.up.railway.app/api/fuel-price` | `403 FORBIDDEN` |
 | Sign-up email | register a second test account | the code arrives within a minute |
 | Photo upload | upload a 3–4 MB photo on Profile | it saves and shows |
-| Real visitor IPs | sign in once with a wrong password, then search the Railway logs for `LOGIN_FAILED` | `"ip"` is **your** public IP. If it's a Vercel or Railway address, change `TRUST_PROXY` (try `1` or `3`) and repeat |
+| Real visitor IPs | sign in once with a wrong password, then search the Railway logs for `LOGIN_FAILED` | `"ip"` is **your** public IP. The website passes it on as `x-client-ip` (`src/proxy.ts`), and the API trusts that header only with the origin secret. A Vercel address (e.g. `13.212.…`) means that forwarding isn't deployed |
 | Reminders | post a trip departing in ~1 hour with a joined rider | the reminder notification appears |
 | Errors reach Sentry | Sentry → Issues, filter environment `production` | any error shows with the right environment |
 
@@ -216,6 +216,23 @@ the forwarding, the API and the database. A failed run makes GitHub email you.
   that would delete data. If a deploy fails on that, back up first
   (`node scripts/backup-db.mjs` with `DATABASE_URL` set to the production
   database), then apply the change by hand.
+- **During UAT, don't change `prisma/schema.prisma`.** A failed or partial
+  schema change mid-session is an outage, and `db push` can't be rolled back.
+  Code-only fixes are fine.
+- **After UAT, switch to versioned migrations,** so every schema change is a
+  reviewed file applied the same way everywhere:
+  1. Back up production (section 9).
+  2. Move the old `prisma/migrations` folder aside; it stopped matching the
+     schema when the project moved to `db push`.
+  3. Create one baseline migration from the current schema
+     (`prisma migrate diff` from empty to `prisma/schema.prisma`, saved as
+     `prisma/migrations/0_init/migration.sql`) and mark it as already applied
+     on production with `npx prisma migrate resolve --applied 0_init`. Check
+     the exact flags in Prisma 7's "baselining" guide.
+  4. In Railway, change the pre-deploy command to `npx prisma migrate deploy`,
+     and do the same in CI.
+  5. From then on, make schema changes with `npx prisma migrate dev --name …`
+     and commit the generated folder.
 
 ## 9. Backups
 
@@ -235,26 +252,32 @@ an `OK` or `FAILED` line to `%USERPROFILE%\rideshare-backups\backup.log`.
    `production` environment.
 4. Run the first backup (do this before UAT starts):
    `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/backup-production.ps1`
-5. Schedule it weekly (Sunday 9 PM; if the PC is off then, it runs at the next
-   chance), in PowerShell:
+5. Schedule it: **daily at 9 PM during UAT**, weekly (Sunday) afterwards. If
+   the PC is off at that time, it runs at the next chance. `-MirrorDir` copies
+   each backup to a second folder on another physical drive (here the `F:`
+   hard drive; the first copy is on the `C:` SSD), so one failed disk doesn't
+   take every copy. In PowerShell:
 
    ```powershell
-   $a = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\Users\Spider-Man\rideshare-eu\scripts\backup-production.ps1"'
-   $t = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At 9pm
+   $a = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\Users\Spider-Man\rideshare-eu\scripts\backup-production.ps1" -MirrorDir "F:\rideshare-backups\production"'
+   $t = New-ScheduledTaskTrigger -Daily -At 9pm   # after UAT: -Weekly -DaysOfWeek Sunday -At 9pm
    $s = New-ScheduledTaskSettingsSet -StartWhenAvailable
    Register-ScheduledTask -TaskName 'RideShareEU production backup' -Action $a -Trigger $t -Settings $s
    ```
 
-   Check `backup.log` now and then. If a run says `FAILED` with a login error,
-   run `railway login` again.
+   To change the existing task instead, use
+   `Set-ScheduledTask -TaskName 'RideShareEU production backup' -Action $a -Trigger $t`.
 
-The backups hold real student data: keep them on this PC (not GitHub or a
-shared drive), and delete them when the study ends, as the Privacy Policy says.
+   Check `backup.log` now and then: each run should end with `OK  copied to
+   F:\…`. If a run says `FAILED` with a login error, run `railway login` again.
+
+The backups hold real student data: keep them on this PC's own drives (not
+GitHub or a shared or cloud drive), and delete them when the study ends, as the Privacy Policy says.
 Encrypted fields stay encrypted in the backup and need `PII_ENCRYPTION_KEY`.
 
 ## 10. Recovery
 
-- **Database:** restore a weekly backup with
+- **Database:** restore a backup (either copy) with
   `node scripts/restore-db.mjs <backup folder> --force`, with `DATABASE_URL`
   set to the target. It inserts every table parents-first and fails unless
   every row count matches the backup.

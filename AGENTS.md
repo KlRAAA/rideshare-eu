@@ -363,6 +363,14 @@ Guide: `docs/deployment/railway-vercel.md`.
   `GET /api/health` (DB check, used by Railway's deploy check and the uptime
   monitor). `checkEnv` requires `ORIGIN_SECRET`, an email API key and
   `EMAIL_FROM` in production.
+- Visitor IPs: Vercel's server is what connects to Railway, so `proxy.ts`
+  sends the visitor's address (Vercel's `x-real-ip`) as `x-client-ip`, always
+  overwriting what the browser sent, and `requireOriginSecret` sets `req.ip`
+  from it only on requests with the secret. Without this, every visitor shared
+  one sign-in limit (the log showed a Vercel `13.212.…` address).
+- Schema freeze during UAT: no `prisma/schema.prisma` changes; after UAT,
+  switch Railway's pre-deploy to versioned migrations (steps in the deployment
+  guide, section 8).
 - Railway Hobby blocks SMTP: `emailService` sends through Brevo
   (`BREVO_API_KEY`) or Resend (`RESEND_API_KEY`) when set, SMTP otherwise.
 - Photos: `server/config/uploads.js` (`UPLOADS_DIR`, a Railway volume at
@@ -374,14 +382,22 @@ Guide: `docs/deployment/railway-vercel.md`.
   `npm run server`, healthcheck `/api/health`, one replica (the cron jobs run
   in-process). Auto-deploy needs the Railway GitHub app installed on the repo.
 - Backups: Hobby can't create Railway backups. `scripts/backup-production.ps1`
-  (weekly via Task Scheduler) opens `railway connect Postgres --tunnel-only`
-  (no public database address; needs `railway login` + `railway link`), runs
-  `backup-db.mjs` through it into `%USERPROFILE%\rideshare-backups\production`,
-  and logs OK/FAILED to `backup.log` there. Every table is listed in
+  (Task Scheduler: daily 9 PM during UAT, weekly after) opens
+  `railway connect Postgres --tunnel-only` (no public database address; needs
+  `railway login` + `railway link`), runs `backup-db.mjs` through it into
+  `%USERPROFILE%\rideshare-backups\production`, copies it with `-MirrorDir` to
+  `F:\rideshare-backups\production` (the second physical disk), and logs
+  OK/FAILED to `backup.log` there. Profile photos (the volume) aren't backed
+  up; losing them is an accepted, stated limitation. Every table is listed in
   `scripts/backupModels.cjs` (restore order); `backupModels.test.js` fails if a
   model is missing. Manifests never contain the database password.
 - Uptime: `.github/workflows/uptime.yml` checks the live `/api/health` every
   15 minutes; a failed run emails the repo owner.
+- Reminders (`reminderService.sendDueReminders`, every 5 minutes) fire an hour
+  before every run of a recurring trip, not just the first: `upcomingDeparture`
+  adds whole days to the first departure (no DST in PH) and checks the PH day
+  with `recurrenceRunsOnDay`; dedupe is per trip, user and
+  `Notification.occurrenceDate`. Seats are still per trip, not per day.
 - Chat polls `GET /api/trips/:id/messages?after=<last id>` (only newer
   messages); Express compresses responses (`compression`).
 - CI: `.github/workflows/ci.yml` (Postgres 17, server + web tests, `tsc`).
