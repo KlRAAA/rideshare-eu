@@ -369,10 +369,10 @@ model Notification {
   message        String
   relatedMatchId String?          // the specific join request, when the notification is about one
   relatedTripId  String?          // the trip a click on this notification navigates to
-  // Which calendar occurrence this notification is about — only set for
-  // REMINDER and RATING_PROMPT on a recurring trip, where the same trip/match
-  // produces one of these per occurrence rather than once ever. Null for
-  // ONE_TIME trips and every other notification type.
+  // Which calendar occurrence this notification is about — set for REMINDER
+  // and RATING_PROMPT on a recurring trip, where the same trip/match produces
+  // one of these per occurrence rather than once ever, and for the trip-day
+  // notifications (CONFIRM_REQUEST, DRIVER_*, TRIP_SKIPPED; sub-project D).
   occurrenceDate DateTime?
   isRead         Boolean          @default(false)
   createdAt      DateTime         @default(now())

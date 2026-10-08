@@ -96,6 +96,9 @@ const SCHEMAS = {
   'trip.start': NONE,
   'trip.end': NONE,
   'trip.arrived': NONE,
+  'trip.dayConfirm': NONE,
+  'trip.daySkip': { reason: 'string' },
+  'trip.dayUnskip': NONE,
   'trip.location': { ...LAT_LNG, etaSeconds: 'number' },
   'trip.message': MESSAGE,
 

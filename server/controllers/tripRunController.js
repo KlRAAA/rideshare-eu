@@ -1,5 +1,6 @@
 const prisma = require('../config/db');
 const { ongoingRun, startRun, endRun } = require('../services/tripRunService');
+const { confirmDay, skipDay, unskipDay } = require('../services/tripDayService');
 
 const STALE_LOCATION_MS = 90 * 1000; // ~3 missed 30 s ticks
 const MAX_ETA_SECONDS = 6 * 60 * 60;
@@ -70,4 +71,15 @@ async function arrived(req, res) {
   return reply(res, await endRun(req.params.id, req.user.id, 'ARRIVED'));
 }
 
-module.exports = { start, end, arrived, updateLocation, getLocation };
+// Sub-project D: the driver confirms or skips one day (:date is YYYY-MM-DD, Philippine time).
+async function confirm(req, res) {
+  return reply(res, await confirmDay(req.params.id, req.user.id, req.params.date));
+}
+async function skip(req, res) {
+  return reply(res, await skipDay(req.params.id, req.user.id, req.params.date, req.body?.reason));
+}
+async function unskip(req, res) {
+  return reply(res, await unskipDay(req.params.id, req.user.id, req.params.date));
+}
+
+module.exports = { start, end, arrived, updateLocation, getLocation, confirm, skip, unskip };

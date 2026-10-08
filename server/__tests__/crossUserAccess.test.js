@@ -67,6 +67,7 @@ beforeAll(async () => {
     recurrenceType: 'ONE_TIME', totalSeats: 3, fuelPricePerLiter: 60,
   }))).trip;
   bag.tripIds.push(a.trip.id);
+  a.tripDate = require('../services/recurrenceMath').phDateOnly(new Date(a.trip.departureTime)).toISOString().slice(0, 10);
 
   // A's support request, linked to A's own trip
   a.ticket = (await created(await call('POST', '/api/support', userA.id, {
@@ -109,6 +110,9 @@ const ATTEMPTS = [
   ['share a location as A’s trip', 'POST', () => `/api/trips/${a.trip.id}/location`, { lat: 13.9, lng: 121.6 }],
   ['mark A’s trip completed', 'POST', () => `/api/trips/${a.trip.id}/complete`],
   ['cancel A’s trip', 'PATCH', () => `/api/trips/${a.trip.id}/cancel`, { reason: 'hijacked' }],
+  ['confirm a day of A’s trip', 'POST', () => `/api/trips/${a.trip.id}/days/${a.tripDate}/confirm`],
+  ['skip a day of A’s trip', 'POST', () => `/api/trips/${a.trip.id}/days/${a.tripDate}/skip`, { reason: 'hijacked' }],
+  ['undo a skipped day of A’s trip', 'DELETE', () => `/api/trips/${a.trip.id}/days/${a.tripDate}/skip`],
   // Support request
   ['read A’s support request', 'GET', () => `/api/support/${a.ticket.id}`],
   ['reply to A’s support request', 'POST', () => `/api/support/${a.ticket.id}/messages`, { body: 'hijacked' }],
