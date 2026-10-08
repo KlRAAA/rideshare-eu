@@ -11,6 +11,7 @@ const { computeFuelSharePerSeat } = require('../services/fuelShareService');
 const { classifyTripChanges, describeCategories, fuelShareWouldChange } = require('../services/tripUpdateService');
 const { completeTrip } = require('../services/tripCompletionService');
 const { settleTrips } = require('../services/tripDayService');
+const { licenseState } = require('../services/licenseService');
 const { upcomingDays, DAY_MS } = require('../services/tripDayRules');
 const safeUserSelect = require('../config/safeUserSelect');
 const { encryptField, decryptUserFields, decryptTripFields } = require('../services/encryptionService');
@@ -82,6 +83,10 @@ const CREATABLE_TRIP_FIELDS = [
 // reads distance. A failed check drops all three — the trip is still created,
 // just without route data (the pre-existing "routing unavailable" path).
 async function createTrip(req, res) {
+  // Only drivers with an approved, unexpired license post trips (sub-project E).
+  const license = await licenseState(req.user.id);
+  if (!license.verified) return res.status(403).json({ error: license.reason });
+
   const { originLat, originLng, destinationLat, destinationLng, routeWaypoints, distanceMeters, durationSeconds } = req.body;
 
   // Only the allowlisted creator-set fields — never a raw req.body spread, so a

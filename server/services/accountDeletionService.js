@@ -3,6 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const prisma = require('../config/db');
+const { removeLicenseFile } = require('./licenseService');
 const { encryptField, decryptTripFields } = require('./encryptionService');
 const { cancelWholeTrip, cancelPassengerMatch, ACTIVE_MATCH_STATUSES } = require('./tripCancellationService');
 
@@ -27,6 +28,7 @@ class AccountDeletionError extends Error {
 async function deleteAccount(userId) {
   const unusablePasswordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 4);
 
+  const licenseFiles = [];
   const avatarUrl = await prisma.$transaction(async (tx) => {
     const user = await tx.user.findUnique({ where: { id: userId }, select: { isAdmin: true, isSuperAdmin: true, avatarUrl: true, email: true } });
     if (!user) throw new AccountDeletionError(404, 'USER_NOT_FOUND');
@@ -91,6 +93,9 @@ async function deleteAccount(userId) {
 
     await tx.vehicle.updateMany({ where: { ownerId: userId }, data: { plate: null } });
     await tx.savedVehicle.deleteMany({ where: { ownerId: userId } });
+    const licenses = await tx.driverLicense.findMany({ where: { userId }, select: { photoFile: true } });
+    licenseFiles.push(...licenses.map((l) => l.photoFile).filter(Boolean));
+    await tx.driverLicense.deleteMany({ where: { userId } });
     await tx.preference.deleteMany({ where: { userId } });
     await tx.notification.deleteMany({ where: { userId } });
     await tx.message.deleteMany({ where: { senderId: userId } });
@@ -118,6 +123,7 @@ async function deleteAccount(userId) {
   });
 
   if (avatarUrl) fs.rmSync(path.join(AVATAR_DIR, path.basename(avatarUrl)), { force: true });
+  for (const name of licenseFiles) removeLicenseFile(name);
 }
 
 module.exports = { deleteAccount, AccountDeletionError };

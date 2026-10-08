@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
 const prisma = require('../config/db');
+const { submitLicense, myLicense } = require('../services/licenseService');
 const safeUserSelect = require('../config/safeUserSelect');
 const { sniffImageType } = require('../services/imageType');
 const { decryptUserFields } = require('../services/encryptionService');
@@ -102,6 +103,16 @@ async function getRatings(req, res) {
 // by its real bytes (not the extension), renamed to a server-generated UUID so
 // a client filename can never cause traversal or overwrite, and the previous
 // avatar file is best-effort deleted.
+// Driver's license (sub-project E): the caller's own, always req.user.id.
+async function uploadLicense(req, res) {
+  const { status, body } = await submitLicense(req.user.id, req.file, req.body);
+  res.status(status).json(body);
+}
+
+async function getMyLicense(req, res) {
+  res.json(await myLicense(req.user.id));
+}
+
 async function uploadAvatar(req, res) {
   const userId = req.user.id;
   if (!req.file || !req.file.buffer || req.file.buffer.length === 0) {
@@ -193,4 +204,4 @@ async function updateMode(req, res) {
   res.json(user);
 }
 
-module.exports = { getById, getRatings, uploadAvatar, completeOnboarding, deleteMe, updateGender, updateMode };
+module.exports = { getById, getRatings, uploadAvatar, completeOnboarding, deleteMe, updateGender, updateMode, uploadLicense, getMyLicense };

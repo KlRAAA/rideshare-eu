@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const router = express.Router();
-const { getById, getRatings, uploadAvatar, completeOnboarding, deleteMe, updateGender, updateMode } = require('../controllers/userController');
+const { getById, getRatings, uploadAvatar, completeOnboarding, deleteMe, updateGender, updateMode, uploadLicense, getMyLicense } = require('../controllers/userController');
 const { authAttemptLimiter } = require('../middleware/rateLimit');
 const { strictBody } = require('../middleware/strictBody');
 
@@ -18,6 +18,17 @@ function acceptAvatar(req, res, next) {
   });
 }
 
+// Driver's license (sub-project E): one photo, field `photo`.
+function acceptLicensePhoto(req, res, next) {
+  upload.single('photo')(req, res, (err) => {
+    if (!err) return next();
+    if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'FILE_TOO_LARGE' });
+    return res.status(400).json({ error: 'UPLOAD_FAILED' });
+  });
+}
+
+router.get('/me/license', getMyLicense); // before /:id
+router.post('/me/license', acceptLicensePhoto, strictBody('user.license'), uploadLicense);
 router.get('/:id', getById);
 router.get('/:id/ratings', getRatings); // public rating summary + reviews for the profile page
 router.post('/me/avatar', acceptAvatar, strictBody('user.avatar'), uploadAvatar);

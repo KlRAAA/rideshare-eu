@@ -132,6 +132,7 @@ const SCHEMAS = {
     familiarRidersOnly: 'boolean',
   },
   'user.avatar': NONE,
+  'user.license': { licenseNumber: 'string', licenseType: 'string', expiresOn: 'string' },
   'user.mode': { mode: 'string' }, // the image itself is the multipart file, not a body field
   'user.onboarding': NONE,
   'user.gender': { gender: 'string', confirm: 'boolean' },
