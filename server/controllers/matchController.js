@@ -170,7 +170,8 @@ async function fetchEnrichedTrips(tripIds) {
 // see the plate only once matched and approved on a specific trip (RA 10173
 // masking, see tripController.getById).
 function enrichMatches(matches, tripsById) {
-  return matches.map((m) => {
+  // A trip deleted between scoring and this lookup is simply left out.
+  return matches.filter((m) => tripsById.has(m.tripId)).map((m) => {
     const trip = tripsById.get(m.tripId);
     const { plate: _plate, ...vehicleWithoutPlate } = trip.vehicle;
     return { ...m, trip: { ...trip, vehicle: vehicleWithoutPlate }, fuelShare: trip.fuelSharePerSeat };
