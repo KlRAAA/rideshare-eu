@@ -17,8 +17,23 @@ async function list(req, res) {
   const { limit, cursor } = req.query;
   const take = limit ? Number(limit) : DEFAULT_NOTIFICATION_LIMIT;
 
+  // ?mode=driver|passenger (sub-project C): a notification belongs to Driver
+  // mode when the user hosts its trip, to Passenger mode when it's about
+  // another trip; one without a trip shows in both.
+  const mode = req.query.mode === 'driver' || req.query.mode === 'passenger' ? req.query.mode : null;
+  let where = { userId: req.user.id };
+  let otherModeUnread;
+  if (mode) {
+    const hosted = (await prisma.trip.findMany({ where: { hostId: req.user.id }, select: { id: true } })).map((t) => t.id);
+    const driverSide = { relatedTripId: { in: hosted } };
+    const passengerSide = { relatedTripId: { not: null, notIn: hosted } };
+    const [mine, other] = mode === 'driver' ? [driverSide, passengerSide] : [passengerSide, driverSide];
+    where = { userId: req.user.id, OR: [mine, { relatedTripId: null }] };
+    otherModeUnread = await prisma.notification.count({ where: { userId: req.user.id, isRead: false, ...other } });
+  }
+
   const rows = await prisma.notification.findMany({
-    where: { userId: req.user.id },
+    where,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: take + 1, // one extra row just to detect whether a next page exists
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -28,7 +43,7 @@ async function list(req, res) {
   const notifications = hasMore ? rows.slice(0, take) : rows;
   const nextCursor = hasMore ? notifications[notifications.length - 1].id : null;
 
-  res.json({ notifications, nextCursor });
+  res.json({ notifications, nextCursor, ...(mode && { otherModeUnread }) });
 }
 
 // Mark one of your own notifications read. 404 if it doesn't exist, 403 if it
