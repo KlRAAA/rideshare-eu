@@ -1,5 +1,7 @@
 const ACTIVE_MATCH_STATUSES = ['PENDING', 'APPROVED'];
 const ADMIN_CANCEL_PREFIX = 'Cancelled by an administrator: ';
+// Set by the trip-day job when a one-time trip's driver never started (sub-project D).
+const NO_SHOW_CANCEL_REASON = "The driver didn't start the trip";
 
 function passengerMessage(trip, reason, byAdmin) {
   if (byAdmin) return `An administrator cancelled the trip to ${trip.destinationAddress}: ${reason}`;
@@ -48,4 +50,4 @@ async function cancelPassengerMatch(tx, match) {
   await tx.trip.updateMany({ where: { id: match.tripId, status: 'FULL' }, data: { status: 'OPEN' } });
 }
 
-module.exports = { cancelWholeTrip, cancelPassengerMatch, ACTIVE_MATCH_STATUSES, ADMIN_CANCEL_PREFIX };
+module.exports = { cancelWholeTrip, cancelPassengerMatch, ACTIVE_MATCH_STATUSES, ADMIN_CANCEL_PREFIX, NO_SHOW_CANCEL_REASON };

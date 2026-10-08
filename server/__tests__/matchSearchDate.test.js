@@ -101,24 +101,24 @@ describe('POST /api/matches/show-all — date eligibility', () => {
     if (guard()) return;
     const host = await makeUser(bag, { fullName: 'One Time Host' });
     const vehicle = await makeVehicle(bag, host.id);
-    // 2026-09-20T23:00Z = 7:00 AM PH on 2026-09-21 (Monday) — the thesis's own
+    // 2027-09-20T23:00Z = 7:00 AM PH on 2027-09-21 (Tuesday) — the thesis's own
     // stated peak commute time, deliberately straddling the UTC/PH boundary.
     const trip = await makeTrip(bag, host.id, vehicle.id, {
       destinationLat: SEARCH_DEST.lat,
       destinationLng: SEARCH_DEST.lng,
       recurrenceType: 'ONE_TIME',
-      departureTime: new Date('2026-09-20T23:00:00Z'),
+      departureTime: new Date('2027-09-20T23:00:00Z'),
     });
 
-    const onOwnDate = await post('/api/matches/show-all', passenger.id, searchBody(passenger.id, { date: '2026-09-21' }));
+    const onOwnDate = await post('/api/matches/show-all', passenger.id, searchBody(passenger.id, { date: '2027-09-21' }));
     expect(await matchedTripIds(onOwnDate)).toContain(trip.id);
 
     // The raw UTC calendar day of the same instant — must NOT match; this is
     // exactly the bug a naive UTC-day comparison would reintroduce.
-    const onUtcDate = await post('/api/matches/show-all', passenger.id, searchBody(passenger.id, { date: '2026-09-20' }));
+    const onUtcDate = await post('/api/matches/show-all', passenger.id, searchBody(passenger.id, { date: '2027-09-20' }));
     expect(await matchedTripIds(onUtcDate)).not.toContain(trip.id);
 
-    const onUnrelatedDate = await post('/api/matches/show-all', passenger.id, searchBody(passenger.id, { date: '2026-09-22' }));
+    const onUnrelatedDate = await post('/api/matches/show-all', passenger.id, searchBody(passenger.id, { date: '2027-09-22' }));
     expect(await matchedTripIds(onUnrelatedDate)).not.toContain(trip.id);
   });
 

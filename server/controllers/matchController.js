@@ -1,7 +1,7 @@
 const prisma = require('../config/db');
 const { conflictWithHosted, conflictBody } = require('../services/scheduleConflicts');
 const { runPSGA, runShowAllFallback, computeRouteOverlapDetail, tripRunsOnSearchDate } = require('../services/psgaService');
-const { applyLazyCompletion } = require('../services/tripCompletionService');
+const { settleTrips } = require('../services/tripDayService');
 const psgaConfig = require('../config/psgaConfig');
 const safeUserSelect = require('../config/safeUserSelect');
 const { checkJoinEligibility } = require('../services/joinRequestService');
@@ -60,10 +60,10 @@ async function loadSearchCandidates(passengerId, passengerRequest) {
   // ever present. Found by actually searching as a user who had a trip
   // posted, not by reading the code.
   //
-  // Fetch OPEN + FULL (not just OPEN) so the lazy completion check below can
-  // catch a trip that just became overdue — filtered back down to OPEN
-  // candidates immediately after, so an auto-completed trip never surfaces
-  // as joinable in the same request that just completed it.
+  // Fetch OPEN + FULL (not just OPEN) so the trip-day steps below
+  // (settleTrips) can close or cancel a trip whose driver never came —
+  // filtered back down to OPEN candidates immediately after, so such a trip
+  // never surfaces as joinable in the same request.
   const candidateTrips = await prisma.trip.findMany({
     where: { status: { in: ['OPEN', 'FULL'] }, hostId: { not: passengerId } },
     select: {
@@ -85,7 +85,7 @@ async function loadSearchCandidates(passengerId, passengerRequest) {
       totalSeats: true,
     },
   });
-  await applyLazyCompletion(candidateTrips);
+  await settleTrips(candidateTrips);
   // Date eligibility is a hard gate applied once here, upstream of both
   // scoring paths (runPSGA and runShowAllFallback both consume openTrips) —
   // a trip that doesn't run on the searcher's chosen date is never a

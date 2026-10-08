@@ -2,9 +2,8 @@ const prisma = require('../config/db');
 const { decryptTripFields } = require('./encryptionService');
 const { recurrenceRunsOnDay, phDateOnly } = require('./recurrenceMath');
 
-// No per-trip/per-user configurability exists yet (mirrors GRACE_BUFFER_MINUTES
-// in tripCompletionService.js) — a fixed lead time until a real requirement for
-// configurability shows up.
+// No per-trip/per-user configurability exists yet — a fixed lead time until a
+// real requirement for configurability shows up.
 const REMINDER_LEAD_MINUTES = 60;
 const DAY_MS = 24 * 60 * 60 * 1000;
 

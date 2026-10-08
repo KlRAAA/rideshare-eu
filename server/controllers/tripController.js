@@ -9,7 +9,8 @@ const { suggestAddresses } = require('../services/addressSuggestService');
 const { validateClientRoute } = require('../services/routeSanity');
 const { computeFuelSharePerSeat } = require('../services/fuelShareService');
 const { classifyTripChanges, describeCategories, fuelShareWouldChange } = require('../services/tripUpdateService');
-const { applyLazyCompletion, completeTrip } = require('../services/tripCompletionService');
+const { completeTrip } = require('../services/tripCompletionService');
+const { settleTrips } = require('../services/tripDayService');
 const safeUserSelect = require('../config/safeUserSelect');
 const { encryptField, decryptUserFields, decryptTripFields } = require('../services/encryptionService');
 
@@ -193,7 +194,7 @@ async function listMine(req, res) {
     },
     orderBy: { departureTime: 'asc' },
   });
-  await applyLazyCompletion(hosted);
+  await settleTrips(hosted);
 
   // "Joined" trips: trips this user has a match on as a passenger, any
   // status — matches the thesis's My Trips distinction between trips a
@@ -204,7 +205,7 @@ async function listMine(req, res) {
     include: { trip: { include: { vehicle: true, host: { select: safeUserSelect }, runs: ONGOING_RUN } } },
     orderBy: { createdAt: 'desc' },
   });
-  await applyLazyCompletion(joinedMatches.map((m) => m.trip));
+  await settleTrips(joinedMatches.map((m) => m.trip));
 
   // Which of this user's matches they've already rated, so the client keeps the
   // "Rated" state after a reload — it used to be frontend-only React state that
@@ -282,7 +283,7 @@ async function getById(req, res) {
   });
   if (!tripRaw) return res.status(404).json({ error: 'Trip not found' });
   if (!(await canOpenTrip(tripRaw, userId))) return res.status(404).json({ error: 'Trip not found' });
-  await applyLazyCompletion([tripRaw]);
+  await settleTrips([tripRaw]);
 
   const trip = {
     ...decryptTripFields(tripRaw),
@@ -320,9 +321,9 @@ async function getById(req, res) {
   res.json({ trip });
 }
 
-// Host-only manual override — same underlying completeTrip() as the lazy
-// auto-detect path, so both trigger identical downstream effects (approved
-// matches complete, pending ones decline, both sides get rating prompts).
+// Host-only manual override — same underlying completeTrip() as End Trip, so
+// both trigger identical downstream effects (approved matches complete,
+// pending ones decline, both sides get rating prompts).
 async function markCompleted(req, res) {
   const { id } = req.params;
   const userId = req.user.id;

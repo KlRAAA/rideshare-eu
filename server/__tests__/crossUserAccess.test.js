@@ -79,7 +79,7 @@ beforeAll(async () => {
 
   // A's join request on someone else's trip
   const hostCar = await makeVehicle(bag, otherHost.id);
-  const hostTrip = await makeTrip(bag, otherHost.id, hostCar.id);
+  const hostTrip = await makeTrip(bag, otherHost.id, hostCar.id, { departureTime: new Date(Date.now() + 2 * 86400000) });
   a.match = await makeMatch(bag, hostTrip.id, userA.id);
 
   // A notification and an official warning addressed to A
