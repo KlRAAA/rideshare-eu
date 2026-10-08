@@ -433,3 +433,38 @@ Roadmap and decisions: `docs/superpowers/specs/2026-10-08-panel-revisions-roadma
   (`REPORT_APPEAL_EMAIL`). A failed send is logged; the reset still succeeds.
 - The host's cancel dialog says "No one has joined yet" (and hides the reason
   box) when the trip has no approved or pending passengers.
+
+**B. Trip lifecycle (done):** spec `docs/superpowers/specs/2026-10-08-trip-lifecycle-design.md`,
+plan `docs/superpowers/plans/2026-10-08-trip-lifecycle.md`.
+- A `TripRun` is one day's run of a trip (`@@unique([tripId, runDate])`,
+  `runDate` = the departure's PH day via `phDateOnly`), created by
+  `POST /api/trips/:id/start` (host; 201). The posted trip keeps
+  OPEN/FULL/CANCELLED/COMPLETED. Rules are pure in `services/tripRunRules.js`
+  (start window: 30 min before to 2 h after that day's departure; a
+  near-midnight departure can still start after midnight); DB actions in
+  `services/tripRunService.js`; routes in `controllers/tripRunController.js`.
+- Start 409s: `TRIP_NOT_ACTIVE`, `NOT_A_TRIP_DAY`, `TOO_EARLY_TO_START` (with
+  `opensAt`), `TOO_LATE_TO_START`, `ALREADY_STARTED`. Approved riders get a
+  `TRIP_STARTED` notification.
+- `POST /end` (host) and `POST /arrived` (the driver's phone within 150 m of
+  campus) end the ongoing run, then complete as before: `completeTrip` for
+  one-time, `completeRecurringOccurrence(trip, runDate)` for recurring. Both 409
+  `NO_ONGOING_RUN` when nothing is running, so the near-campus check can't
+  complete an unstarted trip any more (it used to, via `/complete`). The 5-min
+  cron runs `endOverdueRuns` (`AUTO`, 60 min after `plannedArrivalAt`).
+  `applyLazyCompletion` skips trips with an ongoing run.
+- Host and passenger cancel → 409 `TRIP_IN_PROGRESS` while a run is ongoing.
+- Location lives on the run: `POST /location { lat, lng, etaSeconds? }` needs an
+  ongoing run; `GET` returns `{ location, etaAt }`, location only while ongoing
+  and under 90 s old, to the host and APPROVED riders. `Trip.lastKnown*` and
+  `Preference.liveLocationSharing` are unused (kept so deploys don't need a
+  data-loss `db push`; drop them with migrations).
+- `GET /api/trips/:id` adds `currentRun` and `nextDeparture` (with the start
+  window and planned arrival); `/api/trips/mine` adds `inProgress`.
+- UI: `TripRunPanel` (Start Trip / "Trip in progress · 14 min" / "Arrive about
+  7:42 AM" / End Trip). The driver's page sends position every 30 s, a Mapbox
+  ETA every ~2 min, and holds a screen wake lock while ongoing. Riders' maps
+  include the car in the fitted view.
+- Demo: the seed adds Miguel's trip leaving 10 minutes after seeding (Paolo
+  approved). Postman: folder "18. Trip runs"; `seed:postman` deletes runs
+  before trips.

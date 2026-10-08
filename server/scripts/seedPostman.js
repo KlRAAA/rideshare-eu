@@ -65,6 +65,7 @@ async function removeExisting(emails) {
   });
   await prisma.message.deleteMany({ where: { OR: [{ tripId: { in: tripIds } }, { senderId: { in: userIds } }] } });
   await prisma.match.deleteMany({ where: { id: { in: matchIds } } });
+  await prisma.tripRun.deleteMany({ where: { tripId: { in: tripIds } } });
   await prisma.trip.deleteMany({ where: { id: { in: tripIds } } });
   await prisma.preference.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.vehicle.deleteMany({ where: { ownerId: { in: userIds } } });

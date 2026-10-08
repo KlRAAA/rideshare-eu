@@ -136,6 +136,18 @@
     {
       "key": "warningId",
       "value": ""
+    },
+    {
+      "key": "runTripId",
+      "value": ""
+    },
+    {
+      "key": "runMatchId",
+      "value": ""
+    },
+    {
+      "key": "runDepartureTime",
+      "value": ""
     }
   ],
   "item": [
@@ -364,7 +376,7 @@
               }
             },
             {
-              "name": "Turn on live location sharing",
+              "name": "Save matching preferences",
               "event": [
                 {
                   "listen": "test",
@@ -372,7 +384,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "pm.test('status is 200', () => pm.response.to.have.status(200));",
-                      "pm.test('preference saved', () => pm.expect(pm.response.json().preference.liveLocationSharing).to.eql(true));"
+                      "pm.test('preference saved', () => pm.expect(pm.response.json().preference.flexWindowMinutes).to.eql(15));"
                     ]
                   }
                 }
@@ -398,7 +410,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"genderPreference\": \"ANY\",\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": false,\n  \"liveLocationSharing\": true\n}",
+                  "raw": "{\n  \"genderPreference\": \"ANY\",\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": false\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1046,15 +1058,15 @@
           "name": "6. Ride day",
           "item": [
             {
-              "name": "Share host location",
+              "name": "Location before the trip starts is refused",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
-                      "pm.test('location accepted', () => pm.expect(pm.response.json().ok).to.eql(true));"
+                      "pm.test('status is 409', () => pm.response.to.have.status(409));",
+                      "pm.test('error is NO_ONGOING_RUN', () => pm.expect(pm.response.json().error).to.eql('NO_ONGOING_RUN'));"
                     ]
                   }
                 }
@@ -1090,7 +1102,7 @@
               }
             },
             {
-              "name": "See host location",
+              "name": "No location before the trip starts",
               "event": [
                 {
                   "listen": "test",
@@ -1098,7 +1110,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "pm.test('status is 200', () => pm.response.to.have.status(200));",
-                      "pm.test('approved passenger sees the live position', () => pm.expect(pm.response.json().location.lat).to.eql(13.955));"
+                      "pm.test('nothing is shared yet', () => pm.expect(pm.response.json()).to.eql({ location: null, etaAt: null }));"
                     ]
                   }
                 }
@@ -4257,6 +4269,572 @@
                 "method": "GET",
                 "header": [],
                 "url": "{{baseUrl}}/api/warnings/active",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "18. Trip runs",
+          "description": "Start Trip, the trip in progress and End Trip (sub-project B). Location and ETA are shared only while a run is ongoing, and nobody can cancel during it.",
+          "item": [
+            {
+              "name": "Host posts a trip leaving in 10 minutes",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('runDepartureTime', new Date(Date.now() + 10 * 60 * 1000).toISOString());"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                      "pm.test('responds in under 2 s', () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                      "pm.collectionVariables.set('runTripId', pm.response.json().trip.id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"originAddress\": \"Sariaya, Quezon\",\n  \"originLat\": 13.9629837,\n  \"originLng\": 121.5243402,\n  \"destinationAddress\": \"Manuel S. Enverga University Foundation, Lucena City\",\n  \"destinationLat\": 13.9490188,\n  \"destinationLng\": 121.6202904,\n  \"departureTime\": \"{{runDepartureTime}}\",\n  \"recurrenceType\": \"ONE_TIME\",\n  \"customDays\": [],\n  \"totalSeats\": 3,\n  \"driverNotes\": \"Leaving in a few minutes.\",\n  \"genderPreference\": \"ANY\",\n  \"flexibleDeparture\": true,\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": false,\n  \"fuelPricePerLiter\": {{tripFuelPrice}},\n  \"routeWaypoints\": [\n    { \"lat\": 13.9629837, \"lng\": 121.5243402 },\n    { \"lat\": 13.9566, \"lng\": 121.5720 },\n    { \"lat\": 13.9490188, \"lng\": 121.6202904 }\n  ],\n  \"distanceMeters\": 12500,\n  \"durationSeconds\": 1200\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Passenger asks to join",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set('runMatchId', pm.response.json().match.id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/matches",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tripId\": \"{{runTripId}}\",\n  \"score\": 0.9,\n  \"routeOverlap\": 0.9,\n  \"scheduleAlignment\": 0.9,\n  \"preferenceMatch\": true,\n  \"message\": \"I am at the stop.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Host approves",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/matches/{{runMatchId}}",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"APPROVED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Trip details show when it can start",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const { trip } = pm.response.json();",
+                      "pm.test('no run yet', () => pm.expect(trip.currentRun).to.eql(null));",
+                      "pm.test('the start window is already open', () => pm.expect(new Date(trip.nextDeparture.opensAt).getTime()).to.be.below(Date.now()));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/trips/{{runTripId}}",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "A rider cannot start it",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{runTripId}}/start",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Host starts the trip",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                      "pm.test('responds in under 2 s', () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                      "pm.test('run is ongoing', () => pm.expect(pm.response.json().run.status).to.eql('ONGOING'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{runTripId}}/start",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Starting twice is refused",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 409', () => pm.response.to.have.status(409));",
+                      "pm.test('error is ALREADY_STARTED', () => pm.expect(pm.response.json().error).to.eql('ALREADY_STARTED'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{runTripId}}/start",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Host shares location and ETA",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('responds in under 2 s', () => pm.expect(pm.response.responseTime).to.be.below(2000));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{runTripId}}/location",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"lat\": 13.955,\n  \"lng\": 121.58,\n  \"etaSeconds\": 900\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Approved rider sees location and ETA",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "pm.test('live position', () => pm.expect(body.location.lat).to.eql(13.955));",
+                      "pm.test('ETA about 15 minutes ahead', () => pm.expect(new Date(body.etaAt).getTime() - Date.now()).to.be.within(800 * 1000, 960 * 1000));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/trips/{{runTripId}}/location",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Nobody can cancel during the trip",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 409', () => pm.response.to.have.status(409));",
+                      "pm.test('error is TRIP_IN_PROGRESS', () => pm.expect(pm.response.json().error).to.eql('TRIP_IN_PROGRESS'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{runTripId}}/cancel",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "My Trips shows it in progress",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const trip = pm.response.json().joined.find((t) => t.id === pm.collectionVariables.get('runTripId'));",
+                      "pm.test('in progress', () => pm.expect(trip.inProgress).to.eql(true));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/trips/mine",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Host ends the trip",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('responds in under 2 s', () => pm.expect(pm.response.responseTime).to.be.below(2000));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{runTripId}}/end",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "No location after the end (the rider is no longer on an active trip)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('nothing is shared', () => pm.expect(pm.response.json().location).to.eql(null));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/trips/{{runTripId}}/location",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "The trip is completed",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('completed', () => pm.expect(pm.response.json().trip.status).to.eql('COMPLETED'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/trips/{{runTripId}}",
                 "auth": {
                   "type": "bearer",
                   "bearer": [
