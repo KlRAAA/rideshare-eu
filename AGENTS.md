@@ -381,6 +381,10 @@ Guide: `docs/deployment/railway-vercel.md`.
   `npx prisma generate`, pre-deploy `npx prisma db push`, start
   `npm run server`, healthcheck `/api/health`, one replica (the cron jobs run
   in-process). Auto-deploy needs the Railway GitHub app installed on the repo.
+  Watch Paths are empty on purpose: Railway checks them against only the
+  newest commit of a push, so a push ending in a docs-only commit was skipped
+  and the API ran a day-old build. `railway redeploy --service rideshare-eu
+  --from-source` deploys the latest commit by hand.
 - Backups: Hobby can't create Railway backups. `scripts/backup-production.ps1`
   (Task Scheduler: daily 9 PM during UAT, weekly after) opens
   `railway connect Postgres --tunnel-only` (no public database address; needs

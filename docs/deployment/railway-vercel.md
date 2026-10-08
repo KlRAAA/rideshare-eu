@@ -88,7 +88,7 @@ once you've verified a domain you own.)
    | Region | Southeast Asia (Singapore), 1 replica |
    | Replica limits (cost guard) | 1 vCPU, 1 GB |
    | Custom Build Command | `npx prisma generate` |
-   | Watch Paths | `/server/**`, `/prisma/**`, `/package.json`, `/package-lock.json` |
+   | Watch Paths | leave empty (see section 8) |
    | Pre-deploy step | `npx prisma db push` (creates/updates the tables) |
    | Custom Start Command | `npm run server` |
    | Healthcheck Path | `/api/health` |
@@ -208,10 +208,13 @@ the forwarding, the API and the database. A failed run makes GitHub email you.
 
 - `.github/workflows/ci.yml` runs the server tests, web tests and type check
   on every push to `main` and on pull requests, against a fresh Postgres 17.
-- Vercel redeploys the website on every push to `main`. Railway redeploys the
-  API only when `server/`, `prisma/` or `package*.json` change (its Watch
-  Paths). If Railway ever stops picking up pushes, check that the Railway
-  GitHub app is still installed (step 2.1).
+- Vercel and Railway both redeploy on every push to `main`. Railway's Watch
+  Paths are left empty on purpose: Railway compares them only with the
+  newest commit of a push, so a push ending in a docs-only commit was skipped
+  and the API stayed a day behind (8 Oct 2026). If Railway ever stops picking
+  up pushes, check that the Railway GitHub app is still installed (step 2.1),
+  or deploy the latest commit with `railway redeploy --service rideshare-eu
+  --from-source`.
 - Schema changes deploy through `prisma db push`, which **refuses** a change
   that would delete data. If a deploy fails on that, back up first
   (`node scripts/backup-db.mjs` with `DATABASE_URL` set to the production
