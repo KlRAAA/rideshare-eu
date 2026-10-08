@@ -1,6 +1,8 @@
 const prisma = require('../config/db');
 const { inLuzon } = require('../config/serviceArea');
 const { ongoingRun, finishRun } = require('../services/tripRunService');
+const { nextDeparture, plannedArrival } = require('../services/tripRunRules');
+const { phDateOnly } = require('../services/recurrenceMath');
 const { geocodeAddress, reverseGeocode } = require('../services/geocodingService');
 const { suggestAddresses } = require('../services/addressSuggestService');
 const { validateClientRoute } = require('../services/routeSanity');
@@ -170,9 +172,11 @@ async function listMine(req, res) {
   // one, via the joined trips below). Passenger fields are narrowed here — the
   // name is all the Rate button needs; the full safeUserSelect (incl. email)
   // stays on the trip-detail endpoint where the host coordinates pickup.
+  const ONGOING_RUN = { where: { status: 'ONGOING' }, select: { id: true } };
   const hosted = await prisma.trip.findMany({
     where: { hostId: userId },
     include: {
+      runs: ONGOING_RUN,
       vehicle: true,
       matches: { include: { passenger: { select: { id: true, fullName: true, avatarUrl: true } } } },
     },
@@ -186,7 +190,7 @@ async function listMine(req, res) {
   // (Upcoming/Past/Cancelled) the same way it already does for `hosted`.
   const joinedMatches = await prisma.match.findMany({
     where: { passengerId: userId },
-    include: { trip: { include: { vehicle: true, host: { select: safeUserSelect } } } },
+    include: { trip: { include: { vehicle: true, host: { select: safeUserSelect }, runs: ONGOING_RUN } } },
     orderBy: { createdAt: 'desc' },
   });
   await applyLazyCompletion(joinedMatches.map((m) => m.trip));
@@ -200,8 +204,10 @@ async function listMine(req, res) {
   const hostedMatchesWithOccurrence = await attachUnratedOccurrence(hosted.flatMap((t) => t.matches), userId);
   const occurrenceByMatchId = new Map(hostedMatchesWithOccurrence.map((m) => [m.id, m.unratedOccurrenceDate]));
 
+  // A trip with an ongoing run shows "In progress" (sub-project B).
+  const withProgress = ({ runs, ...t }) => ({ ...t, inProgress: runs.length > 0 });
   const hostedWithRatings = hosted.map((t) => ({
-    ...decryptTripFields(t),
+    ...withProgress(decryptTripFields(t)),
     matches: t.matches.map((m) => ({
       ...m,
       passenger: decryptUserFields(m.passenger),
@@ -213,7 +219,7 @@ async function listMine(req, res) {
   const joinedMatchesWithOccurrence = await attachUnratedOccurrence(joinedMatches, userId);
   const joined = joinedMatchesWithOccurrence.map((m) => {
     const canSeePlate = ['APPROVED', 'COMPLETED'].includes(m.status);
-    const trip = { ...decryptTripFields(m.trip), host: decryptUserFields(m.trip.host) };
+    const trip = { ...withProgress(decryptTripFields(m.trip)), host: decryptUserFields(m.trip.host) };
     return {
       ...trip,
       vehicle: canSeePlate ? trip.vehicle : { ...trip.vehicle, plate: null },
@@ -260,6 +266,7 @@ async function getById(req, res) {
       host: { select: safeUserSelect },
       vehicle: true,
       matches: { include: { passenger: { select: safeUserSelect } } },
+      runs: { orderBy: { startedAt: 'desc' }, take: 1 },
     },
   });
   if (!tripRaw) return res.status(404).json({ error: 'Trip not found' });
@@ -286,6 +293,18 @@ async function getById(req, res) {
   const rated = new Set(myRatings.map((r) => r.matchId));
   const matchesWithOccurrence = await attachUnratedOccurrence(trip.matches, userId);
   trip.matches = matchesWithOccurrence.map((m) => ({ ...m, ratedByMe: rated.has(m.id) }));
+
+  // Sub-project B: today's run (ongoing, or ended today) and, for an active
+  // trip, the next departure that can still be started.
+  const now = new Date();
+  const [latestRun] = tripRaw.runs;
+  delete trip.runs;
+  trip.currentRun =
+    latestRun && (latestRun.status === 'ONGOING' || latestRun.runDate.getTime() === phDateOnly(now).getTime())
+      ? { status: latestRun.status, startedAt: latestRun.startedAt, plannedArrivalAt: latestRun.plannedArrivalAt, etaAt: latestRun.etaAt }
+      : null;
+  const next = ['OPEN', 'FULL'].includes(trip.status) ? nextDeparture(tripRaw, now) : null;
+  trip.nextDeparture = next && { ...next, plannedArrivalAt: plannedArrival(tripRaw, next.departure) };
 
   res.json({ trip });
 }

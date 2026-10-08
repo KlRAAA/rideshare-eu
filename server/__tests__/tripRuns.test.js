@@ -119,3 +119,26 @@ describe('ending a run', () => {
     expect((await prisma.tripRun.findUnique({ where: { id: run.id } }))).toMatchObject({ status: 'COMPLETED', endReason: 'AUTO' });
   });
 });
+
+describe('run state in the trip APIs', () => {
+  test('trip details show the next departure, then the ongoing run; My Trips flags it', async () => {
+    if (guard()) return;
+    const { host, rider, trip } = await seedTrip();
+    let detail = (await (await req('GET', `/api/trips/${trip.id}`, rider.id)).json()).trip;
+    expect(detail.currentRun).toBeNull();
+    expect(new Date(detail.nextDeparture.opensAt).getTime()).toBeLessThan(Date.now());
+    expect(new Date(detail.nextDeparture.plannedArrivalAt).getTime()).toBe(
+      new Date(detail.nextDeparture.departure).getTime() + 1800 * 1000
+    );
+    expect(detail.runs).toBeUndefined();
+
+    await req('POST', `/api/trips/${trip.id}/start`, host.id, {});
+    detail = (await (await req('GET', `/api/trips/${trip.id}`, rider.id)).json()).trip;
+    expect(detail.currentRun.status).toBe('ONGOING');
+
+    const mine = await (await req('GET', '/api/trips/mine', rider.id)).json();
+    expect(mine.joined.find((j) => j.id === trip.id).inProgress).toBe(true);
+    const hosted = await (await req('GET', '/api/trips/mine', host.id)).json();
+    expect(hosted.hosted.find((h) => h.id === trip.id).inProgress).toBe(true);
+  });
+});
