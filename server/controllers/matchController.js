@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { conflictWithHosted, conflictBody } = require('../services/scheduleConflicts');
 const { runPSGA, runShowAllFallback, computeRouteOverlapDetail, tripRunsOnSearchDate } = require('../services/psgaService');
 const { applyLazyCompletion } = require('../services/tripCompletionService');
 const psgaConfig = require('../config/psgaConfig');
@@ -240,6 +241,10 @@ async function create(req, res) {
   const blocked = joinBlockReason(trip, rider);
   if (blocked) return res.status(403).json({ error: blocked });
 
+  // Nobody rides while driving their own trip at the same time.
+  const clash = await conflictWithHosted(passengerId, trip, prisma);
+  if (clash) return res.status(409).json(conflictBody(clash));
+
   const matchRaw = await prisma.match.create({
     data: {
       tripId,
@@ -318,13 +323,26 @@ async function updateStatus(req, res) {
 
   const existing = await prisma.match.findUnique({
     where: { id },
-    include: { trip: { select: { hostId: true, totalSeats: true, genderPreference: true, familiarRidersOnly: true } } },
+    include: {
+      trip: {
+        select: {
+          id: true, hostId: true, totalSeats: true, genderPreference: true, familiarRidersOnly: true,
+          // for the overlap check
+          departureTime: true, durationSeconds: true, recurrenceType: true, customDays: true,
+        },
+      },
+    },
   });
   if (!existing) return res.status(404).json({ error: 'MATCH_NOT_FOUND' });
   if (existing.trip.hostId !== req.user.id) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
   if (status === 'APPROVED' && !(await stillEligible(existing))) {
     await declineIneligible(existing);
     return res.status(409).json({ error: 'RIDER_NO_LONGER_ELIGIBLE' });
+  }
+  // The rider may have posted a trip at the same time since asking to join.
+  if (status === 'APPROVED') {
+    const clash = await conflictWithHosted(existing.passengerId, existing.trip, prisma);
+    if (clash) return res.status(409).json(conflictBody(clash));
   }
 
   let match;

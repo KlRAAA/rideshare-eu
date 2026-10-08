@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const { inLuzon } = require('../config/serviceArea');
 const { ongoingRun, finishRun } = require('../services/tripRunService');
+const { conflictWithRides, conflictBody } = require('../services/scheduleConflicts');
 const { nextDeparture, plannedArrival } = require('../services/tripRunRules');
 const { phDateOnly } = require('../services/recurrenceMath');
 const { geocodeAddress, reverseGeocode } = require('../services/geocodingService');
@@ -88,6 +89,16 @@ async function createTrip(req, res) {
 
   const invalidField = validateNewTrip(body);
   if (invalidField) return res.status(400).json({ error: 'INVALID_TRIP', field: invalidField });
+
+  // Nobody drives while riding someone else's trip at the same time.
+  const clash = await conflictWithRides(req.user.id, {
+    id: null,
+    departureTime: new Date(body.departureTime),
+    durationSeconds: durationSeconds ?? null,
+    recurrenceType: body.recurrenceType,
+    customDays: body.customDays ?? [],
+  }, prisma);
+  if (clash) return res.status(409).json(conflictBody(clash));
   if (body.recurrenceType !== 'CUSTOM') body.customDays = [];
 
   // The car must exist and belong to the caller — otherwise a host could post a
@@ -496,6 +507,17 @@ async function updateTrip(req, res) {
 
   const outside = pointOutsideLuzon(trip, incoming);
   if (outside) return res.status(400).json({ error: 'INVALID_TRIP', field: outside });
+
+  if (['departureTime', 'recurrenceType', 'customDays', 'durationSeconds'].some((k) => k in incoming)) {
+    const clash = await conflictWithRides(userId, {
+      id: trip.id,
+      departureTime: new Date(incoming.departureTime ?? trip.departureTime),
+      durationSeconds: incoming.durationSeconds ?? trip.durationSeconds,
+      recurrenceType: incoming.recurrenceType ?? trip.recurrenceType,
+      customDays: incoming.customDays ?? trip.customDays,
+    }, prisma);
+    if (clash) return res.status(409).json(conflictBody(clash));
+  }
 
   const approvedCount = trip.matches.filter((m) => m.status === 'APPROVED').length;
 
