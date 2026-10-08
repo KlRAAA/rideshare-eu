@@ -324,6 +324,10 @@ async function main() {
 
     const mariaMatch = await join(api, u.maria.id, juanTrip, { from: PLACES.mariaHome, wantOffset: -5, message: 'Hi Juan! I can walk to the plaza. See you tomorrow.' });
     await api(u.juan.id, 'PATCH', `/api/matches/${mariaMatch.id}`, { status: 'APPROVED' });
+    // Trip days (sub-project D): Juan confirmed his first day and skips the next one.
+    const { trip: juanDays } = await api(u.juan.id, 'GET', `/api/trips/${juanTrip.id}`);
+    await api(u.juan.id, 'POST', `/api/trips/${juanTrip.id}/days/${juanDays.days[0].date}/confirm`, {});
+    await api(u.juan.id, 'POST', `/api/trips/${juanTrip.id}/days/${juanDays.days[1].date}/skip`, { reason: 'Exam week, staying in the dorm' });
     await join(api, u.paolo.id, juanTrip, { from: PLACES.sariayaPlaza, wantOffset: 10, message: 'Pwede po makisabay? I have an 8 AM class.' });
     await join(api, u.rico.id, homeTrip, { from: CAMPUS, message: 'Going to Sariaya too, thanks!' });
     const paoloSoon = await join(api, u.paolo.id, soonTrip, { from: PLACES.sariayaEast, message: 'Sabay po, I am at the stop.' });

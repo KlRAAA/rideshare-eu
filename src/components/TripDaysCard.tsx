@@ -66,12 +66,14 @@ export default function TripDaysCard({ tripId, recurring, days }: TripDaysCardPr
         {days.map((d) => {
           const busy = busyDate === d.date;
           return (
-            <li key={d.date} className="flex flex-wrap items-center gap-2 py-2">
-              <span className="min-w-[7.5rem] text-sm font-semibold text-gray-900">
-                {dayLabel(d.date)} · {clockLabel(d.departure)}
+            <li key={d.date} className="flex items-center gap-3 py-2">
+              <span className="min-w-0 space-y-1">
+                <span className="block text-sm font-semibold text-gray-900">
+                  {dayLabel(d.date)} · {clockLabel(d.departure)}
+                </span>
+                <span className={badgeClass(d.status)}>{dayStatusLabel(d.status)}</span>
               </span>
-              <span className={badgeClass(d.status)}>{dayStatusLabel(d.status)}</span>
-              <span className="ml-auto flex gap-2">
+              <span className="ml-auto flex shrink-0 gap-2">
                 {d.status === null && (
                   <button type="button" disabled={busy} onClick={() => act(d.date, 'confirm')} className="rsu-btn-primary px-3 py-1 text-xs disabled:opacity-60">
                     Confirm
