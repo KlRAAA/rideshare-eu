@@ -7,7 +7,8 @@ export interface NotificationRef {
 // Notification types that have a meaningful place to send the user. Anything not
 // listed here (REMINDER today, plus any type added later without a destination)
 // renders as an inert card rather than routing somewhere wrong.
-const ROUTABLE_TYPES = new Set(['MATCH_REQUEST', 'APPROVAL', 'CANCELLATION', 'RATING_PROMPT', 'TRIP_UPDATED', 'MESSAGE', 'TRIP_STARTED']);
+const ROUTABLE_TYPES = new Set(['MATCH_REQUEST', 'APPROVAL', 'CANCELLATION', 'RATING_PROMPT', 'TRIP_UPDATED', 'MESSAGE', 'TRIP_STARTED',
+  'CONFIRM_REQUEST', 'DRIVER_UNCONFIRMED', 'DRIVER_LATE', 'DRIVER_NO_SHOW', 'TRIP_SKIPPED']);
 
 // Where clicking a notification navigates. Returns null when the notification
 // isn't actionable — callers should render those non-clickable.

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen, FaCommentDots, FaLifeRing, FaBullhorn, FaExclamationTriangle, FaBell, FaCar } from 'react-icons/fa';
+import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen, FaCommentDots, FaLifeRing, FaBullhorn, FaExclamationTriangle, FaBell, FaCar, FaQuestionCircle, FaUserClock, FaUserTimes, FaCalendarTimes } from 'react-icons/fa';
 import Card from '@/components/Card';
 import { apiFetch } from '@/lib/api';
 import ModeSwitchButton from '@/components/ModeSwitchButton';
@@ -22,7 +22,12 @@ export interface NotificationItem {
     | 'SUPPORT_REPLY'
     | 'ANNOUNCEMENT'
     | 'WARNING'
-    | 'TRIP_STARTED';
+    | 'TRIP_STARTED'
+    | 'CONFIRM_REQUEST'
+    | 'DRIVER_UNCONFIRMED'
+    | 'DRIVER_LATE'
+    | 'DRIVER_NO_SHOW'
+    | 'TRIP_SKIPPED';
   message: string;
   isRead: boolean;
   createdAt: string;
@@ -42,6 +47,11 @@ const TYPE_ICON: Record<NotificationItem['type'], React.ComponentType<{ classNam
   ANNOUNCEMENT: FaBullhorn,
   WARNING: FaExclamationTriangle,
   TRIP_STARTED: FaCar,
+  CONFIRM_REQUEST: FaQuestionCircle,
+  DRIVER_UNCONFIRMED: FaExclamationTriangle,
+  DRIVER_LATE: FaUserClock,
+  DRIVER_NO_SHOW: FaUserTimes,
+  TRIP_SKIPPED: FaCalendarTimes,
 };
 
 interface NotificationsClientProps {

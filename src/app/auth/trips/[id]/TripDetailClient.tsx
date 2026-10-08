@@ -20,6 +20,8 @@ import { LOCATION_POLL_INTERVAL_MS } from '@/lib/constants';
 import { fetchRoute } from '@/lib/directions';
 import TripRunPanel, { type CurrentRun, type NextDeparture } from '@/components/TripRunPanel';
 import RuleBadges from '@/components/RuleBadges';
+import TripDaysCard from '@/components/TripDaysCard';
+import { findAnotherRideHref, riderDayLine, type TripDay } from '@/lib/tripDays';
 import { whoCanJoinLabel } from '@/lib/riderRules';
 
 interface Vehicle {
@@ -83,6 +85,9 @@ export interface TripDetail {
   // Sub-project B: today's run and the next startable departure.
   currentRun: CurrentRun | null;
   nextDeparture: NextDeparture | null;
+  // Sub-project D: the next 7 run days and what the driver said about each.
+  days: TripDay[];
+  cancelReason: string | null;
 }
 
 interface TripDetailClientProps {
@@ -140,6 +145,12 @@ export default function TripDetailClient({
 
   const runOngoing = trip.currentRun?.status === 'ONGOING';
   const [liveEtaAt, setLiveEtaAt] = useState<string | null>(null);
+  // What an approved rider (or one whose driver never came) hears about the next day.
+  const [pageOpenedAt] = useState(() => new Date());
+  const dayLine =
+    !isHost && myMatch && (myActiveMatch?.status === 'APPROVED' || trip.status === 'CANCELLED')
+      ? riderDayLine({ ...trip, days: trip.days ?? [], cancelReason: trip.cancelReason ?? null }, pageOpenedAt)
+      : null;
 
   // The driver's phone while a run is ongoing (sub-project B): every ~30 s it
   // sends its position, and every 4th tick (~2 min) the remaining drive time
@@ -259,6 +270,31 @@ export default function TripDetailClient({
             nextDeparture={trip.nextDeparture}
             liveEtaAt={liveEtaAt}
           />
+        )}
+
+        {isHost && tripIsActive && !runOngoing && (
+          <TripDaysCard tripId={trip.id} recurring={trip.recurrenceType !== 'ONE_TIME'} days={trip.days ?? []} />
+        )}
+
+        {dayLine && (
+          <div
+            role="status"
+            className={`rounded-2xl border p-3 text-sm space-y-2 ${
+              {
+                ok: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+                neutral: 'border-gray-200 bg-gray-50 text-gray-700',
+                warn: 'border-amber-200 bg-amber-50 text-amber-900',
+                bad: 'border-red-200 bg-red-50 text-red-900',
+              }[dayLine.tone]
+            }`}
+          >
+            <p className="font-semibold">{dayLine.text}</p>
+            {dayLine.findAnother && (
+              <Link href={findAnotherRideHref(trip, dayLine.departure ?? trip.departureTime)} className="rsu-btn-secondary inline-block px-3 py-1.5 text-xs">
+                Find another ride
+              </Link>
+            )}
+          </div>
         )}
 
         <DriverIdentityCard
