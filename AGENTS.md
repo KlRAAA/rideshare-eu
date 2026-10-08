@@ -409,3 +409,27 @@ Guide: `docs/deployment/railway-vercel.md`.
 - To rehearse production routing locally: launch configs `api-prodsim`
   (:4100, secret on, separate uploads folder) and `web-prodsim` (:3002).
   Only one `next dev` can run per folder, so stop `web`/`web-demo` first.
+
+## Panel revisions (Oct 2026)
+
+Roadmap and decisions: `docs/superpowers/specs/2026-10-08-panel-revisions-roadmap.md`
+(sub-projects A–K, in build order; B–F each get their own spec first).
+
+**A. Quick fixes (done):**
+- Places are limited to **Luzon** (`server/config/serviceArea.js`, UI mirror
+  `src/lib/serviceArea.ts`; a box, lat 12.0–21.2, lng 119.4–124.6). Photon
+  suggestions use it as `bbox` and drop anything outside; Nominatim asks for 5
+  results and takes the first inside; reverse lookups outside are skipped.
+  `validateNewTrip` and trip edits return 400 `INVALID_TRIP` with field
+  `origin` / `destination` / `meetingPoint`. `RouteMapView` snaps a pin dropped
+  outside back and shows "Pick a place in Luzon".
+- `AddressInput` has a search icon and a spinner while suggestions load or the
+  caller looks the text up (`busy`, from `useGeocodedAddress().resolving`).
+- Sign-up gender has no default: the form starts on "Choose one", and
+  `register/complete` returns 400 `GENDER_REQUIRED` for a missing or unknown
+  value ("Prefer not to say" is a valid choice).
+- After a password reset the page shows "Password changed", and
+  `sendPasswordChangedEmail` tells the owner, with the admin contact
+  (`REPORT_APPEAL_EMAIL`). A failed send is logged; the reset still succeeds.
+- The host's cancel dialog says "No one has joined yet" (and hides the reason
+  box) when the trip has no approved or pending passengers.
