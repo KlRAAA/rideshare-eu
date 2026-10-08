@@ -156,6 +156,38 @@
     {
       "key": "clashDepartureTime",
       "value": ""
+    },
+    {
+      "key": "daysTripId",
+      "value": ""
+    },
+    {
+      "key": "daysMatchId",
+      "value": ""
+    },
+    {
+      "key": "daysDepartureTime",
+      "value": ""
+    },
+    {
+      "key": "dayDate",
+      "value": ""
+    },
+    {
+      "key": "nextDayDate",
+      "value": ""
+    },
+    {
+      "key": "oneTimeTripId",
+      "value": ""
+    },
+    {
+      "key": "oneTimeDepartureTime",
+      "value": ""
+    },
+    {
+      "key": "oneTimeDate",
+      "value": ""
     }
   ],
   "item": [
@@ -5259,6 +5291,651 @@
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"mode\": \"PASSENGER\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "20. Trip days",
+          "description": "The driver confirms or skips a day; riders see it on the trip (sub-project D).",
+          "item": [
+            {
+              "name": "Host posts a daily trip",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const d = new Date(); d.setUTCDate(d.getUTCDate() + 2); d.setUTCHours(1, 30, 0, 0);",
+                      "pm.collectionVariables.set('daysDepartureTime', d.toISOString());",
+                      "pm.collectionVariables.set('dayDate', d.toISOString().slice(0, 10));",
+                      "const n = new Date(d); n.setUTCDate(n.getUTCDate() + 1);",
+                      "pm.collectionVariables.set('nextDayDate', n.toISOString().slice(0, 10));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set('daysTripId', pm.response.json().trip.id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"originAddress\": \"Sariaya, Quezon\",\n  \"originLat\": 13.9629837,\n  \"originLng\": 121.5243402,\n  \"destinationAddress\": \"Manuel S. Enverga University Foundation, Lucena City\",\n  \"destinationLat\": 13.9490188,\n  \"destinationLng\": 121.6202904,\n  \"departureTime\": \"{{daysDepartureTime}}\",\n  \"recurrenceType\": \"DAILY\",\n  \"customDays\": [],\n  \"totalSeats\": 3,\n  \"driverNotes\": \"Trip days check.\",\n  \"genderPreference\": \"ANY\",\n  \"flexibleDeparture\": true,\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": false,\n  \"fuelPricePerLiter\": {{tripFuelPrice}},\n  \"durationSeconds\": 1200\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Passenger asks to join it",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set('daysMatchId', pm.response.json().match.id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/matches",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tripId\": \"{{daysTripId}}\",\n  \"score\": 0.9,\n  \"routeOverlap\": 0.9,\n  \"scheduleAlignment\": 0.9,\n  \"preferenceMatch\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Host approves",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/matches/{{daysMatchId}}",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"APPROVED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Host confirms the first day",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('day is confirmed', () => pm.expect(pm.response.json().run.status).to.eql('CONFIRMED'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{daysTripId}}/days/{{dayDate}}/confirm",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Confirming twice is refused",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 409', () => pm.response.to.have.status(409));",
+                      "pm.test('error is ALREADY_STARTED', () => pm.expect(pm.response.json().error).to.eql('ALREADY_STARTED'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{daysTripId}}/days/{{dayDate}}/confirm",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Host skips the next day",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('day is skipped', () => pm.expect(pm.response.json().run).to.include({ status: 'SKIPPED', skipReason: 'Car at the shop' }));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{daysTripId}}/days/{{nextDayDate}}/skip",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Car at the shop\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Passenger sees both days",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const days = pm.response.json().trip.days;",
+                      "pm.test('first day confirmed', () => pm.expect(days.find((d) => d.date === pm.collectionVariables.get('dayDate')).status).to.eql('CONFIRMED'));",
+                      "pm.test('next day skipped', () => pm.expect(days.find((d) => d.date === pm.collectionVariables.get('nextDayDate')).status).to.eql('SKIPPED'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/trips/{{daysTripId}}",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Passenger was told about the skip",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('TRIP_SKIPPED notification', () => pm.expect(pm.response.json().notifications.some((n) => n.type === 'TRIP_SKIPPED' && n.relatedTripId === pm.collectionVariables.get('daysTripId'))).to.eql(true));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/alerts?mode=passenger",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "A passenger cannot skip a day",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{daysTripId}}/days/{{dayDate}}/skip",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "A bad date is refused",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "pm.test('error is INVALID_DATE', () => pm.expect(pm.response.json().error).to.eql('INVALID_DATE'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{daysTripId}}/days/2026-13-40/confirm",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Host undoes the skip",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{baseUrl}}/api/trips/{{daysTripId}}/days/{{nextDayDate}}/skip",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Host cancels the daily trip (clean-up)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{daysTripId}}/cancel",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Host posts a one-time trip",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const d = new Date(); d.setUTCDate(d.getUTCDate() + 5); d.setUTCHours(1, 30, 0, 0);",
+                      "pm.collectionVariables.set('oneTimeDepartureTime', d.toISOString());",
+                      "pm.collectionVariables.set('oneTimeDate', d.toISOString().slice(0, 10));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set('oneTimeTripId', pm.response.json().trip.id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"originAddress\": \"Sariaya, Quezon\",\n  \"originLat\": 13.9629837,\n  \"originLng\": 121.5243402,\n  \"destinationAddress\": \"Manuel S. Enverga University Foundation, Lucena City\",\n  \"destinationLat\": 13.9490188,\n  \"destinationLng\": 121.6202904,\n  \"departureTime\": \"{{oneTimeDepartureTime}}\",\n  \"recurrenceType\": \"ONE_TIME\",\n  \"customDays\": [],\n  \"totalSeats\": 3,\n  \"driverNotes\": \"One-time trip days check.\",\n  \"genderPreference\": \"ANY\",\n  \"flexibleDeparture\": true,\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": false,\n  \"fuelPricePerLiter\": {{tripFuelPrice}},\n  \"durationSeconds\": 1200\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "A one-time trip cannot skip its day",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 409', () => pm.response.to.have.status(409));",
+                      "pm.test('error is ONE_TIME_TRIP', () => pm.expect(pm.response.json().error).to.eql('ONE_TIME_TRIP'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{oneTimeTripId}}/days/{{oneTimeDate}}/skip",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Host cancels the one-time trip (clean-up)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips/{{oneTimeTripId}}/cancel",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
                   "options": {
                     "raw": {
                       "language": "json"

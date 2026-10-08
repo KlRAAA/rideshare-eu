@@ -27,7 +27,7 @@ Everything in the notes is in scope; there is no fixed deadline.
 | A | Quick fixes: password-reset success screen and email, cancellation wording, required gender, Luzon-only search with icon and spinner | §2, §5, §7 | no | **done 8 Oct** (in-chat design) |
 | B | Trip lifecycle: `ONGOING` status and Start Trip, no cancelling once started, elapsed time, ETA, driver location only after start, location bug | 0a, §2, §3 | yes | **done 8 Oct** (spec + plan) |
 | C | Driver and passenger modes, strict per-role screens, overlapping-times rule | §1 | yes (activeMode) | **done 9 Oct** (spec + plan) |
-| D | Recurring trip days: per-date records, skip a date, advance confirmation, unconfirmed warning, no-show | 0b, §11 | yes | spec |
+| D | Recurring trip days: per-date records, skip a date, advance confirmation, unconfirmed warning, no-show | 0b, §11 | yes | **done 9 Oct** (spec + plan) |
 | E | Driver's license upload at sign-up and admin verification before posting | §4 | yes | spec |
 | F | Noticeable notifications: in-app pop-up, sound, vibration; then Web Push | §6 | yes | spec |
 | G | Passenger location shared with the driver | §3 | maybe | spec, after B |

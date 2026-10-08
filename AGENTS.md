@@ -440,7 +440,8 @@ plan `docs/superpowers/plans/2026-10-08-trip-lifecycle.md`.
   `runDate` = the departure's PH day via `phDateOnly`), created by
   `POST /api/trips/:id/start` (host; 201). The posted trip keeps
   OPEN/FULL/CANCELLED/COMPLETED. Rules are pure in `services/tripRunRules.js`
-  (start window: 30 min before to 2 h after that day's departure; a
+  (start window: 30 min before to 60 min after that day's departure (2 h
+  before D); a
   near-midnight departure can still start after midnight); DB actions in
   `services/tripRunService.js`; routes in `controllers/tripRunController.js`.
 - Start 409s: `TRIP_NOT_ACTIVE`, `NOT_A_TRIP_DAY`, `TOO_EARLY_TO_START` (with
@@ -452,7 +453,7 @@ plan `docs/superpowers/plans/2026-10-08-trip-lifecycle.md`.
   `NO_ONGOING_RUN` when nothing is running, so the near-campus check can't
   complete an unstarted trip any more (it used to, via `/complete`). The 5-min
   cron runs `endOverdueRuns` (`AUTO`, 60 min after `plannedArrivalAt`).
-  `applyLazyCompletion` skips trips with an ongoing run.
+  (`applyLazyCompletion` is gone since D: see below.)
 - Host and passenger cancel → 409 `TRIP_IN_PROGRESS` while a run is ongoing.
 - Location lives on the run: `POST /location { lat, lng, etaSeconds? }` needs an
   ongoing run; `GET` returns `{ location, etaAt }`, location only while ongoing
@@ -495,3 +496,46 @@ plan `docs/superpowers/plans/2026-10-09-driver-passenger-modes.md`.
   points at the mode switch.
 - Demo: Juan, Miguel, Ana and Carlo start in Driver mode. Postman: folder
   "19. Modes and schedule conflicts".
+
+**D. Trip days (done):** spec `docs/superpowers/specs/2026-10-09-trip-days-design.md`,
+plan `docs/superpowers/plans/2026-10-09-trip-days.md`.
+- `RunStatus` adds `CONFIRMED`, `SKIPPED`, `NO_SHOW`; `TripRun.startedAt` is
+  optional (set only by Start Trip), plus `confirmedAt` and `skipReason`. New
+  notification types `CONFIRM_REQUEST` (driver), `DRIVER_UNCONFIRMED`,
+  `DRIVER_LATE`, `DRIVER_NO_SHOW`, `TRIP_SKIPPED` (riders), all with
+  `occurrenceDate` = the run day.
+- Routes (host; `:date` is `YYYY-MM-DD`, Philippine time), in
+  `services/tripDayService.js`: `POST /api/trips/:id/days/:date/confirm`,
+  `POST .../skip { reason? }` (recurring only, 409 `ONE_TIME_TRIP`; ≤200
+  characters), `DELETE .../skip` (before departure, else 409 `TOO_LATE`).
+  Other errors: 400 `INVALID_DATE`, 409 `NOT_A_TRIP_DAY`, `DEPARTED`,
+  `ALREADY_STARTED`, `DAY_SKIPPED`, `NOT_SKIPPED`. Skip and undo notify approved
+  riders (`TRIP_SKIPPED`). Start Trip turns a `CONFIRMED` day into the ongoing
+  run and refuses a skipped one (409 `DAY_SKIPPED`).
+- Timing is pure in `services/tripDayRules.js`: ask the driver at 8 PM PH the
+  evening before (only with approved or pending riders, and only if the trip
+  existed by then); warn approved riders 60 min before if the driver was asked
+  and hasn't confirmed; +15 min without a start: `DRIVER_LATE`; +60 min: no-show.
+  The start window closes at +60.
+- `settleTrips(trips, now)` applies the due steps, once per trip and day. It
+  replaced `applyLazyCompletion` on every read path (search, My Trips, trip
+  details) and runs on the 5-minute cron as `runDaySteps`. A no-show (approved
+  riders, departure within 2 days) records a `NO_SHOW` run and tells the riders;
+  a one-time trip is then cancelled with `NO_SHOW_CANCEL_REASON` (no
+  `CANCELLATION` notifications), a recurring trip just declines that day's
+  pending requests. A one-time trip with nobody approved, or left unstarted
+  longer than that, closes quietly as `COMPLETED` (no rating prompts). A trip
+  nobody started is never completed with rating prompts any more.
+- Search drops a trip on a date it's skipped; reminders skip skipped and no-show
+  days; Start Trip's next departure passes over them. `GET /api/trips/:id` adds
+  `days: [{ date, departure, status }]` (next 7 run days). The watch list adds
+  "N no-shows as driver" (≥2 in 30 days); no-show cancellations don't count as
+  host cancellations.
+- Web: `TripDaysCard` (driver: "Next 7 days", or "Your trip day" for a one-time
+  trip: Confirm / Skip with an optional reason / Undo skip); an approved rider
+  gets a status line and, when the driver is late, skipped or didn't come,
+  "Find another ride" (Find a Ride pre-filled). Helpers in `src/lib/tripDays.ts`.
+- Tests that read past one-time trips through the API now see them closed;
+  fixtures that need an open trip use a future departure.
+- Demo: Juan confirmed his first weekday and skips the second (Maria approved).
+  Postman: folder "20. Trip days".
