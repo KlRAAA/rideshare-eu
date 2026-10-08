@@ -85,16 +85,16 @@ async function loadSearchCandidates(passengerId, passengerRequest) {
       totalSeats: true,
     },
   });
-  await settleTrips(candidateTrips);
   // Date eligibility is a hard gate applied once here, upstream of both
   // scoring paths (runPSGA and runShowAllFallback both consume openTrips) —
   // a trip that doesn't run on the searcher's chosen date is never a
   // candidate at all, not just low-scored. Validated by the caller
   // (search/showAll) before this function runs, so passengerRequest.date is
-  // already a real "YYYY-MM-DD" here.
-  const runningTrips = candidateTrips.filter(
-    (t) => t.status === 'OPEN' && tripRunsOnSearchDate(t, passengerRequest.date)
-  );
+  // already a real "YYYY-MM-DD" here. Only those trips get the trip-day steps
+  // (a no-show trip must not look joinable); the 5-minute job does the rest.
+  const onDate = candidateTrips.filter((t) => tripRunsOnSearchDate(t, passengerRequest.date));
+  await settleTrips(onDate);
+  const runningTrips = onDate.filter((t) => t.status === 'OPEN');
   // Sub-project D: the driver said they aren't driving that day.
   const skipped = new Set(
     (
