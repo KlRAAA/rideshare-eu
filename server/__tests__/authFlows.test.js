@@ -235,7 +235,13 @@ describe('Full registration flow: start → verify-otp → complete', () => {
     expect(decryptField(stored.gender)).toBe('WOMAN');
   });
 
-  test('an old client sending FEMALE is stored as Prefer not to say (Women+ spec §4)', async () => {
+  // Gender is a required, explicit choice at sign-up (panel revisions §5):
+  // no value, or a value the app doesn't offer, is refused instead of being
+  // quietly stored as Prefer not to say.
+  test.each([
+    ['missing', undefined],
+    ['not one of the offered options', 'FEMALE'],
+  ])('a sign-up with the gender %s → 400 GENDER_REQUIRED and no account', async (_label, gender) => {
     if (guard()) return;
     const email = studentEmail();
     const { otp } = await startRegistrationAndGetOtp(email);
@@ -243,9 +249,27 @@ describe('Full registration flow: start → verify-otp → complete', () => {
     const completeRes = await post('/api/auth/register/complete', {
       verificationTicket,
       password: 'NewPass123!',
-      fullName: 'Legacy Client',
-      universityId: `LID-${uniqueSuffix()}`,
-      gender: 'FEMALE',
+      fullName: 'No Gender Chosen',
+      universityId: `NG-${uniqueSuffix()}`,
+      ...(gender !== undefined && { gender }),
+      termsAccepted: true,
+    });
+    expect(completeRes.status).toBe(400);
+    expect((await completeRes.json()).error).toBe('GENDER_REQUIRED');
+    expect(await prisma.user.findUnique({ where: { email } })).toBeNull();
+  });
+
+  test('Prefer not to say is accepted as an explicit choice', async () => {
+    if (guard()) return;
+    const email = studentEmail();
+    const { otp } = await startRegistrationAndGetOtp(email);
+    const { verificationTicket } = await (await post('/api/auth/register/verify-otp', { email, otp })).json();
+    const completeRes = await post('/api/auth/register/complete', {
+      verificationTicket,
+      password: 'NewPass123!',
+      fullName: 'Private Person',
+      universityId: `PP-${uniqueSuffix()}`,
+      gender: 'PREFER_NOT_TO_SAY',
       termsAccepted: true,
     });
     expect(completeRes.status).toBe(201);
@@ -529,6 +553,25 @@ describe('Forgot/reset password flow', () => {
     expect(loginOld.status).toBe(401);
   });
 
+  test('a successful reset emails the account owner that the password changed', async () => {
+    if (guard()) return;
+    const email = studentEmail();
+    await createVerifiedUser({ email, password: 'OldPass123!' });
+    const { otp } = await startResetAndGetOtp(email);
+    const { resetTicket } = await (await post('/api/auth/verify-reset-otp', { email, otp })).json();
+
+    const resetRes = await post('/api/auth/reset-password', { resetTicket, password: 'BrandNewPass456!' });
+    expect(resetRes.status).toBe(200);
+
+    // With no email provider configured in tests, emailService logs the
+    // message instead of sending it (see the file-level comment).
+    const notice = consoleSpy.mock.calls
+      .map(([line]) => line)
+      .find((line) => typeof line === 'string' && line.startsWith(`[dev-only] Password changed notice for ${email}`));
+    expect(notice).toBeDefined();
+    expect(notice).toMatch(/If this wasn't you/);
+  });
+
   test('unknown email → generic 200 response, no EmailVerification row created', async () => {
     if (guard()) return;
     const email = studentEmail();
@@ -638,6 +681,7 @@ describe('email addresses ignore capitalisation and spaces', () => {
       password: 'NewPass123!',
       fullName: 'Mixed Case Person',
       universityId: `MC-${uniqueSuffix()}`,
+      gender: 'WOMAN',
       termsAccepted: true,
     });
     expect(done.status).toBe(201);

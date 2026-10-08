@@ -4381,7 +4381,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"verificationTicket\": \"{{verificationTicket}}\",\n  \"password\": \"Manual-Test-2026\",\n  \"fullName\": \"Manual Tester\",\n  \"universityId\": \"\",\n  \"gender\": \"MALE\",\n  \"termsAccepted\": true\n}",
+              "raw": "{\n  \"verificationTicket\": \"{{verificationTicket}}\",\n  \"password\": \"Manual-Test-2026\",\n  \"fullName\": \"Manual Tester\",\n  \"universityId\": \"\",\n  \"gender\": \"MAN\",\n  \"termsAccepted\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"

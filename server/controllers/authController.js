@@ -2,7 +2,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/db');
 const { generateOtp, hashOtp, verifyOtp, otpExpiryDate, MAX_ATTEMPTS } = require('../services/otpService');
-const { sendOtpEmail } = require('../services/emailService');
+const { sendOtpEmail, sendPasswordChangedEmail } = require('../services/emailService');
 const { encryptField, decryptField } = require('../services/encryptionService');
 const { logSecurityEvent } = require('../services/securityLog');
 const { GENDERS } = require('../services/riderRules');
@@ -134,6 +134,8 @@ async function completeRegistration(req, res) {
   // The client sends a real boolean for a checked box; anything else (missing
   // field, string "false", omitted entirely from a direct API call bypassing
   // the frontend) fails this strict check rather than being coerced truthy.
+  // An explicit choice is required; Prefer not to say is one of the options.
+  if (!GENDERS.includes(gender)) return res.status(400).json({ error: 'GENDER_REQUIRED' });
   if (termsAccepted !== true) {
     return res.status(400).json({ error: 'TERMS_NOT_ACCEPTED' });
   }
@@ -149,7 +151,7 @@ async function completeRegistration(req, res) {
       fullName: encryptField(trimmedFullName),
       universityId: trimmedUniversityId || emailPrefix,
       role,
-      gender: encryptField(GENDERS.includes(gender) ? gender : 'PREFER_NOT_TO_SAY'),
+      gender: encryptField(gender),
       verified: true,
       termsAcceptedAt: new Date(),
       termsVersion: CURRENT_TERMS_VERSION,
@@ -219,6 +221,13 @@ async function resetPassword(req, res) {
   const passwordHash = await bcrypt.hash(password, 12);
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
 
+  // If someone else reset it, this email is how the owner finds out. The
+  // reset itself has already succeeded, so a delivery failure is only logged.
+  try {
+    await sendPasswordChangedEmail(user.email);
+  } catch (err) {
+    console.error(`[email] password-changed notice failed: ${err.message}`);
+  }
   return res.json({ status: 'PASSWORD_RESET' });
 }
 

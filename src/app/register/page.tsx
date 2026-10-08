@@ -31,6 +31,7 @@ function ErrorMessage({ code }: { code: string | undefined }) {
     FULL_NAME_TOO_SHORT: 'Full name must be at least 3 characters.',
     FULL_NAME_MATCHES_ID: "Full name can't be the same as your University ID.",
     TERMS_NOT_ACCEPTED: 'You must agree to the Terms of Use and Privacy Policy to continue.',
+    GENDER_REQUIRED: 'Choose your gender. “Prefer not to say” is one of the options.',
   };
   return <p className="text-xs text-red-600">{messages[code ?? ''] ?? 'Something went wrong reaching the server. Try again in a moment.'}</p>;
 }
@@ -55,7 +56,8 @@ export default function RegisterPage() {
   const [verificationTicket, setVerificationTicket] = useState('');
   const [fullName, setFullName] = useState('');
   const [universityId, setUniversityId] = useState('');
-  const [gender, setGender] = useState<Gender>('PREFER_NOT_TO_SAY');
+  // Nothing pre-selected: the user must choose (panel revisions §5).
+  const [gender, setGender] = useState<Gender | ''>('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -122,6 +124,10 @@ export default function RegisterPage() {
     }
     if (password !== confirmPassword) {
       setErrorCode('PASSWORD_MISMATCH');
+      return;
+    }
+    if (!gender) {
+      setErrorCode('GENDER_REQUIRED');
       return;
     }
     if (!termsAccepted) {
@@ -287,12 +293,19 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Gender</label>
+                  <label htmlFor="register-gender" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                    Gender
+                  </label>
                   <Select
+                    id="register-gender"
+                    required
                     value={gender}
                     onChange={(e) => setGender(e.target.value as Gender)}
                     className="w-full pl-3 pr-9 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm"
                   >
+                    <option value="" disabled>
+                      Choose one
+                    </option>
                     {GENDER_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value}>
                         {o.label}

@@ -153,4 +153,33 @@ async function sendWarningEmail(email, { reasonLabel, note }) {
   });
 }
 
-module.exports = { sendOtpEmail, sendBanNotificationEmail, sendWarningEmail, isUndeliverableAddress, parseFrom };
+// Sent after every password reset, so the owner learns about a reset they
+// didn't make.
+async function sendPasswordChangedEmail(email, changedAt = new Date()) {
+  const adminEmail = process.env.REPORT_APPEAL_EMAIL || 'support@rideshareeu.local';
+  const when = changedAt.toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
+  const body =
+    `The password for your RideShareEU account (${email}) was changed on ${when}.
+
+` +
+    `If this was you, no action is needed.
+
+` +
+    `If this wasn't you, contact the admin right away at ${adminEmail} so we can secure your account.`;
+  await deliver({
+    to: email,
+    subject: 'Your RideShareEU password was changed',
+    text: body,
+    devLog: `Password changed notice for ${email}:
+${body}`,
+  });
+}
+
+module.exports = {
+  sendOtpEmail,
+  sendBanNotificationEmail,
+  sendWarningEmail,
+  sendPasswordChangedEmail,
+  isUndeliverableAddress,
+  parseFrom,
+};

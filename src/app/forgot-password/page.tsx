@@ -2,14 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { FaEnvelope, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaCheckCircle } from 'react-icons/fa';
 import Logo from '@/components/Logo';
 import Wordmark from '@/components/Wordmark';
 import OtpInput from '@/components/OtpInput';
 import { apiFetch, ApiError } from '@/lib/api';
 
-type Step = 'EMAIL' | 'OTP' | 'PASSWORD';
+type Step = 'EMAIL' | 'OTP' | 'PASSWORD' | 'DONE';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -27,7 +26,6 @@ function ErrorMessage({ code }: { code: string | undefined }) {
 }
 
 export default function ForgotPasswordPage() {
-  const router = useRouter();
   const [step, setStep] = useState<Step>('EMAIL');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -99,7 +97,7 @@ export default function ForgotPasswordPage() {
         method: 'POST',
         body: JSON.stringify({ resetTicket, password }),
       });
-      router.push('/login');
+      setStep('DONE');
     } catch (err) {
       setErrorCode(err instanceof ApiError ? err.code : undefined);
     } finally {
@@ -119,6 +117,19 @@ export default function ForgotPasswordPage() {
         </div>
 
         <div className="rsu-card">
+          {step === 'DONE' && (
+            <div role="status" className="text-center">
+              <FaCheckCircle className="mx-auto w-10 h-10 text-emerald-600" aria-hidden />
+              <h2 className="text-lg font-bold text-gray-900 mt-3">Password changed</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Sign in with your new password. We also emailed {email} to confirm the change.
+              </p>
+              <Link href="/login" className="rsu-btn-primary mt-5 inline-flex w-full justify-center">
+                Sign in
+              </Link>
+            </div>
+          )}
+
           {step === 'EMAIL' && (
             <>
               <h2 className="text-lg font-bold text-gray-900">Reset Your Password</h2>
