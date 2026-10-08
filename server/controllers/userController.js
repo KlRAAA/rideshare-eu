@@ -17,7 +17,7 @@ const AVATAR_URL_PREFIX = '/uploads/avatars';
 async function getById(req, res) {
   const userRaw = await prisma.user.findUnique({
     where: { id: req.params.id },
-    select: { ...safeUserSelect, email: true, universityId: true, isAdmin: true, isSuperAdmin: true, gender: true },
+    select: { ...safeUserSelect, email: true, universityId: true, isAdmin: true, isSuperAdmin: true, gender: true, activeMode: true },
   });
   if (!userRaw) return res.status(404).json({ error: 'USER_NOT_FOUND' });
   const user = decryptUserFields(userRaw);
@@ -30,7 +30,7 @@ async function getById(req, res) {
   // Email, university ID and gender (Women+ spec §6) are only returned on your
   // own record — the public profile page reads this endpoint for any user and
   // only needs name/avatar/role/trustScore.
-  const { email, universityId, isAdmin, isSuperAdmin, gender, ...rest } = user;
+  const { email, universityId, isAdmin, isSuperAdmin, gender, activeMode, ...rest } = user;
   const isOwnProfile = req.user.id === req.params.id;
   const visible = isOwnProfile ? { ...user, gender: normalizeGender(gender) } : rest;
 
@@ -182,4 +182,15 @@ async function updateGender(req, res) {
   res.json({ gender: result.gender, withdrawn: result.withdrawn });
 }
 
-module.exports = { getById, getRatings, uploadAvatar, completeOnboarding, deleteMe, updateGender };
+const MODES = ['PASSENGER', 'DRIVER'];
+
+// Switch between Driver and Passenger mode (sub-project C). A view setting:
+// nothing else on the server depends on it.
+async function updateMode(req, res) {
+  const { mode } = req.body;
+  if (!MODES.includes(mode)) return res.status(400).json({ error: 'INVALID_MODE' });
+  const user = await prisma.user.update({ where: { id: req.user.id }, data: { activeMode: mode }, select: { activeMode: true } });
+  res.json(user);
+}
+
+module.exports = { getById, getRatings, uploadAvatar, completeOnboarding, deleteMe, updateGender, updateMode };

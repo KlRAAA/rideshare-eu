@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const router = express.Router();
-const { getById, getRatings, uploadAvatar, completeOnboarding, deleteMe, updateGender } = require('../controllers/userController');
+const { getById, getRatings, uploadAvatar, completeOnboarding, deleteMe, updateGender, updateMode } = require('../controllers/userController');
 const { authAttemptLimiter } = require('../middleware/rateLimit');
 const { strictBody } = require('../middleware/strictBody');
 
@@ -22,6 +22,7 @@ router.get('/:id', getById);
 router.get('/:id/ratings', getRatings); // public rating summary + reviews for the profile page
 router.post('/me/avatar', acceptAvatar, strictBody('user.avatar'), uploadAvatar);
 router.patch('/me/onboarding', strictBody('user.onboarding'), completeOnboarding);
+router.patch('/me/mode', strictBody('user.mode'), updateMode); // Driver or Passenger mode, your own account
 router.patch('/me/gender', strictBody('user.gender'), updateGender); // your own gender; Women+ eligibility only
 router.delete('/me', authAttemptLimiter(), strictBody('user.delete'), deleteMe); // password re-check, so rate-limited like sign-in
 

@@ -128,7 +128,8 @@ const SCHEMAS = {
     flexWindowMinutes: 'number',
     familiarRidersOnly: 'boolean',
   },
-  'user.avatar': NONE, // the image itself is the multipart file, not a body field
+  'user.avatar': NONE,
+  'user.mode': { mode: 'string' }, // the image itself is the multipart file, not a body field
   'user.onboarding': NONE,
   'user.gender': { gender: 'string', confirm: 'boolean' },
   'user.delete': { password: 'string' },

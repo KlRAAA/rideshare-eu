@@ -239,6 +239,7 @@ model User {
   supportTickets  SupportTicket[]  @relation("SupportTickets")
   supportMessages SupportMessage[] @relation("SupportMessages")
   announcements   Announcement[]   @relation("Announcements")
+  activeMode      AppMode          @default(PASSENGER) // Driver or Passenger mode (sub-project C)
 }
 
 model Vehicle {
@@ -565,6 +566,13 @@ model SecurityEvent {
   @@index([createdAt])
   @@index([event, createdAt])
   @@index([userId, createdAt])
+}
+
+// Which half of the app a user is looking at (sub-project C). A view
+// setting only: nothing on the server depends on it.
+enum AppMode {
+  PASSENGER
+  DRIVER
 }
 
 enum RunStatus {
