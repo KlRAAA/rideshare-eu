@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen, FaCommentDots, FaLifeRing, FaBullhorn, FaExclamationTriangle, FaBell, FaCar } from 'react-icons/fa';
 import Card from '@/components/Card';
 import { apiFetch } from '@/lib/api';
+import ModeSwitchButton from '@/components/ModeSwitchButton';
 import { formatDateTimeAgo } from '@/lib/format';
 import { notificationHref } from '@/lib/notificationLink';
 
@@ -46,9 +47,17 @@ const TYPE_ICON: Record<NotificationItem['type'], React.ComponentType<{ classNam
 interface NotificationsClientProps {
   initialNotifications: NotificationItem[];
   initialNextCursor: string | null;
+  mode?: 'driver' | 'passenger';
+  // Unread notifications waiting in the other mode (sub-project C).
+  otherModeUnread?: number;
 }
 
-export default function NotificationsClient({ initialNotifications, initialNextCursor }: NotificationsClientProps) {
+export default function NotificationsClient({
+  initialNotifications,
+  initialNextCursor,
+  mode,
+  otherModeUnread = 0,
+}: NotificationsClientProps) {
   const [notifications, setNotifications] = useState(initialNotifications);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -92,7 +101,7 @@ export default function NotificationsClient({ initialNotifications, initialNextC
     setLoadingMore(true);
     try {
       const data = await apiFetch<{ notifications: NotificationItem[]; nextCursor: string | null }>(
-        `/api/alerts?cursor=${nextCursor}`
+        `/api/alerts?cursor=${nextCursor}${mode ? `&mode=${mode}` : ''}`
       );
       setNotifications((prev) => [...prev, ...data.notifications]);
       setNextCursor(data.nextCursor);
@@ -116,6 +125,15 @@ export default function NotificationsClient({ initialNotifications, initialNextC
           </button>
         )}
       </div>
+
+      {otherModeUnread > 0 && (
+        <div className="mb-4 max-w-2xl flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3">
+          <p className="text-sm text-gray-700">
+            {otherModeUnread} new in {mode === 'driver' ? 'Passenger' : 'Driver'} mode
+          </p>
+          <ModeSwitchButton />
+        </div>
+      )}
 
       {notifications.length === 0 ? (
         <Card>

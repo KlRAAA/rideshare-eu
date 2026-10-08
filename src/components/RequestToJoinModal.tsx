@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { FaTimes } from 'react-icons/fa';
 import { apiFetch, ApiError } from '@/lib/api';
+import { conflictMessage } from '@/lib/modeNav';
 import { needsOpenTripWarning, type GenderPreference } from '@/lib/riderRules';
 import OpenTripWarning from './OpenTripWarning';
 
@@ -69,7 +70,11 @@ export default function RequestToJoinModal({
       onSubmitted();
     } catch (err) {
       const code = err instanceof ApiError ? err.code : undefined;
-      setError((code && ERROR_COPY[code]) || 'Couldn’t send that request. Try again in a moment.');
+      if (err instanceof ApiError && code === 'SCHEDULE_CONFLICT') {
+        setError(conflictMessage(String(err.body?.conflictDepartureTime)));
+      } else {
+        setError((code && ERROR_COPY[code]) || 'Couldn’t send that request. Try again in a moment.');
+      }
       setLoading(false);
     }
   }

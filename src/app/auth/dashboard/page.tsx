@@ -20,6 +20,7 @@ interface Vehicle {
 
 interface Trip {
   id: string;
+  matches?: { status: string }[];
   originAddress: string;
   destinationAddress: string;
   departureTime: string;
@@ -42,21 +43,29 @@ interface Notification {
 export default async function DashboardPage() {
   const user = await getCurrentUser();
 
+  // Each mode's home shows only its own trips and action (sub-project C).
+  const isDriver = user?.activeMode === 'DRIVER';
   let upcoming: (Trip & { role: 'Host' | 'Passenger' })[] = [];
   let alerts: Notification[] = [];
   let unreadCount = 0;
+  let waiting: { count: number; tripId: string | null } = { count: 0, tripId: null };
 
   if (user) {
     const [{ hosted, joined }, { notifications }] = await Promise.all([
       apiFetch<{ hosted: Trip[]; joined: Trip[] }>(`/api/trips/mine?userId=${user.id}`),
-      apiFetch<{ notifications: Notification[] }>(`/api/alerts?userId=${user.id}`),
+      apiFetch<{ notifications: Notification[] }>(`/api/alerts?mode=${isDriver ? 'driver' : 'passenger'}`),
     ]);
-    upcoming = [
-      ...hosted.filter((t) => t.status === 'OPEN' || t.status === 'FULL').map((t) => ({ ...t, role: 'Host' as const })),
-      ...joined
-        .filter((t) => t.matchStatus === 'PENDING' || t.matchStatus === 'APPROVED')
-        .map((t) => ({ ...t, role: 'Passenger' as const })),
-    ];
+    const activeHosted = hosted.filter((t) => t.status === 'OPEN' || t.status === 'FULL');
+    upcoming = isDriver
+      ? activeHosted.map((t) => ({ ...t, role: 'Host' as const }))
+      : joined
+          .filter((t) => t.matchStatus === 'PENDING' || t.matchStatus === 'APPROVED')
+          .map((t) => ({ ...t, role: 'Passenger' as const }));
+    const withRequests = activeHosted.filter((t) => t.matches?.some((m) => m.status === 'PENDING'));
+    waiting = {
+      count: withRequests.reduce((n, t) => n + (t.matches?.filter((m) => m.status === 'PENDING').length ?? 0), 0),
+      tripId: withRequests[0]?.id ?? null,
+    };
     // The badge counts genuinely unread notifications; the Recent Alerts panel
     // just shows the two most recent, read or not.
     unreadCount = notifications.filter((n) => !n.isRead).length;
@@ -81,19 +90,22 @@ export default async function DashboardPage() {
               <h1 className="font-extrabold text-gray-900 leading-tight">
                 Welcome back, {user?.fullName ?? 'Guest'}
               </h1>
-              <p className="text-base text-gray-500 mt-2">Manage your carpools and find ride opportunities</p>
+              <p className="text-base text-gray-500 mt-2">
+                {isDriver ? 'Driver mode: post trips and look after your riders' : 'Passenger mode: find a ride to campus'}
+              </p>
             </div>
             {user && <Badge tone="neutral">{roleLabel(user.role)}</Badge>}
           </div>
 
           <div className="dashboard-top-grid mt-6">
+            {isDriver && (
             <Card data-tour="post-ride" className="border-2 border-[color:var(--rsu-color-primary)/0.18]">
               <div className="flex items-start gap-4">
                 <div className="p-2 bg-white rounded-md">
                   <FaCar className="w-5 h-5 text-[color:var(--rsu-color-primary)]" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-base font-semibold text-gray-900 mb-1">Post a Ride</h2>
+                  <h2 className="text-base font-semibold text-gray-900 mb-1">Post a Trip</h2>
                   <p className="text-sm text-gray-500 mt-0 mb-4">Share your vehicle and help others commute</p>
                   <Link href="/auth/post" className="rsu-btn-primary w-full md:w-auto">
                     Create New Trip
@@ -101,7 +113,20 @@ export default async function DashboardPage() {
                 </div>
               </div>
             </Card>
+            )}
 
+            {isDriver && waiting.count > 0 && waiting.tripId && (
+              <Card>
+                <Link href={`/auth/trips/${waiting.tripId}`} className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-gray-900">
+                    {waiting.count} {waiting.count === 1 ? 'request' : 'requests'} waiting for your answer
+                  </span>
+                  <span className="text-sm text-[color:var(--rsu-color-primary)] font-semibold">Review</span>
+                </Link>
+              </Card>
+            )}
+
+            {!isDriver && (
             <Card data-tour="find-ride">
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -110,19 +135,20 @@ export default async function DashboardPage() {
                 <div className="flex-1">
                   <h2 className="text-base font-semibold text-gray-900 mb-1">Find a Ride</h2>
                   <p className="text-sm text-gray-500 mt-0 mb-4">Search for available carpools to join</p>
-                  <Link href="/auth/search" className="rsu-btn-secondary w-full md:w-48">
+                  <Link href="/auth/search" className="rsu-btn-primary w-full md:w-48">
                     Search Rides
                   </Link>
                 </div>
               </div>
             </Card>
+            )}
           </div>
         </section>
 
         <section className="dashboard-main-grid mt-6">
           <div data-tour="upcoming-trips">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">Upcoming Trips</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{isDriver ? 'Trips You’re Driving' : 'Your Upcoming Rides'}</h3>
               <Link href="/auth/trips" className="text-sm text-gray-600 hover:underline">
                 View All
               </Link>
@@ -132,8 +158,8 @@ export default async function DashboardPage() {
               <Card>
                 <div className="flex flex-col items-center py-8">
                   <FaClock className="rsu-empty-icon mb-4" />
-                  <p className="text-gray-600 font-medium text-base">No upcoming trips</p>
-                  <p className="text-sm text-gray-400 mt-2">Post a ride or find one to get started</p>
+                  <p className="text-gray-600 font-medium text-base">{isDriver ? 'No trips posted yet' : 'No upcoming rides'}</p>
+                  <p className="text-sm text-gray-400 mt-2">{isDriver ? 'Post a trip to offer your empty seats' : 'Find a ride to get started'}</p>
                 </div>
               </Card>
             ) : (

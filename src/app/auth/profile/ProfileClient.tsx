@@ -11,6 +11,9 @@ import Avatar from '@/components/Avatar';
 import ReportHistoryModal from '@/components/ReportHistoryModal';
 import MyCarsCard from './MyCarsCard';
 import DeleteAccountPanel from './DeleteAccountPanel';
+import ModeSwitchButton from '@/components/ModeSwitchButton';
+import { useMode } from '@/components/ModeProvider';
+import { modeLabel } from '@/lib/modeNav';
 import { apiFetch, clearSessionCookie, API_BASE } from '@/lib/api';
 import { roleLabel } from '@/lib/format';
 import type { CurrentUser } from '@/lib/session';
@@ -35,6 +38,7 @@ const FLEX_OPTIONS = [5, 15, 30, 60];
 
 export default function ProfileClient({ user, initialPreference }: { user: CurrentUser; initialPreference: Preference }) {
   const router = useRouter();
+  const mode = useMode();
   const [editing, setEditing] = useState(false);
   const [preference, setPreference] = useState(initialPreference);
   const womenPlusEligible = isWomenPlusEligible(user.gender);
@@ -261,6 +265,18 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
               </button>
             </div>
           )}
+        </Card>
+
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Mode</h3>
+              <p className="text-xs text-gray-500">
+                You’re in {modeLabel(mode)} mode. {mode === 'DRIVER' ? 'Switch to find rides.' : 'Switch to post trips and drive.'}
+              </p>
+            </div>
+            <ModeSwitchButton />
+          </div>
         </Card>
 
         <Card>

@@ -5,6 +5,7 @@ import BackButton from '@/components/BackButton';
 import { getCurrentUser } from '@/lib/session';
 import PostTripForm from './PostTripForm';
 import { isWomenPlusEligible } from '@/lib/riderRules';
+import WrongModeNotice from '@/components/WrongModeNotice';
 
 export default async function PostTripPage() {
   const user = await getCurrentUser();
@@ -18,7 +19,9 @@ export default async function PostTripPage() {
           <h1 className="text-2xl font-bold text-gray-900">Post a Trip</h1>
           <p className="text-sm text-gray-500 mt-0.5">Share your ride with the university community</p>
         </div>
-        {user ? <PostTripForm hostId={user.id} canHostWomenPlus={isWomenPlusEligible(user.gender)} /> : <p className="text-sm text-gray-500">Sign in to post a trip.</p>}
+        {user?.activeMode !== 'DRIVER' ? (
+          <WrongModeNotice need="DRIVER" />
+        ) : user ? <PostTripForm hostId={user.id} canHostWomenPlus={isWomenPlusEligible(user.gender)} /> : <p className="text-sm text-gray-500">Sign in to post a trip.</p>}
       </main>
       <BottomNav active="post" />
     </div>

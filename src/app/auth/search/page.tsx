@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/session';
 import { apiFetch } from '@/lib/api-server';
 import { isWomenPlusEligible, type GenderPreference } from '@/lib/riderRules';
 import SearchClient, { type SearchInitialState } from './SearchClient';
+import WrongModeNotice from '@/components/WrongModeNotice';
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? '';
 
@@ -67,7 +68,9 @@ export default async function SearchRidesPage({
           <h1 className="text-2xl font-bold text-gray-900">Find a Ride</h1>
           <p className="text-sm text-gray-500 mt-0.5">Search for available carpools that match your route</p>
         </div>
-        {user ? (
+        {user?.activeMode === 'DRIVER' ? (
+          <WrongModeNotice need="PASSENGER" />
+        ) : user ? (
           <SearchClient
             passengerId={user.id}
             initial={parseInitial(sp, profilePreference)}

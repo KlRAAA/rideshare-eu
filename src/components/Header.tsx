@@ -6,6 +6,9 @@ import { FaBell } from 'react-icons/fa';
 import Logo from './Logo';
 import Wordmark from './Wordmark';
 import ThemeToggle from './ThemeToggle';
+import ModeSwitchButton from './ModeSwitchButton';
+import { useMode } from './ModeProvider';
+import { modeLabel, tabsFor } from '@/lib/modeNav';
 
 export type ActiveRoute = 'dashboard' | 'trips' | 'search' | 'post' | 'notifications' | 'profile' | 'help';
 
@@ -14,15 +17,12 @@ interface HeaderProps {
   unreadCount?: number;
 }
 
-const NAV_ITEMS: { key: ActiveRoute; href: string; label: string }[] = [
-  { key: 'dashboard', href: '/auth/dashboard', label: 'Dashboard' },
-  { key: 'trips', href: '/auth/trips', label: 'My Trips' },
-  { key: 'notifications', href: '/auth/notifications', label: 'Notifications' },
-  { key: 'profile', href: '/auth/profile', label: 'Profile' },
-  { key: 'help', href: '/help', label: 'Help' },
-];
+const HELP: { key: ActiveRoute; href: string; label: string } = { key: 'help', href: '/help', label: 'Help' };
 
 export default function Header({ active, unreadCount = 0 }: HeaderProps) {
+  // Only the current mode's tabs (sub-project C), plus Help.
+  const mode = useMode();
+  const navItems: { key: ActiveRoute; href: string; label: string }[] = [...tabsFor(mode), HELP];
   return (
     <header
       data-tour="main-nav"
@@ -35,7 +35,7 @@ export default function Header({ active, unreadCount = 0 }: HeaderProps) {
         </Link>
 
         <nav className="rsu-topnav flex-1 min-w-0 justify-end hidden md:flex">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <Link key={item.key} href={item.href} className={item.key === active ? 'active' : ''}>
               <span>{item.label}</span>
               {item.key === 'notifications' && unreadCount > 0 && (
@@ -47,7 +47,17 @@ export default function Header({ active, unreadCount = 0 }: HeaderProps) {
           ))}
         </nav>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span
+            className={`hidden sm:inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+              mode === 'DRIVER' ? 'bg-[color:var(--rsu-color-primary)]/10 text-[color:var(--rsu-color-primary)]' : 'bg-emerald-50 text-emerald-700'
+            }`}
+          >
+            {modeLabel(mode)}
+          </span>
+          <span data-tour="mode-switch">
+            <ModeSwitchButton compact />
+          </span>
           <ThemeToggle />
           <Link
             href="/auth/notifications"

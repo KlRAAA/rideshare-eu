@@ -4,6 +4,8 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import Logo from '@/components/Logo';
 import Wordmark from '@/components/Wordmark';
+import { ModeProvider } from '@/components/ModeProvider';
+import { getCurrentUser } from '@/lib/session';
 
 interface HelpShellProps {
   signedIn: boolean;
@@ -12,14 +14,18 @@ interface HelpShellProps {
 
 // The Help pages are public, so a signed-out visitor gets a plain top bar
 // instead of the app's navigation.
-export default function HelpShell({ signedIn, children }: HelpShellProps) {
+export default async function HelpShell({ signedIn, children }: HelpShellProps) {
   if (signedIn) {
+    // Outside /auth, so it provides the mode itself (sub-project C).
+    const user = await getCurrentUser();
     return (
-      <div className="min-h-screen bg-gray-50 pb-24">
-        <Header active="help" />
-        <main className="app-desktop w-full pt-2 md:pt-4 max-w-3xl">{children}</main>
-        <BottomNav active="profile" />
-      </div>
+      <ModeProvider mode={user?.activeMode ?? 'PASSENGER'}>
+        <div className="min-h-screen bg-gray-50 pb-24">
+          <Header active="help" />
+          <main className="app-desktop w-full pt-2 md:pt-4 max-w-3xl">{children}</main>
+          <BottomNav active="profile" />
+        </div>
+      </ModeProvider>
     );
   }
   return (

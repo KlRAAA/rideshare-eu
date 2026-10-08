@@ -8,6 +8,7 @@ import Listbox from '@/components/Listbox';
 import DatePicker from '@/components/DatePicker';
 import TimePicker from '@/components/TimePicker';
 import { apiFetch, ApiError } from '@/lib/api';
+import { conflictMessage } from '@/lib/modeNav';
 import { getPhTodayDateString, getPhNowTimeString, phInputDate, phInputTime } from '@/lib/format';
 import { fetchRoute, type FetchedRoute } from '@/lib/directions';
 import { FUEL_PRICE_PER_LITER, MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER } from '@/lib/constants';
@@ -481,6 +482,8 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
         setError('Only women and non-binary hosts can post Women+ trips.');
       } else if (err instanceof ApiError && err.code === 'TRIP_NOT_EDITABLE') {
         setError('This trip can no longer be edited.');
+      } else if (err instanceof ApiError && err.code === 'SCHEDULE_CONFLICT') {
+        setError(conflictMessage(String(err.body?.conflictDepartureTime)));
       } else if (err instanceof ApiError && err.code === 'INVALID_TRIP') {
         setError(INVALID_TRIP_MESSAGES[String(err.body?.field)] ?? 'Some trip details aren’t valid. Check the fields above and try again.');
       } else if (err instanceof ApiError && err.code === 'FUEL_PRICE_ABOVE_OFFICIAL') {

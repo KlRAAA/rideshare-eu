@@ -8,14 +8,18 @@ import NotificationsClient, { type NotificationItem } from './NotificationsClien
 export default async function NotificationsPage() {
   const user = await getCurrentUser();
 
+  // This mode's notifications plus account-wide ones (sub-project C).
+  const mode = user?.activeMode === 'DRIVER' ? 'driver' : 'passenger';
   let notifications: NotificationItem[] = [];
   let initialNextCursor: string | null = null;
+  let otherModeUnread = 0;
   if (user) {
-    const data = await apiFetch<{ notifications: NotificationItem[]; nextCursor: string | null }>(
-      `/api/alerts?userId=${user.id}`
+    const data = await apiFetch<{ notifications: NotificationItem[]; nextCursor: string | null; otherModeUnread: number }>(
+      `/api/alerts?mode=${mode}`
     );
     notifications = data.notifications;
     initialNextCursor = data.nextCursor;
+    otherModeUnread = data.otherModeUnread ?? 0;
   }
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
@@ -25,7 +29,12 @@ export default async function NotificationsPage() {
       <Header active="notifications" unreadCount={unreadCount} />
       <main className="app-desktop w-full pt-2 md:pt-4">
         {user ? (
-          <NotificationsClient initialNotifications={notifications} initialNextCursor={initialNextCursor} />
+          <NotificationsClient
+            initialNotifications={notifications}
+            initialNextCursor={initialNextCursor}
+            mode={mode}
+            otherModeUnread={otherModeUnread}
+          />
         ) : (
           <p className="text-sm text-gray-500">Sign in to view your notifications.</p>
         )}

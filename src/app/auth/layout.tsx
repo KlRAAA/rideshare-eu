@@ -1,6 +1,7 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
-import { getSessionUserId, getSuspension } from '@/lib/session';
+import { getCurrentUser, getSessionUserId, getSuspension } from '@/lib/session';
+import { ModeProvider } from '@/components/ModeProvider';
 import BannedScreen from '@/components/BannedScreen';
 
 export default async function AuthLayout({
@@ -22,5 +23,7 @@ export default async function AuthLayout({
     return <BannedScreen suspension={suspension} appealEmail={appealEmail} />;
   }
 
-  return <>{children}</>;
+  // Driver or Passenger mode (sub-project C), for the header, bottom bar and pages.
+  const user = await getCurrentUser();
+  return <ModeProvider mode={user?.activeMode ?? 'PASSENGER'}>{children}</ModeProvider>;
 }

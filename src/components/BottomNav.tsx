@@ -2,28 +2,37 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { FaHome, FaCar, FaBell, FaUser } from 'react-icons/fa';
+import { FaHome, FaCar, FaBell, FaUser, FaSearch, FaPlusCircle } from 'react-icons/fa';
 import type { ActiveRoute } from './Header';
+import { useMode } from './ModeProvider';
+import { tabsFor, type TabKey } from '@/lib/modeNav';
 
 interface BottomNavProps {
   active: ActiveRoute;
   unreadCount?: number;
 }
 
-const NAV_ITEMS = [
-  { key: 'dashboard' as const, href: '/auth/dashboard', label: 'Dashboard', Icon: FaHome },
-  { key: 'trips' as const, href: '/auth/trips', label: 'My Trips', Icon: FaCar },
-  { key: 'notifications' as const, href: '/auth/notifications', label: 'Notifications', Icon: FaBell },
-  { key: 'profile' as const, href: '/auth/profile', label: 'Profile', Icon: FaUser },
-];
+const ICONS: Record<TabKey, React.ComponentType<{ className?: string }>> = {
+  dashboard: FaHome,
+  search: FaSearch,
+  post: FaPlusCircle,
+  trips: FaCar,
+  notifications: FaBell,
+  profile: FaUser,
+};
 
+// The current mode's five tabs (sub-project C). The active tab is maroon in
+// Driver mode and green in Passenger mode, so the mode is visible at a glance.
 export default function BottomNav({ active, unreadCount = 0 }: BottomNavProps) {
+  const mode = useMode();
+  const activeClass = mode === 'DRIVER' ? 'text-[color:var(--rsu-color-primary)]' : 'text-emerald-700';
   return (
     <nav className="rsu-bottom-nav md:hidden">
-      {NAV_ITEMS.map(({ key, href, label, Icon }) => {
+      {tabsFor(mode).map(({ key, href, label }) => {
+        const Icon = ICONS[key];
         const isActive = key === active;
         return (
-          <Link key={key} href={href} className={isActive ? 'text-[color:var(--rsu-color-primary)]' : 'text-gray-400 hover:text-gray-600'}>
+          <Link key={key} href={href} className={isActive ? activeClass : 'text-gray-400 hover:text-gray-600'}>
             <span className="relative">
               <Icon className="w-5 h-5" />
               {key === 'notifications' && unreadCount > 0 && (
@@ -32,7 +41,7 @@ export default function BottomNav({ active, unreadCount = 0 }: BottomNavProps) {
                 </span>
               )}
             </span>
-            <span className="text-xs font-medium mt-0.5">{label}</span>
+            <span className="text-[11px] font-medium mt-0.5 whitespace-nowrap">{label}</span>
           </Link>
         );
       })}

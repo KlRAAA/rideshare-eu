@@ -10,11 +10,13 @@ export default async function MyTripsPage() {
 
   let hosted: HostedTrip[] = [];
   let joined: JoinedTrip[] = [];
+  // Driver mode lists the trips you drive, Passenger mode the rides you joined (sub-project C).
+  const isDriver = user?.activeMode === 'DRIVER';
 
   if (user) {
     const data = await apiFetch<{ hosted: HostedTrip[]; joined: JoinedTrip[] }>(`/api/trips/mine?userId=${user.id}`);
-    hosted = data.hosted;
-    joined = data.joined;
+    if (isDriver) hosted = data.hosted;
+    else joined = data.joined;
   }
 
   return (
@@ -22,8 +24,10 @@ export default async function MyTripsPage() {
       <Header active="trips" />
       <main className="app-desktop w-full pt-2 md:pt-4">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">My Trips</h1>
-          <p className="text-sm text-gray-500 mt-0.5">View and manage your hosted rides and joined trips</p>
+          <h1 className="text-2xl font-bold text-gray-900">{isDriver ? 'My Trips' : 'My Rides'}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {isDriver ? 'Trips you’re driving, past and cancelled' : 'Rides you asked to join, past and cancelled'}
+          </p>
         </div>
 
         {user ? (

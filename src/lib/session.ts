@@ -1,9 +1,11 @@
 import 'server-only';
+import { cache } from 'react';
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import { apiFetch } from './api-server';
 import { ApiError } from './api';
 import type { Gender } from './riderRules';
+import type { AppMode } from './modeNav';
 
 const COOKIE_NAME = 'rsu_session';
 
@@ -23,6 +25,7 @@ export interface CurrentUser {
   isAdmin?: boolean;
   isSuperAdmin?: boolean; // your own record only
   gender?: Gender; // your own record only
+  activeMode?: AppMode; // your own record only (sub-project C)
 }
 
 export async function getSessionUserId(): Promise<string | null> {
@@ -37,7 +40,9 @@ export async function getSessionUserId(): Promise<string | null> {
   }
 }
 
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+// Cached per request, so the layout (which reads the mode) and the page share
+// one lookup.
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<CurrentUser | null> {
   const userId = await getSessionUserId();
   if (!userId) return null;
   try {
@@ -46,7 +51,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   } catch {
     return null;
   }
-}
+});
 
 export interface SuspensionDetails {
   bannedUntil: string;
