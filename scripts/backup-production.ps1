@@ -7,9 +7,14 @@
 # saved. Needs the Railway CLI, logged in (`railway login`) and linked to the
 # project from this folder (`railway link`).
 #
-# Run it by hand before UAT, and weekly through Task Scheduler
-# (docs/deployment/railway-vercel.md, "Backups"). Each run appends a line to
-# %USERPROFILE%\rideshare-backups\backup.log.
+# Run it by hand before UAT, and through Task Scheduler (daily during UAT,
+# weekly otherwise; docs/deployment/railway-vercel.md, "Backups"). Each run
+# appends a line to %USERPROFILE%\rideshare-backups\backup.log.
+#
+# -MirrorDir copies each new backup to a second folder, ideally on another
+# physical drive, so one failed disk doesn't take every copy with it.
+# Profile photos (the Railway volume) are not included.
+param([string]$MirrorDir)
 $ErrorActionPreference = 'Stop'
 
 $root = Join-Path $env:USERPROFILE 'rideshare-backups'
@@ -41,7 +46,14 @@ try {
   $env:BACKUP_DIR = Join-Path $root 'production'
   node scripts/backup-db.mjs
   if ($LASTEXITCODE -ne 0) { throw "Backup failed (exit code $LASTEXITCODE)." }
-  Add-Content $log "$(Get-Date -Format s)  OK"
+  $note = ''
+  if ($MirrorDir) {
+    $latest = Get-ChildItem $env:BACKUP_DIR -Directory | Sort-Object Name | Select-Object -Last 1
+    robocopy $latest.FullName (Join-Path $MirrorDir $latest.Name) /E /NFL /NDL /NJH /NJS /NP | Out-Null
+    # robocopy exit codes below 8 mean success.
+    $note = if ($LASTEXITCODE -lt 8) { "  copied to $MirrorDir" } else { "  COPY FAILED to $MirrorDir (robocopy $LASTEXITCODE)" }
+  }
+  Add-Content $log "$(Get-Date -Format s)  OK$note"
 }
 catch {
   Add-Content $log "$(Get-Date -Format s)  FAILED  $($_.Exception.Message -replace '\s+', ' ')"
