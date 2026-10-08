@@ -1,5 +1,8 @@
 const prisma = require('../config/db');
+const fs = require('fs');
+const path = require('path');
 const { encryptField } = require('../services/encryptionService');
+const { LICENSE_DIR } = require('../config/uploads');
 
 // Minimal DB seeding for the phase-2 auth-behavior integration tests. Each
 // helper records its row id on the passed `bag` so a test's afterAll can tear
@@ -9,7 +12,9 @@ const { encryptField } = require('../services/encryptionService');
 // — encrypted here too, mirroring what completeRegistration now does, so a
 // controller that decrypts a seeded row back out doesn't throw on plaintext
 // that was never actually encrypted.
-async function makeUser(bag, { fullName = 'Test User', gender = 'MAN' } = {}) {
+// Every test user may post trips (an approved driver's license, sub-project E)
+// unless created with `licensed: false`.
+async function makeUser(bag, { fullName = 'Test User', gender = 'MAN', licensed = true } = {}) {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const user = await prisma.user.create({
     data: {
@@ -23,7 +28,22 @@ async function makeUser(bag, { fullName = 'Test User', gender = 'MAN' } = {}) {
     },
   });
   bag.userIds.push(user.id);
+  if (licensed) await makeLicense(bag, user.id);
   return { ...user, fullName, gender };
+}
+
+async function makeLicense(bag, userId, overrides = {}) {
+  return prisma.driverLicense.create({
+    data: {
+      userId,
+      status: 'APPROVED',
+      licenseType: 'NON_PROFESSIONAL',
+      numberLast4: '0000',
+      expiresOn: new Date('2030-12-31T00:00:00Z'),
+      decidedAt: new Date(),
+      ...overrides,
+    },
+  });
 }
 
 async function makeAdminUser(bag, opts) {
@@ -61,7 +81,9 @@ async function makeTrip(bag, hostId, vehicleId, overrides = {}) {
       originLng: 121.6,
       destinationLat: 13.95,
       destinationLng: 121.62,
-      departureTime: new Date('2026-09-20T00:00:00Z'),
+      // In the future: a search anywhere settles past trips, which would close
+      // another test file's fixtures mid-test (sub-project D).
+      departureTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       recurrenceType: 'ONE_TIME',
       customDays: [],
       totalSeats: 3,
@@ -153,7 +175,13 @@ async function cleanup(bag) {
   await prisma.dataRequest.deleteMany({
     where: { OR: [{ createdById: { in: bag.userIds } }, { subjectUserId: { in: bag.userIds } }] },
   });
+  const licenses = await prisma.driverLicense.findMany({
+    where: { OR: [{ userId: { in: bag.userIds } }, { decidedById: { in: bag.userIds } }] },
+    select: { id: true, photoFile: true },
+  });
+  for (const l of licenses) if (l.photoFile) fs.rmSync(path.join(LICENSE_DIR, l.photoFile), { force: true });
+  await prisma.driverLicense.deleteMany({ where: { id: { in: licenses.map((l) => l.id) } } });
   await prisma.user.deleteMany({ where: { id: { in: bag.userIds } } });
 }
 
-module.exports = { newBag, makeUser, makeAdminUser, makeSuperAdminUser, makeVehicle, makeTrip, makeMatch, makeNotification, cleanup };
+module.exports = { newBag, makeUser, makeLicense, makeAdminUser, makeSuperAdminUser, makeVehicle, makeTrip, makeMatch, makeNotification, cleanup };

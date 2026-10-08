@@ -56,6 +56,10 @@ enum NotificationType {
   DRIVER_LATE
   DRIVER_NO_SHOW
   TRIP_SKIPPED
+  LICENSE_APPROVED
+  LICENSE_REJECTED
+  LICENSE_REQUIRED
+  LICENSE_EXPIRING
 }
 
 enum ReportStatus {
@@ -89,6 +93,8 @@ enum AdminActionType {
   DATA_PAPERWORK_RECEIVED
   SUPERADMIN_SET
   WARNING_ISSUED
+  LICENSE_APPROVED
+  LICENSE_REJECTED
 }
 
 enum WarningReason {
@@ -229,6 +235,7 @@ model User {
 
   vehicles        Vehicle[]
   savedVehicles   SavedVehicle[]
+  licenses        DriverLicense[]
   hostedTrips     Trip[]          @relation("HostTrips")
   matches         Match[]         @relation("PassengerMatches")
   notifications   Notification[]
@@ -617,4 +624,49 @@ model TripRun {
 
   @@unique([tripId, runDate])
   @@index([status])
+}
+
+// Driver's license verification (sub-project E). One row per submission; a
+// user's current license is their newest row. The photo is encrypted in
+// LICENSE_DIR and, like the full number, erased once an admin decides.
+enum LicenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LicenseType {
+  NON_PROFESSIONAL
+  PROFESSIONAL
+  STUDENT_PERMIT
+}
+
+enum LicenseRejectReason {
+  UNREADABLE
+  DETAILS_MISMATCH
+  EXPIRED
+  STUDENT_PERMIT
+  NOT_A_LICENSE
+  NAME_MISMATCH
+  OTHER
+}
+
+model DriverLicense {
+  id           String               @id @default(cuid())
+  userId       String
+  user         User                 @relation(fields: [userId], references: [id])
+  status       LicenseStatus        @default(PENDING)
+  licenseType  LicenseType
+  numberEnc    String? // full number, encrypted; erased on the decision
+  numberLast4  String
+  expiresOn    DateTime // a Philippine date, stored at 00:00 UTC
+  photoFile    String? // file name under LICENSE_DIR; null once decided
+  submittedAt  DateTime             @default(now())
+  decidedAt    DateTime?
+  decidedById  String? // plain id, like AdminAction's, so it survives account deletion
+  rejectReason LicenseRejectReason?
+  rejectNote   String?
+
+  @@index([userId, submittedAt])
+  @@index([status, submittedAt])
 }

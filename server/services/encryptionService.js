@@ -81,4 +81,20 @@ function decryptTripFields(trip) {
   return out;
 }
 
-module.exports = { encryptField, decryptField, decryptUserFields, decryptTripFields };
+// Whole files (license photos): iv ‖ authTag ‖ ciphertext in one buffer.
+function encryptBuffer(plain) {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ALGORITHM, loadKey(), iv);
+  const ciphertext = Buffer.concat([cipher.update(plain), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), ciphertext]);
+}
+
+function decryptBuffer(stored) {
+  const iv = stored.subarray(0, IV_LENGTH);
+  const tag = stored.subarray(IV_LENGTH, IV_LENGTH + 16);
+  const decipher = crypto.createDecipheriv(ALGORITHM, loadKey(), iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(stored.subarray(IV_LENGTH + 16)), decipher.final()]);
+}
+
+module.exports = { encryptField, decryptField, decryptUserFields, decryptTripFields, encryptBuffer, decryptBuffer };

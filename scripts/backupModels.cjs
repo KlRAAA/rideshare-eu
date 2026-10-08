@@ -6,6 +6,7 @@ module.exports = [
   'user',
   'vehicle',
   'savedVehicle',
+  'driverLicense',
   'trip',
   'tripRun',
   'match',

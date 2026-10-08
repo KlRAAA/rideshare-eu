@@ -6,5 +6,8 @@ const path = require('path');
 // serves /uploads/* itself, and the website forwards /uploads/* to it.
 const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '..', '..', 'public', 'uploads');
 const AVATAR_DIR = path.join(UPLOADS_DIR, 'avatars');
+// Driver's license photos (sub-project E): private, never under UPLOADS_DIR,
+// which is served to anyone. Production: /data/licenses on the same volume.
+const LICENSE_DIR = process.env.LICENSE_DIR || path.join(__dirname, '..', '..', 'storage', 'licenses');
 
-module.exports = { UPLOADS_DIR, AVATAR_DIR };
+module.exports = { UPLOADS_DIR, AVATAR_DIR, LICENSE_DIR };
