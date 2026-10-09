@@ -7,9 +7,6 @@ import {
   FaSearch,
   FaSlidersH,
   FaMapMarkerAlt,
-  FaClock,
-  FaCalendarAlt,
-  FaUsers,
   FaUserPlus,
 } from 'react-icons/fa';
 import Card from '@/components/Card';
@@ -31,6 +28,7 @@ import RouteMap from '@/components/RouteMap';
 import type { LatLng } from '@/lib/directions';
 import { searchFlexWindow } from '@/lib/searchWindow';
 import RuleBadges from '@/components/RuleBadges';
+import TripFacts from '@/components/TripFacts';
 import { TRIPS_I_SEE_OPTIONS, type GenderPreference } from '@/lib/riderRules';
 
 interface Vehicle {
@@ -671,23 +669,15 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
                     <span className="text-gray-400">to {match.trip.destinationAddress}</span>
                   </span>
                 </p>
-                <p className="flex items-center gap-2" suppressHydrationWarning>
-                  <FaClock className="w-3 h-3 text-gray-400" />
-                  {formatTime(match.trip.departureTime)}
-                </p>
-                <p className="flex items-center gap-2" suppressHydrationWarning>
-                  <FaCalendarAlt className="w-3 h-3 text-gray-400" />
-                  {formatDate(match.trip.departureTime)}
-                </p>
-                <p className="flex items-center gap-2">
-                  <FaUsers className="w-3 h-3 text-gray-400" />
-                  {match.trip.totalSeats - match.trip.filledSeats} seat{match.trip.totalSeats - match.trip.filledSeats === 1 ? '' : 's'} available (
-                  {match.trip.filledSeats}/{match.trip.totalSeats} filled)
-                </p>
-                <p className="text-[color:var(--rsu-color-primary)] font-semibold">
-                  {match.trip.vehicle.make} {match.trip.vehicle.model} ({match.trip.vehicle.color})
-                  {match.fuelShare != null && ` · ₱${match.fuelShare.toFixed(0)} per seat`}
-                </p>
+                <div suppressHydrationWarning>
+                  <TripFacts
+                    time={formatTime(match.trip.departureTime)}
+                    date={formatDate(match.trip.departureTime)}
+                    seats={{ total: match.trip.totalSeats, filled: match.trip.filledSeats }}
+                    fuelShare={match.fuelShare}
+                    vehicle={match.trip.vehicle}
+                  />
+                </div>
               </div>
 
               <div className="flex gap-2 mt-4">

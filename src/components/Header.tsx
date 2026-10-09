@@ -9,6 +9,7 @@ import ThemeToggle from './ThemeToggle';
 import ModeSwitchButton from './ModeSwitchButton';
 import { useMode } from './ModeProvider';
 import { useLiveUnread } from './NotificationFeed';
+import Tip from './Tip';
 import { modeLabel, tabsFor } from '@/lib/modeNav';
 
 export type ActiveRoute = 'dashboard' | 'trips' | 'search' | 'post' | 'notifications' | 'profile' | 'help';
@@ -61,7 +62,10 @@ export default function Header({ active, unreadCount: pageUnread = 0 }: HeaderPr
           <span data-tour="mode-switch">
             <ModeSwitchButton compact />
           </span>
-          <ThemeToggle />
+          <Tip label="Light or dark mode" mode="wrap" side="bottom">
+            <ThemeToggle />
+          </Tip>
+          <Tip label="Notifications" mode="wrap" side="bottom" className="md:hidden">
           <Link
             href="/auth/notifications"
             className="md:hidden relative flex items-center justify-center w-9 h-9 text-gray-600 hover:text-gray-800"
@@ -74,6 +78,7 @@ export default function Header({ active, unreadCount: pageUnread = 0 }: HeaderPr
               </span>
             )}
           </Link>
+          </Tip>
         </div>
       </div>
     </header>

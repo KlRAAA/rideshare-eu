@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaBan } from 'react-icons/fa';
+import TripFacts from '@/components/TripFacts';
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import RatingModal from '@/components/RatingModal';
@@ -158,20 +159,16 @@ export default function TripsListClient({
                 <p className="text-sm font-semibold text-gray-900">
                   {trip.originAddress} <span className="text-gray-400 font-normal">to</span> {trip.destinationAddress}
                 </p>
-                <p className="text-xs text-gray-500 mt-1" suppressHydrationWarning>
-                  {formatTime(trip.departureTime)} · {formatDate(trip.departureTime)} · {recurrenceLabel(trip.recurrenceType)}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {trip.totalSeats - trip.filledSeats} seats available ({trip.filledSeats}/{trip.totalSeats} filled)
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {trip.vehicle.make} {trip.vehicle.model} ({trip.vehicle.color})
-                </p>
-                {trip.fuelSharePerSeat != null && (
-                  <p className="text-xs font-semibold text-[color:var(--rsu-color-primary)] mt-1">
-                    Fuel share: ₱{trip.fuelSharePerSeat.toFixed(0)} per seat
-                  </p>
-                )}
+                <div className="mt-2" suppressHydrationWarning>
+                  <TripFacts
+                    time={formatTime(trip.departureTime)}
+                    date={formatDate(trip.departureTime)}
+                    repeats={trip.recurrenceType === 'ONE_TIME' ? undefined : recurrenceLabel(trip.recurrenceType)}
+                    seats={{ total: trip.totalSeats, filled: trip.filledSeats }}
+                    fuelShare={trip.fuelSharePerSeat}
+                    vehicle={trip.vehicle}
+                  />
+                </div>
 
                 <div className="flex gap-2 mt-4">
                   <Link href={`/auth/trips/${trip.id}`} className="rsu-btn-secondary flex-1">
@@ -281,17 +278,15 @@ export default function TripsListClient({
                 <p className="text-sm font-semibold text-gray-900">
                   {trip.originAddress} <span className="text-gray-400 font-normal">to</span> {trip.destinationAddress}
                 </p>
-                <p className="text-xs text-gray-500 mt-1" suppressHydrationWarning>
-                  {formatTime(trip.departureTime)} · {formatDate(trip.departureTime)} · {recurrenceLabel(trip.recurrenceType)}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {trip.vehicle.make} {trip.vehicle.model} ({trip.vehicle.color})
-                </p>
-                {trip.fuelShareAmount != null && (
-                  <p className="text-xs font-semibold text-[color:var(--rsu-color-primary)] mt-1">
-                    Fuel share: ₱{trip.fuelShareAmount.toFixed(0)} per seat
-                  </p>
-                )}
+                <div className="mt-2" suppressHydrationWarning>
+                  <TripFacts
+                    time={formatTime(trip.departureTime)}
+                    date={formatDate(trip.departureTime)}
+                    repeats={trip.recurrenceType === 'ONE_TIME' ? undefined : recurrenceLabel(trip.recurrenceType)}
+                    fuelShare={trip.fuelShareAmount}
+                    vehicle={trip.vehicle}
+                  />
+                </div>
 
                 <div className="flex gap-2 mt-4">
                   <Link href={`/auth/trips/${trip.id}`} className="rsu-btn-secondary flex-1">
