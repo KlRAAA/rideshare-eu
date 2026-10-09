@@ -22,6 +22,7 @@ const app = require('./app');
 const { sendDueReminders } = require('./services/reminderService');
 const { endOverdueRuns } = require('./services/tripRunService');
 const { runDaySteps } = require('./services/tripDayService');
+const { sendLicenseExpiryReminders } = require('./services/licenseService');
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`RideShareEU API listening on :${PORT}`));
 
@@ -34,6 +35,15 @@ if (process.env.NODE_ENV !== 'test') {
     endOverdueRuns().catch((err) => console.error(`[trip runs] auto-end failed: ${err.message}`));
     runDaySteps().catch((err) => console.error(`[trip days] steps failed: ${err.message}`));
   });
+
+  // Driver's license expiry reminders, 30 and 7 days ahead (sub-project E).
+  cron.schedule(
+    '0 8 * * *',
+    () => {
+      sendLicenseExpiryReminders().catch((err) => console.error(`[licenses] reminders failed: ${err.message}`));
+    },
+    { timezone: 'Asia/Manila' }
+  );
 
   // Keep a database copy of security events for the admin console (no IP or
   // email), and delete copies older than 30 days every night.

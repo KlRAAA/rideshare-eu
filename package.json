@@ -17,6 +17,7 @@
     "make-superadmin": "node server/scripts/makeSuperAdmin.js",
     "seed:postman": "node server/scripts/seedPostman.js",
     "seed:demo": "node server/scripts/seedDemo.js",
+    "notify-license-required": "node server/scripts/notifyLicenseRequired.js",
     "test:api": "newman run postman/RideShareEU.postman_collection.json -e postman/local.postman_environment.json --folder Automated --reporters cli,json --reporter-json-export postman/results/last-run.json"
   },
   "repository": {

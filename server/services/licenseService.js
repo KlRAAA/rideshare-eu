@@ -9,6 +9,7 @@ const { sniffImageType } = require('./imageType');
 const { validateLicenseInput, licenseStateFrom, REJECT_REASONS, MAX_REJECT_NOTE } = require('./licenseRules');
 const { record } = require('./adminActionService');
 const { sendLicenseDecisionEmail } = require('./emailService');
+const { phDateOnly } = require('./recurrenceMath');
 
 // What the driver may see of their own license: never the photo or full number.
 const PUBLIC_FIELDS = {
@@ -161,7 +162,79 @@ async function decideLicense(id, adminId, { approve, reason, note }, now = new D
   return { status: 200, body: { status } };
 }
 
+// ---- Jobs ----
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const REMIND_DAYS_BEFORE = [30, 7];
+
+function dayLabel(day) {
+  return day.toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// Daily: remind drivers 30 and 7 days before their current license expires.
+async function sendLicenseExpiryReminders(now = new Date()) {
+  const today = phDateOnly(now);
+  const targets = REMIND_DAYS_BEFORE.map((d) => new Date(today.getTime() + d * DAY_MS));
+  const due = await prisma.driverLicense.findMany({
+    where: { status: 'APPROVED', expiresOn: { in: targets } },
+    select: { userId: true, expiresOn: true },
+  });
+  if (due.length === 0) return 0;
+  const userIds = [...new Set(due.map((l) => l.userId))];
+  // A driver whose renewal is already approved has a later expiry: no reminder.
+  const latest = await prisma.driverLicense.groupBy({
+    by: ['userId'],
+    where: { status: 'APPROVED', userId: { in: userIds } },
+    _max: { expiresOn: true },
+  });
+  const latestBy = new Map(latest.map((l) => [l.userId, l._max.expiresOn.getTime()]));
+  const sent = new Set(
+    (
+      await prisma.notification.findMany({
+        where: { type: 'LICENSE_EXPIRING', userId: { in: userIds }, occurrenceDate: today },
+        select: { userId: true },
+      })
+    ).map((n) => n.userId)
+  );
+  const data = due
+    .filter((l) => latestBy.get(l.userId) === l.expiresOn.getTime() && !sent.has(l.userId))
+    .map((l) => ({
+      userId: l.userId,
+      type: 'LICENSE_EXPIRING',
+      occurrenceDate: today,
+      message: `Your driver's license expires on ${dayLabel(l.expiresOn)} (in ${Math.round((l.expiresOn - today) / DAY_MS)} days). Upload your renewed license so you can keep posting trips.`,
+    }));
+  if (data.length > 0) await prisma.notification.createMany({ data });
+  return data.length;
+}
+
+// One-time after the gate ships: everyone who has hosted a trip but has no
+// license on file is asked to upload one. Rerunnable; `userIds` narrows it (tests).
+async function notifyLicenseRequired({ userIds } = {}) {
+  const users = await prisma.user.findMany({
+    where: {
+      ...(userIds && { id: { in: userIds } }),
+      deletedAt: null,
+      hostedTrips: { some: {} },
+      licenses: { none: {} },
+      notifications: { none: { type: 'LICENSE_REQUIRED' } },
+    },
+    select: { id: true },
+  });
+  if (users.length === 0) return 0;
+  await prisma.notification.createMany({
+    data: users.map((u) => ({
+      userId: u.id,
+      type: 'LICENSE_REQUIRED',
+      message: "To post new trips, upload your driver's license for an admin to check. Your current trips keep running.",
+    })),
+  });
+  return users.length;
+}
+
 module.exports = {
+  sendLicenseExpiryReminders,
+  notifyLicenseRequired,
   licenseState,
   myLicense,
   submitLicense,
