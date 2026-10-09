@@ -34,6 +34,7 @@ export default function PushCard({ placement }: PushCardProps) {
   const [busy, setBusy] = useState(false);
   const [dismissed, setDismissed] = useState(true);
   const [sound, setSound] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setDismissed(readDismissed());
@@ -46,9 +47,11 @@ export default function PushCard({ placement }: PushCardProps) {
 
   async function toggle(on: boolean) {
     setBusy(true);
+    setError(null);
     try {
       setState(on ? await turnOnPush() : await turnOffPush());
     } catch {
+      setError('That didn’t work in this browser. Try again, or use Chrome on Android or the Home Screen app on iPhone.');
       setState(await pushState().catch(() => 'unsupported' as const));
     } finally {
       setBusy(false);
@@ -87,6 +90,11 @@ export default function PushCard({ placement }: PushCardProps) {
         <button type="button" disabled={busy} onClick={() => toggle(false)} className="rsu-btn-secondary px-4 py-2 text-sm disabled:opacity-60">
           Turn off on this device
         </button>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
       )}
       {placement === 'profile' && (
         <label className="flex items-center justify-between gap-3 border-t border-gray-100 pt-3 text-sm text-gray-800">
