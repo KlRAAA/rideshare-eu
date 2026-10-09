@@ -23,7 +23,7 @@ const DOE_TEST_PREFIX = `https://doe.test/${Date.now()}/`;
 const DOE_TEST_PERIOD = `Test Week ${Date.now()}`;
 const REPORT = fs
   .readFileSync(path.join(__dirname, '../test-helpers/fixtures/doe-region-iv-a-2026-09-29.txt'), 'utf8')
-  .split('\n')
+  .split(/\r?\n/)
   .filter(Boolean)
   .map((line) => (line.includes('PERIOD OF') ? ['(FOR THE PERIOD OF', `${DOE_TEST_PERIOD})`] : line.split(' | ')));
 let fileNumber = 0;

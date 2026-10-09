@@ -6,7 +6,7 @@ const FIXTURES = path.join(__dirname, '../../test-helpers/fixtures');
 const PAGE = fs.readFileSync(path.join(FIXTURES, 'doe-south-luzon-page.html'), 'utf8');
 const REPORT = fs
   .readFileSync(path.join(FIXTURES, 'doe-region-iv-a-2026-09-29.txt'), 'utf8')
-  .split('\n')
+  .split(/\r?\n/)
   .filter(Boolean)
   .map((line) => line.split(' | '));
 
