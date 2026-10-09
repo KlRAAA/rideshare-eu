@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import PushCard from '@/components/PushCard';
+import { summaryLine, type DriverSummary } from '@/lib/driverSummary';
 import Link from 'next/link';
 import { FaCar, FaSearch, FaClock } from 'react-icons/fa';
 import Header from '@/components/Header';
@@ -50,6 +51,7 @@ export default async function DashboardPage() {
   let alerts: Notification[] = [];
   let unreadCount = 0;
   let waiting: { count: number; tripId: string | null } = { count: 0, tripId: null };
+  let month: DriverSummary['totals'] | null = null;
 
   if (user) {
     const [{ hosted, joined }, { notifications }] = await Promise.all([
@@ -70,6 +72,8 @@ export default async function DashboardPage() {
     // The badge counts genuinely unread notifications; the Recent Alerts panel
     // just shows the two most recent, read or not.
     unreadCount = notifications.filter((n) => !n.isRead).length;
+    // Sub-project H: this month's driving, in Driver mode.
+    if (isDriver) month = (await apiFetch<DriverSummary>('/api/driver/summary?period=month')).totals;
     alerts = notifications.slice(0, 2);
   }
 
@@ -124,6 +128,18 @@ export default async function DashboardPage() {
                     {waiting.count} {waiting.count === 1 ? 'request' : 'requests'} waiting for your answer
                   </span>
                   <span className="text-sm text-[color:var(--rsu-color-primary)] font-semibold">Review</span>
+                </Link>
+              </Card>
+            )}
+
+            {isDriver && month && (
+              <Card>
+                <Link href="/auth/driver" className="flex items-center justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-gray-900">This month: {summaryLine(month)}</span>
+                    <span className="block text-xs text-gray-500">Fuel share from riders, paid in person</span>
+                  </span>
+                  <span className="shrink-0 text-sm text-[color:var(--rsu-color-primary)] font-semibold">My driving</span>
                 </Link>
               </Card>
             )}

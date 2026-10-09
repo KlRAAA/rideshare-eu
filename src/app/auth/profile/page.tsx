@@ -34,6 +34,10 @@ export default async function ProfilePage() {
         <div className="mt-4">
           <LicenseStatusCard my={license} linkLabel={license.verified ? 'Manage your license' : license.license?.status === 'PENDING' ? 'View your license' : 'Upload your license'} />
         </div>
+        <Link href="/auth/driver" className="rsu-card mt-4 flex items-center justify-between text-sm font-semibold text-gray-900 hover:bg-gray-50">
+          My driving: rides and fuel share
+          <span className="text-[color:var(--rsu-color-primary)]">Open</span>
+        </Link>
         <p className="text-xs text-center text-gray-500 mt-6">
           <Link href="/privacy" className="font-semibold text-gray-500 hover:underline">
             Privacy Policy
