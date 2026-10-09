@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 
 interface TipProps {
   // The full meaning: the tooltip text, also read by screen readers.
@@ -21,6 +21,17 @@ export default function Tip({ label, children, mode = 'button', side = 'top', cl
   const id = useId();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
+  const bubbleRef = useRef<HTMLSpanElement>(null);
+  const [shift, setShift] = useState(0);
+
+  // Keep the bubble on screen: centred over the icon unless that would cross an edge.
+  useLayoutEffect(() => {
+    if (!open || !bubbleRef.current) return setShift(0);
+    const { left, right } = bubbleRef.current.getBoundingClientRect();
+    const margin = 8;
+    if (left < margin) setShift(margin - left);
+    else if (right > window.innerWidth - margin) setShift(window.innerWidth - margin - right);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -41,14 +52,18 @@ export default function Tip({ label, children, mode = 'button', side = 'top', cl
   const hover = {
     onPointerEnter: (e: React.PointerEvent) => e.pointerType === 'mouse' && setOpen(true),
     onPointerLeave: (e: React.PointerEvent) => e.pointerType === 'mouse' && setOpen(false),
-    onFocus: () => setOpen(true),
+    // Keyboard focus only: a tap also focuses the button, and its click would
+    // toggle the tooltip straight back off.
+    onFocus: (e: React.FocusEvent) => (e.target as HTMLElement).matches?.(':focus-visible') && setOpen(true),
     onBlur: () => setOpen(false),
   };
 
   const bubble = (
     <span
+      ref={bubbleRef}
       role="tooltip"
       id={id}
+      style={open && shift ? { translate: `calc(-50% + ${shift}px) 0` } : undefined}
       className={
         open
           ? `pointer-events-none absolute left-1/2 z-40 w-max max-w-[14rem] -translate-x-1/2 rounded-md bg-gray-900 px-2 py-1 text-[11px] font-medium leading-snug text-white shadow-lg ${
