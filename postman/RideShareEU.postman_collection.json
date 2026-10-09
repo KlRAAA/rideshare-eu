@@ -208,6 +208,14 @@
     {
       "key": "driverTripId",
       "value": ""
+    },
+    {
+      "key": "pushEndpoint",
+      "value": ""
+    },
+    {
+      "key": "feedCursor",
+      "value": ""
     }
   ],
   "item": [
@@ -6769,6 +6777,273 @@
                 "body": {
                   "mode": "raw",
                   "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "22. Notifications",
+          "description": "Phone notifications (Web Push) and the live feed behind pop-ups and the badge (sub-project F).",
+          "item": [
+            {
+              "name": "The push key is offered",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('has publicKey (string or null)', () => pm.expect(pm.response.json()).to.have.property('publicKey'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/push/key",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Passenger registers a phone",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('pushEndpoint', 'https://push.example.test/postman/' + Date.now());"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/push/subscriptions",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"endpoint\": \"{{pushEndpoint}}\",\n  \"expirationTime\": null,\n  \"keys\": { \"p256dh\": \"BPostmanKey\", \"auth\": \"postmanAuth\" }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "An insecure endpoint is refused",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "pm.test('error is INVALID_SUBSCRIPTION', () => pm.expect(pm.response.json().error).to.eql('INVALID_SUBSCRIPTION'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/push/subscriptions",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"endpoint\": \"http://push.example.test/x\",\n  \"keys\": {\n    \"p256dh\": \"a\",\n    \"auth\": \"b\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "The first feed call gives the count and a cursor",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "pm.test('no notifications, a count and a cursor', () => { pm.expect(body.notifications).to.eql([]); pm.expect(body.unreadCount).to.be.a('number'); pm.expect(body.cursor).to.be.a('string'); });",
+                      "pm.collectionVariables.set('feedCursor', body.cursor);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/alerts/feed?mode=passenger",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "The next call returns only newer ones",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('an array', () => pm.expect(pm.response.json().notifications).to.be.an('array'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/alerts/feed?mode=passenger&after={{feedCursor}}",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "A bad cursor is refused",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "pm.test('error is INVALID_CURSOR', () => pm.expect(pm.response.json().error).to.eql('INVALID_CURSOR'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/alerts/feed?after=yesterday",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Passenger removes the phone",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 204', () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/push/subscriptions",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"endpoint\": \"{{pushEndpoint}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"

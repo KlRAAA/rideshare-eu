@@ -95,6 +95,7 @@ async function removeExisting(emails) {
   });
   for (const { photoFile } of licenses) if (photoFile) fs.rmSync(path.join(LICENSE_DIR, photoFile), { force: true });
   await prisma.driverLicense.deleteMany({ where: { id: { in: licenses.map((l) => l.id) } } });
+  await prisma.pushSubscription.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 
   for (const { avatarUrl } of users) {
