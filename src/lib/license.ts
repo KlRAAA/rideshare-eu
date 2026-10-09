@@ -75,7 +75,7 @@ export function licenseStatusText(my: MyLicense): LicenseStatusText {
     case 'LICENSE_PENDING':
       return l && !l.checkedAt
         ? { title: 'Checking your license…', detail: 'This usually takes a few seconds. You can leave this page; you’ll get a notification.', tone: 'warn' }
-        : { title: 'Your license is under review', detail: 'An admin checks it, usually within a day. You’ll get a notification.', tone: 'warn' };
+        : { title: 'Your license is under review', detail: 'The automatic check couldn’t confirm it, so an admin will look, usually within a day. You’ll get a notification.', tone: 'warn' };
     case 'LICENSE_REJECTED':
       return {
         title: 'Your license wasn’t approved',
@@ -87,7 +87,7 @@ export function licenseStatusText(my: MyLicense): LicenseStatusText {
     default:
       return {
         title: 'Upload your driver’s license',
-        detail: 'An admin checks it before you can post trips. Riders can still join you on trips you already posted.',
+        detail: 'Take a photo of it here. Most are checked automatically in seconds; unclear ones go to an admin. Trips you already posted keep running.',
         tone: 'neutral',
       };
   }
