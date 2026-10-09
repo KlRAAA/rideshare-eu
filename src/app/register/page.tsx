@@ -189,12 +189,12 @@ export default function RegisterPage() {
               <p className="text-sm text-gray-500 mt-1 mb-5">Enter your MSEUF school email to get started</p>
               <form onSubmit={handleEmailSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="register-school-email" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     School Email
                   </label>
                   <div className="relative">
                     <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
+                    <input id="register-school-email"
                       type="email"
                       required
                       autoComplete="email"
@@ -265,12 +265,12 @@ export default function RegisterPage() {
               <p className="text-sm text-gray-500 mt-1 mb-5">Your email is verified — choose a password to finish</p>
               <form onSubmit={handlePasswordSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="register-full-name" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     Full Name
                   </label>
                   <div className="relative">
                     <FaUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
+                    <input id="register-full-name"
                       type="text"
                       required
                       value={fullName}
@@ -281,10 +281,10 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="register-university-id" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     University ID
                   </label>
-                  <input
+                  <input id="register-university-id"
                     type="text"
                     required
                     value={universityId}
@@ -332,12 +332,12 @@ export default function RegisterPage() {
                 </fieldset>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="register-password" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     Password
                   </label>
                   <div className="relative">
                     <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
+                    <input id="register-password"
                       type={showPassword ? 'text' : 'password'}
                       required
                       minLength={8}
@@ -358,12 +358,12 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="register-confirm-password" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     Confirm Password
                   </label>
                   <div className="relative">
                     <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
+                    <input id="register-confirm-password"
                       type={showConfirmPassword ? 'text' : 'password'}
                       required
                       autoComplete="new-password"

@@ -2,6 +2,7 @@ import React from 'react';
 import Script from 'next/script';
 import { headers } from 'next/headers';
 import './globals.css';
+import InvalidFieldHint from '@/components/InvalidFieldHint';
 
 export const metadata = {
   title: 'RideShareEU | MSEUF Carpooling',
@@ -79,6 +80,7 @@ export default async function RootLayout({
           nonce={nonce ?? undefined}
         />
         {children}
+        <InvalidFieldHint />
       </body>
     </html>
   );

@@ -136,12 +136,12 @@ export default function ForgotPasswordPage() {
               <p className="text-sm text-gray-500 mt-1 mb-5">Enter your school email and we&apos;ll send a verification code</p>
               <form onSubmit={handleEmailSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="reset-school-email" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     School Email
                   </label>
                   <div className="relative">
                     <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
+                    <input id="reset-school-email"
                       type="email"
                       required
                       autoComplete="email"
@@ -203,12 +203,12 @@ export default function ForgotPasswordPage() {
               <p className="text-sm text-gray-500 mt-1 mb-5">Your code is verified — choose a new password</p>
               <form onSubmit={handlePasswordSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="reset-new-password" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     New Password
                   </label>
                   <div className="relative">
                     <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
+                    <input id="reset-new-password"
                       type={showPassword ? 'text' : 'password'}
                       required
                       minLength={8}
@@ -229,12 +229,12 @@ export default function ForgotPasswordPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="reset-confirm-new-password" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                     Confirm New Password
                   </label>
                   <div className="relative">
                     <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
+                    <input id="reset-confirm-new-password"
                       type={showConfirmPassword ? 'text' : 'password'}
                       required
                       autoComplete="new-password"

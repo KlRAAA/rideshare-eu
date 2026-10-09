@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useAppDialog } from '@/components/AppDialog';
 import { useRouter } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api';
 import { WARNING_NOTE_MAX, WARNING_REASONS, warningFormError } from '@/lib/warnings';
+import Select from '@/components/Select';
 
 interface WarnUserFormProps {
   userId: string;
@@ -32,12 +34,18 @@ export default function WarnUserForm({ userId, userName, ticketId, reportId }: W
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const { confirm, dialog } = useAppDialog();
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const problem = warningFormError(reason, note);
     if (problem) return setError(problem);
-    if (!window.confirm(`Send an official warning to ${userName}? They’ll get a notification and an email.`)) return;
+    const ok = await confirm({
+      title: `Send an official warning to ${userName}?`,
+      message: 'They’ll get a notification and an email.',
+      confirmLabel: 'Send warning',
+    });
+    if (!ok) return;
     setBusy(true);
     setError(null);
     try {
@@ -61,7 +69,7 @@ export default function WarnUserForm({ userId, userName, ticketId, reportId }: W
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         <label className="text-xs font-semibold text-gray-700" htmlFor={`warn-reason-${userId}`}>
           Reason
-          <select
+          <Select
             id={`warn-reason-${userId}`}
             value={reason}
             onChange={(e) => {
@@ -76,7 +84,7 @@ export default function WarnUserForm({ userId, userName, ticketId, reportId }: W
                 {r.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="text-xs font-semibold text-gray-700" htmlFor={`warn-note-${userId}`}>
           Note to the user (they’ll see this)
@@ -94,6 +102,7 @@ export default function WarnUserForm({ userId, userName, ticketId, reportId }: W
       <button type="submit" disabled={busy} className="rsu-btn-secondary disabled:opacity-60">
         {busy ? 'Sending...' : 'Send warning'}
       </button>
+      {dialog}
     </form>
   );
 }

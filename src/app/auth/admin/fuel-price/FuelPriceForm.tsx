@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useAppDialog } from '@/components/AppDialog';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER } from '@/lib/constants';
@@ -14,6 +15,7 @@ export default function FuelPriceForm({ fuelType, current }: { fuelType: FuelTyp
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const { confirm, dialog } = useAppDialog();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,7 +24,12 @@ export default function FuelPriceForm({ fuelType, current }: { fuelType: FuelTyp
       setError(`Enter a price between ₱${MIN_FUEL_PRICE_PER_LITER} and ₱${MAX_FUEL_PRICE_PER_LITER}.`);
       return;
     }
-    if (!window.confirm(`Set the official ${name} price to ₱${price.toFixed(2)}/L for everyone?`)) return;
+    const ok = await confirm({
+      title: `Set the official ${name} price to ₱${price.toFixed(2)}/L?`,
+      message: 'Hosts can’t post above it from now on. Trips already posted keep their price.',
+      confirmLabel: 'Set price',
+    });
+    if (!ok) return;
     setBusy(true);
     setError(null);
     try {
@@ -59,6 +66,7 @@ export default function FuelPriceForm({ fuelType, current }: { fuelType: FuelTyp
       </button>
       {error && <p className="text-xs text-red-600">{error}</p>}
       {saved && !error && <p className="text-xs text-green-700">Saved.</p>}
+      {dialog}
     </form>
   );
 }

@@ -122,7 +122,7 @@ export default function TimePicker({ value, onChange, min, disabled = false, cla
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 md:absolute md:inset-auto md:z-20 md:mt-2 md:left-1/2 md:-translate-x-1/2 md:bg-transparent md:p-0"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 md:absolute md:inset-auto md:z-20 md:mt-2 md:left-1/2 md:-translate-x-1/2 md:bg-transparent md:p-0"
           onClick={() => setOpen(false)}
         >
         <div

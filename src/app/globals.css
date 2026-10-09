@@ -637,3 +637,11 @@ header .app-desktop > div:first-child { min-width: 0; }
 		opacity: 1;
 	}
 }
+
+/* A field the user left wrong (after they've typed or tried to submit):
+   red edge, with InvalidFieldHint's message under it. */
+:root input:user-invalid,
+:root textarea:user-invalid,
+:root [aria-invalid='true'] {
+	border-color: #dc2626;
+}

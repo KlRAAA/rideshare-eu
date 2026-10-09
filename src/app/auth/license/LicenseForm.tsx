@@ -5,12 +5,20 @@ import { useRouter } from 'next/navigation';
 import { FaUpload, FaLock } from 'react-icons/fa';
 import Card from '@/components/Card';
 import Select from '@/components/Select';
+import DatePicker from '@/components/DatePicker';
 import LicenseCamera from '@/components/LicenseCamera';
 import { API_BASE } from '@/lib/api';
+import { getPhTodayDateString } from '@/lib/format';
 import { LICENSE_TYPE_OPTIONS, licenseErrorMessage, type LicenseType } from '@/lib/license';
 
 const inputClass = 'w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]';
 const labelClass = 'block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1';
+// Philippine licenses run up to 10 years.
+const MAX_LICENSE_YEARS = 10;
+
+function yearsFrom(date: string, years: number): string {
+  return `${Number(date.slice(0, 4)) + years}${date.slice(4)}`;
+}
 
 export default function LicenseForm({ renewal }: { renewal: boolean }) {
   const router = useRouter();
@@ -20,11 +28,16 @@ export default function LicenseForm({ renewal }: { renewal: boolean }) {
   const [expiresOn, setExpiresOn] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const today = getPhTodayDateString();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!photo) {
       setError(licenseErrorMessage('INVALID_IMAGE'));
+      return;
+    }
+    if (!expiresOn) {
+      setError('Pick the expiry date printed on your license.');
       return;
     }
     setBusy(true);
@@ -88,7 +101,14 @@ export default function LicenseForm({ renewal }: { renewal: boolean }) {
             <label htmlFor="license-expiry" className={labelClass}>
               Expiry date
             </label>
-            <input id="license-expiry" type="date" required value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} className={inputClass} />
+            <DatePicker
+              id="license-expiry"
+              value={expiresOn}
+              onChange={setExpiresOn}
+              min={today}
+              max={yearsFrom(today, MAX_LICENSE_YEARS)}
+              className="px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm"
+            />
           </div>
         </div>
         {licenseType === 'STUDENT_PERMIT' && (
@@ -96,7 +116,7 @@ export default function LicenseForm({ renewal }: { renewal: boolean }) {
         )}
         <p className="flex items-start gap-2 text-xs text-gray-500">
           <FaLock className="w-3 h-3 mt-0.5 shrink-0" aria-hidden />
-          Only admins see the photo, and it’s deleted once they decide. We keep the expiry date and the last 4 characters of the number.
+          Only admins see the photo. It’s deleted once your license is decided, or 7 days after an automatic approval (so an admin can spot-check it). We keep the expiry date and the last 4 characters of the number.
         </p>
         {error && (
           <p role="alert" className="text-sm text-red-600">

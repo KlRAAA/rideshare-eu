@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useAppDialog } from './AppDialog';
 import { useRouter } from 'next/navigation';
 import { FaPlay, FaFlagCheckered, FaRoute } from 'react-icons/fa';
 import { apiFetch, ApiError } from '@/lib/api';
@@ -38,6 +39,7 @@ export default function TripRunPanel({ tripId, isHost, currentRun, nextDeparture
   const [now, setNow] = useState(() => new Date());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { confirm, dialog } = useAppDialog();
   const ongoing = currentRun?.status === 'ONGOING';
 
   useEffect(() => {
@@ -76,8 +78,9 @@ export default function TripRunPanel({ tripId, isHost, currentRun, nextDeparture
             <button
               type="button"
               disabled={busy}
-              onClick={() => {
-                if (window.confirm('End this trip? Riders will be asked to rate it.')) act('end');
+              onClick={async () => {
+                const ok = await confirm({ title: 'End this trip?', message: 'Your riders will be asked to rate it.', confirmLabel: 'End trip', cancelLabel: 'Keep going' });
+                if (ok) act('end');
               }}
               className="rsu-btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-60"
             >
@@ -87,6 +90,7 @@ export default function TripRunPanel({ tripId, isHost, currentRun, nextDeparture
           </>
         )}
         {error && <p className="text-xs text-red-600">{error}</p>}
+        {dialog}
       </section>
     );
   }

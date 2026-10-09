@@ -3,12 +3,16 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api';
+import DatePicker from '@/components/DatePicker';
+import TimePicker from '@/components/TimePicker';
+import { getPhTodayDateString } from '@/lib/format';
 
 const TITLE_MAX = 100;
 const BODY_MAX = 1000;
 const INPUT =
   'w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]';
 const LABEL = 'block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1';
+const PICKER = 'px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm';
 
 const FIELD_ERRORS: Record<string, string> = {
   title: `Add a title under ${TITLE_MAX} characters.`,
@@ -16,7 +20,7 @@ const FIELD_ERRORS: Record<string, string> = {
   endsAt: 'The end time must be in the future.',
 };
 
-// The datetime-local value is Philippine time; send it as an explicit +08:00 instant.
+// "YYYY-MM-DDTHH:MM" in Philippine time; sent as an explicit +08:00 instant.
 function phLocalToIso(value: string): string | null {
   return value ? new Date(`${value}:00+08:00`).toISOString() : null;
 }
@@ -25,7 +29,10 @@ export default function AnnouncementForm() {
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [endsAt, setEndsAt] = useState('');
+  const [endsDate, setEndsDate] = useState('');
+  const [endsTime, setEndsTime] = useState('');
+  // A date without a time means the end of that day.
+  const endsAt = endsDate ? `${endsDate}T${endsTime || '23:59'}` : '';
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +56,8 @@ export default function AnnouncementForm() {
       });
       setTitle('');
       setBody('');
-      setEndsAt('');
+      setEndsDate('');
+      setEndsTime('');
       setConfirming(false);
       setSent(true);
       router.refresh();
@@ -122,13 +130,27 @@ export default function AnnouncementForm() {
         <label htmlFor="announcement-ends" className={LABEL}>
           Show until (optional, Philippine time)
         </label>
-        <input
-          id="announcement-ends"
-          type="datetime-local"
-          value={endsAt}
-          onChange={(e) => setEndsAt(e.target.value)}
-          className={INPUT}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-[10rem] flex-1">
+            <DatePicker id="announcement-ends" value={endsDate} onChange={setEndsDate} min={getPhTodayDateString()} className={PICKER} />
+          </div>
+          <div className="min-w-[8rem] flex-1">
+            <TimePicker value={endsTime} onChange={setEndsTime} disabled={!endsDate} className={PICKER} />
+          </div>
+          {endsDate && (
+            <button
+              type="button"
+              onClick={() => {
+                setEndsDate('');
+                setEndsTime('');
+              }}
+              className="text-xs font-semibold text-gray-600 underline"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-gray-500">Without a time, it shows until the end of that day.</p>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       {sent && <p className="text-sm text-green-700">Posted. Everyone has been notified.</p>}

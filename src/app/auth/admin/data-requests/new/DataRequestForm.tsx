@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Card from '@/components/Card';
 import Select from '@/components/Select';
+import DatePicker from '@/components/DatePicker';
 import ReleaseView from '@/components/ReleaseView';
 import { apiFetch, ApiError } from '@/lib/api';
 import {
@@ -49,6 +50,11 @@ const ERROR_COPY: Record<string, string> = {
 const INPUT =
   'w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]';
 const LABEL = 'block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1';
+const PICKER = 'px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm';
+// The calendar offers last year to next year.
+const THIS_YEAR = new Date().getFullYear();
+const EARLIEST = `${THIS_YEAR - 1}-01-01`;
+const LATEST = `${THIS_YEAR + 1}-12-31`;
 
 function TextField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (v: string) => void }) {
   return (
@@ -227,13 +233,13 @@ export default function DataRequestForm() {
               <label htmlFor="dr-from" className={LABEL}>
                 From
               </label>
-              <input id="dr-from" type="date" value={values.fromDate} onChange={(e) => set('fromDate', e.target.value)} className={INPUT} />
+              <DatePicker id="dr-from" value={values.fromDate} onChange={(v) => set('fromDate', v)} min={EARLIEST} max={values.toDate || LATEST} className={PICKER} />
             </div>
             <div>
               <label htmlFor="dr-to" className={LABEL}>
                 To
               </label>
-              <input id="dr-to" type="date" value={values.toDate} onChange={(e) => set('toDate', e.target.value)} className={INPUT} />
+              <DatePicker id="dr-to" value={values.toDate} onChange={(v) => set('toDate', v)} min={values.fromDate || EARLIEST} max={LATEST} className={PICKER} />
             </div>
           </div>
         )}

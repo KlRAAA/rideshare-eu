@@ -80,12 +80,12 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+              <label htmlFor="login-school-email" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                 School Email
               </label>
               <div className="relative">
                 <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
+                <input id="login-school-email"
                   type="email"
                   required
                   autoComplete="email"
@@ -98,12 +98,12 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+              <label htmlFor="login-password" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                 Password
               </label>
               <div className="relative">
                 <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
+                <input id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   required
                   autoComplete="current-password"

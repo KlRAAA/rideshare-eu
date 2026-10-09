@@ -147,8 +147,14 @@ export default function LicenseCamera({ onPhoto }: LicenseCameraProps) {
     <div className="space-y-2">
       <div className="relative overflow-hidden rounded-xl bg-black" style={{ aspectRatio: '4 / 3' }}>
         {state === 'taken' && preview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt="Your license photo" className="h-full w-full object-contain" />
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview} alt="Your license photo" className="h-full w-full object-contain" />
+            {/* A status, not a button: a label on the photo itself. */}
+            <p role="status" className="pointer-events-none absolute left-2 top-2 flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-white">
+              <FaCheck className="h-3 w-3 text-emerald-400" aria-hidden /> Photo taken
+            </p>
+          </>
         ) : (
           <>
             <video ref={videoRef} playsInline muted aria-label="Camera preview" className="h-full w-full object-cover" />
@@ -163,13 +169,11 @@ export default function LicenseCamera({ onPhoto }: LicenseCameraProps) {
         )}
       </div>
       {state === 'taken' ? (
-        <div className="flex gap-2">
-          <button type="button" onClick={retake} className="rsu-btn-secondary flex flex-1 items-center justify-center gap-2 px-3 py-2 text-sm">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-gray-500">Check that your name, the number and the expiry date are readable.</p>
+          <button type="button" onClick={retake} className="rsu-btn-secondary flex shrink-0 items-center gap-2 px-3 py-2 text-sm">
             <FaRedo className="h-3 w-3" aria-hidden /> Retake
           </button>
-          <p className="flex flex-1 items-center justify-center gap-2 text-sm font-semibold text-gray-700">
-            <FaCheck className="h-3 w-3 text-[color:var(--rsu-color-primary)]" aria-hidden /> Photo ready
-          </p>
         </div>
       ) : (
         <div className="flex gap-2">
@@ -186,7 +190,7 @@ export default function LicenseCamera({ onPhoto }: LicenseCameraProps) {
           </button>
         </div>
       )}
-      <p className="text-xs text-gray-500">Fit the license inside the frame. Make sure your name, the number and the expiry date are sharp, with no glare.</p>
+      {state !== 'taken' && <p className="text-xs text-gray-500">Fit the license inside the frame. Make sure your name, the number and the expiry date are sharp, with no glare.</p>}
     </div>
   );
 }

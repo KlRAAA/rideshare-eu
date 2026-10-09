@@ -745,3 +745,25 @@ monitoring instead of an admin typing them in.
   dismiss writes `DOE_PRICES_DISMISSED`). Manual prices still work.
 - Under Jest nothing reaches the DOE: tests call `setDoeSource` with a fake.
   Postman leaves out "check now" (live site).
+
+## App-drawn pickers and dialogs (Oct 2026)
+
+No browser-drawn pop-ups: their look follows the phone, not the app's theme.
+- `Select` (`src/components/Select.tsx`) keeps the `<select>` API (`<option>`
+  children, `onChange(e)` with `e.target.value`) but draws its own list: under
+  the field on wide screens, a bottom sheet with 48 px rows on phones (above
+  the bottom nav). `role="combobox"` + listbox, arrows/Home/End/first letter,
+  Enter/Space, Escape. `Listbox` is a typed wrapper around it. Don't use a raw
+  `<select>`.
+- Dates: `DatePicker` (`min`/`max`, a year list spanning them, month arrows;
+  the license expiry offers today to +10 years). Times: `TimePicker`. No
+  `<input type="date|time|datetime-local">`.
+- Confirm/prompt: `useAppDialog()` (`src/components/AppDialog.tsx`) →
+  `confirm({ title, message, confirmLabel, danger })` /
+  `ask({ title, label, required, maxLength })`, render `{dialog}`. A native
+  `<dialog>` portalled to `<body>` (stops submit/click propagation, so it can
+  sit inside a form). No `window.confirm` / `prompt` / `alert`.
+- Required/format checks: `InvalidFieldHint` (root layout) catches every
+  form's `invalid` event, cancels the browser bubble, focuses the first bad
+  field and shows "<Label> is required." under it. Needs the field's
+  `<label htmlFor>`, so keep labels linked.

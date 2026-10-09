@@ -9,6 +9,7 @@ import { apiFetch, ApiError } from '@/lib/api';
 import { reportCategoryLabel } from '@/lib/format';
 import { BAN_DURATION_OPTIONS, formatDateTime } from '@/lib/admin';
 import { WARNING_REASONS } from '@/lib/warnings';
+import Select from '@/components/Select';
 
 interface Person {
   id: string;
@@ -115,7 +116,7 @@ export default function ReportCard({ report }: { report: AdminReport }) {
           <label htmlFor={`ban-${report.id}`} className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
             Action on the reported user (optional)
           </label>
-          <select
+          <Select
             id={`ban-${report.id}`}
             value={banDuration}
             onChange={(e) => setBanDuration(e.target.value)}
@@ -128,9 +129,9 @@ export default function ReportCard({ report }: { report: AdminReport }) {
                 {o.label}
               </option>
             ))}
-          </select>
+          </Select>
           {warning && (
-            <select
+            <Select
               id={`warn-reason-${report.id}`}
               aria-label="Reason for the warning"
               value={warnReason}
@@ -143,7 +144,7 @@ export default function ReportCard({ report }: { report: AdminReport }) {
                   {r.label}
                 </option>
               ))}
-            </select>
+            </Select>
           )}
           {error && <p className="text-xs text-red-600">{error}</p>}
           <div className="flex gap-2">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useAppDialog } from '@/components/AppDialog';
 import { FaCar } from 'react-icons/fa';
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
@@ -26,6 +27,7 @@ export default function MyCarsCard() {
   const [form, setForm] = useState<VehicleFieldValues>(EMPTY_VEHICLE_FIELDS);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { confirm, dialog } = useAppDialog();
 
   async function load() {
     try {
@@ -75,8 +77,14 @@ export default function MyCarsCard() {
     );
   }
 
-  function remove(car: SavedVehicle) {
-    if (!window.confirm(`Remove ${car.make} ${car.model} from your cars? Trips you already posted keep it.`)) return;
+  async function remove(car: SavedVehicle) {
+    const ok = await confirm({
+      title: `Remove ${car.make} ${car.model}?`,
+      message: 'Trips you already posted keep this car.',
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (!ok) return;
     run(() => apiFetch(`/api/saved-vehicles/${car.id}`, { method: 'DELETE' }));
   }
 
@@ -162,6 +170,7 @@ export default function MyCarsCard() {
           + Add a car
         </button>
       )}
+      {dialog}
     </Card>
   );
 }

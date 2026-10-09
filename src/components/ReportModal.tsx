@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { FaTimes, FaFlag } from 'react-icons/fa';
 import { apiFetch, ApiError } from '@/lib/api';
+import Select from './Select';
 
 const CATEGORIES: { value: string; label: string }[] = [
   { value: 'SPAM', label: 'Spam' },
@@ -82,7 +83,7 @@ export default function ReportModal({ reportedUserName, reportedUserId, matchId,
                 <label htmlFor="report-category" className="text-xs font-semibold text-gray-700">
                   Reason
                 </label>
-                <select
+                <Select
                   id="report-category"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
@@ -94,7 +95,7 @@ export default function ReportModal({ reportedUserName, reportedUserId, matchId,
                       {c.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div>

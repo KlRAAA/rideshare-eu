@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useAppDialog } from './AppDialog';
 import { useRouter } from 'next/navigation';
 import { FaCalendarCheck } from 'react-icons/fa';
 import Card from '@/components/Card';
@@ -28,13 +29,21 @@ export default function TripDaysCard({ tripId, recurring, days }: TripDaysCardPr
   const router = useRouter();
   const [busyDate, setBusyDate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { ask, dialog } = useAppDialog();
 
   if (days.length === 0) return null;
 
   async function act(date: string, action: 'confirm' | 'skip' | 'unskip') {
     let body: Record<string, string> = {};
     if (action === 'skip') {
-      const reason = window.prompt(`Skip ${dayLabel(date)}? Your riders are told. Add a reason (optional):`, '');
+      const reason = await ask({
+        title: `Skip ${dayLabel(date)}?`,
+        message: 'Your riders are told you won’t drive that day.',
+        label: 'Reason (optional)',
+        maxLength: MAX_REASON,
+        confirmLabel: 'Skip this day',
+        cancelLabel: 'Keep it',
+      });
       if (reason === null) return;
       if (reason.trim()) body = { reason: reason.trim().slice(0, MAX_REASON) };
     }
@@ -99,6 +108,7 @@ export default function TripDaysCard({ tripId, recurring, days }: TripDaysCardPr
           {error}
         </p>
       )}
+      {dialog}
     </Card>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api';
+import { useAppDialog } from '@/components/AppDialog';
 
 // "Check DOE now": reads the newest weekly file right away instead of waiting
 // for the 10 AM / 3 PM run.
@@ -44,11 +45,15 @@ export function HeldDoeActions({ importId }: { importId: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { confirm, dialog } = useAppDialog();
 
   async function decide(action: 'apply' | 'dismiss') {
-    const question =
-      action === 'apply' ? 'Set the official prices to the DOE prices for everyone?' : 'Keep the current prices and ignore this DOE file?';
-    if (!window.confirm(question)) return;
+    const ok = await confirm(
+      action === 'apply'
+        ? { title: 'Apply the DOE prices?', message: 'They become the official caps for everyone.', confirmLabel: 'Apply' }
+        : { title: 'Keep the current prices?', message: 'This DOE file won’t be used.', confirmLabel: 'Keep current' }
+    );
+    if (!ok) return;
     setBusy(true);
     setError(null);
     try {
@@ -71,6 +76,7 @@ export function HeldDoeActions({ importId }: { importId: string }) {
         </button>
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
+      {dialog}
     </div>
   );
 }

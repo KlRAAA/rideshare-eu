@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useAppDialog } from '@/components/AppDialog';
 import { useRouter } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api';
 import { BAN_DURATION_OPTIONS, CATEGORY_OPTIONS } from '@/lib/admin';
+import Select from '@/components/Select';
 
 const ERRORS: Record<string, string> = {
   CANNOT_TARGET_SELF: 'You can’t do that to your own account.',
@@ -24,6 +26,8 @@ interface UserActionsProps {
   canManageAdmins: boolean;
 }
 
+const CONFIRM_LABELS: Record<string, string> = { ban: 'Ban', unban: 'Lift ban', demote: 'Remove admin', promote: 'Make admin' };
+
 export default function UserActions({ userId, isAdmin, isSuperAdmin, isBanned, canManageAdmins }: UserActionsProps) {
   const router = useRouter();
   const [duration, setDuration] = useState('24H');
@@ -31,9 +35,11 @@ export default function UserActions({ userId, isAdmin, isSuperAdmin, isBanned, c
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { confirm, dialog } = useAppDialog();
 
   async function run(path: string, confirmText: string, body?: object) {
-    if (!window.confirm(confirmText)) return;
+    const danger = path === 'ban' || path === 'demote';
+    if (!(await confirm({ title: confirmText, confirmLabel: CONFIRM_LABELS[path] ?? 'Confirm', danger }))) return;
     setBusy(true);
     setError(null);
     try {
@@ -53,23 +59,23 @@ export default function UserActions({ userId, isAdmin, isSuperAdmin, isBanned, c
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           <label className="text-xs font-semibold text-gray-700">
             Ban length
-            <select value={duration} onChange={(e) => setDuration(e.target.value)} className={FIELD}>
+            <Select value={duration} onChange={(e) => setDuration(e.target.value)} className={FIELD}>
               {BAN_DURATION_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="text-xs font-semibold text-gray-700">
             Reason
-            <select value={reason} onChange={(e) => setReason(e.target.value)} className={FIELD}>
+            <Select value={reason} onChange={(e) => setReason(e.target.value)} className={FIELD}>
               {CATEGORY_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="text-xs font-semibold text-gray-700">
             Note (optional)
@@ -120,6 +126,7 @@ export default function UserActions({ userId, isAdmin, isSuperAdmin, isBanned, c
           </button>
         )}
       </div>
+      {dialog}
     </div>
   );
 }
