@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaFlag, FaBan, FaPen } from 'react-icons/fa';
@@ -21,6 +21,9 @@ import { fetchRoute } from '@/lib/directions';
 import TripRunPanel, { type CurrentRun, type NextDeparture } from '@/components/TripRunPanel';
 import RuleBadges from '@/components/RuleBadges';
 import TripDaysCard from '@/components/TripDaysCard';
+import RiderLocationCard from '@/components/RiderLocationCard';
+import RidersNearbyCard from '@/components/RidersNearbyCard';
+import type { RiderLocation } from '@/lib/riderLocation';
 import { findAnotherRideHref, riderDayLine, type TripDay } from '@/lib/tripDays';
 import { whoCanJoinLabel } from '@/lib/riderRules';
 
@@ -88,6 +91,8 @@ export interface TripDetail {
   // Sub-project D: the next 7 run days and what the driver said about each.
   days: TripDay[];
   cancelReason: string | null;
+  // Sub-project G: the caller's own sharing switch (approved riders), else null.
+  myLocationSharing?: boolean | null;
 }
 
 interface TripDetailClientProps {
@@ -147,6 +152,12 @@ export default function TripDetailClient({
   const [liveEtaAt, setLiveEtaAt] = useState<string | null>(null);
   // What an approved rider (or one whose driver never came) hears about the next day.
   const [pageOpenedAt] = useState(() => new Date());
+  // Sub-project G: sharing riders' pins on the driver's map before pickup.
+  const [riderPins, setRiderPins] = useState<{ lat: number; lng: number; label: string }[]>([]);
+  const showRiderPins = useCallback((riders: RiderLocation[]) => {
+    setRiderPins(riders.flatMap((r) => (r.location ? [{ ...r.location, label: r.fullName }] : [])));
+  }, []);
+  const departureForSharing = trip.nextDeparture?.departure ?? null;
   const dayLine =
     !isHost && myMatch && (myActiveMatch?.status === 'APPROVED' || trip.status === 'CANCELLED')
       ? riderDayLine({ ...trip, days: trip.days ?? [], cancelReason: trip.cancelReason ?? null }, pageOpenedAt)
@@ -259,6 +270,7 @@ export default function TripDetailClient({
           }
           routeWaypoints={trip.routeWaypoints}
           canWatchDriverLocation={canWatchDriverLocation}
+          riderLocations={isHost && !runOngoing ? riderPins : undefined}
           onEta={setLiveEtaAt}
         />
 
@@ -269,6 +281,19 @@ export default function TripDetailClient({
             currentRun={trip.currentRun}
             nextDeparture={trip.nextDeparture}
             liveEtaAt={liveEtaAt}
+          />
+        )}
+
+        {isHost && tripIsActive && !runOngoing && (
+          <RidersNearbyCard tripId={trip.id} departure={departureForSharing} onRiders={showRiderPins} />
+        )}
+
+        {!isHost && tripIsActive && !runOngoing && myActiveMatch?.status === 'APPROVED' && (
+          <RiderLocationCard
+            tripId={trip.id}
+            matchId={myActiveMatch.id}
+            initialOn={trip.myLocationSharing === true}
+            departure={departureForSharing}
           />
         )}
 

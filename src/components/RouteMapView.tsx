@@ -36,6 +36,8 @@ export interface RouteMapProps {
   // re-center/re-zoom the map on every update, which is jarring for someone
   // just watching a pin approach rather than reviewing a static route.
   driverLocation?: LatLng | null;
+  // Riders sharing their location with the driver before pickup (sub-project G).
+  riderLocations?: (LatLng & { label: string })[];
   // Passing a handler makes that pin draggable. With onMeetingPointChange and
   // no meeting point yet, tapping the map places one.
   onOriginChange?: (point: LatLng) => void;
@@ -45,6 +47,7 @@ export interface RouteMapProps {
 }
 
 const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+const NO_RIDERS: (LatLng & { label: string })[] = [];
 
 function toFC(features: Feature[]): FeatureCollection {
   return { type: 'FeatureCollection', features };
@@ -69,6 +72,7 @@ export default function RouteMapView({
   routeWaypoints,
   overlap,
   driverLocation,
+  riderLocations = NO_RIDERS,
   onOriginChange,
   onMeetingPointChange,
   heightClassName = 'h-56',
@@ -174,8 +178,9 @@ export default function RouteMapView({
     if (overlap?.samples) pts.push(...overlap.samples);
     // The driver may still be on the way to the start, outside the route.
     if (driverLocation) pts.push(driverLocation);
+    pts.push(...riderLocations);
     return pts;
-  }, [origin, dest, meetingPoint, roadLine, overlap, driverLocation]);
+  }, [origin, dest, meetingPoint, roadLine, overlap, driverLocation, riderLocations]);
 
   const bounds = useMemo(() => {
     if (allPoints.length === 0) return null;
@@ -308,6 +313,16 @@ export default function RouteMapView({
               </div>
             </Marker>
           )}
+          {riderLocations.map((r) => (
+            <Marker key={r.label + r.lat + r.lng} longitude={r.lng} latitude={r.lat} anchor="center">
+              <div
+                title={r.label}
+                className="w-7 h-7 rounded-full flex items-center justify-center shadow-md ring-2 ring-white text-xs font-bold bg-emerald-600 text-white"
+              >
+                {r.label.charAt(0)}
+              </div>
+            </Marker>
+          ))}
         </Map>
 
         <button
@@ -345,7 +360,7 @@ export default function RouteMapView({
         </p>
       )}
 
-      {(overlap || meetingPoint || driverLocation) && (
+      {(overlap || meetingPoint || driverLocation || riderLocations.length > 0) && (
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-4 h-0.5 rounded bg-[#800000]" /> Driver’s route
@@ -368,6 +383,11 @@ export default function RouteMapView({
           {driverLocation && (
             <span className="flex items-center gap-1.5">
               <FaCar className="w-3 h-3 text-blue-600" /> Driver’s live location
+            </span>
+          )}
+          {riderLocations.length > 0 && (
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-3 h-3 rounded-full bg-emerald-600" /> Riders sharing their location
             </span>
           )}
         </div>

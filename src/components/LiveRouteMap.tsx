@@ -19,6 +19,8 @@ interface LiveRouteMapProps {
   // Precomputed by the caller (passenger side, APPROVED match, active trip) —
   // this component only needs to know whether to poll, not why.
   canWatchDriverLocation: boolean;
+  // Sharing riders, for the driver before pickup (sub-project G).
+  riderLocations?: (LatLng & { label: string })[];
   // The live ETA the driver's phone last sent (null when there's none).
   onEta?: (etaAt: string | null) => void;
 }
@@ -37,6 +39,7 @@ export default function LiveRouteMap({
   meetingPoint,
   routeWaypoints,
   canWatchDriverLocation,
+  riderLocations,
   onEta,
 }: LiveRouteMapProps) {
   const [driverLocation, setDriverLocation] = useState<LatLng | null>(null);
@@ -75,6 +78,7 @@ export default function LiveRouteMap({
       meetingPoint={meetingPoint}
       routeWaypoints={routeWaypoints}
       driverLocation={driverLocation}
+      riderLocations={riderLocations}
     />
   );
 }
