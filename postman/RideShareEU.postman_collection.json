@@ -7605,6 +7605,105 @@
               }
             }
           ]
+        },
+        {
+          "name": "24. Driver summary",
+          "description": "Rides, riders carried and fuel share from riders (sub-project H).",
+          "item": [
+            {
+              "name": "Host gets the all-time summary",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const b = pm.response.json();",
+                      "pm.test('totals are numbers', () => ['rides','riders','fuelShare'].forEach((k) => pm.expect(b.totals[k]).to.be.a('number')));",
+                      "pm.test('12 weeks', () => pm.expect(b.weeks).to.have.lengthOf(12));",
+                      "pm.test('recent rides are listed', () => pm.expect(b.recent).to.be.an('array'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/driver/summary?period=all",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "This month is the default",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('period is month', () => pm.expect(pm.response.json().period).to.eql('month'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/driver/summary",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "An unknown period is refused",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                      "pm.test('error is INVALID_PERIOD', () => pm.expect(pm.response.json().error).to.eql('INVALID_PERIOD'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/driver/summary?period=year",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
         }
       ]
     },
