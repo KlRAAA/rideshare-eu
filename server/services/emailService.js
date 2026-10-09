@@ -153,6 +153,21 @@ async function sendWarningEmail(email, { reasonLabel, note }) {
   });
 }
 
+// Sub-project E: the admin's decision on a driver's license.
+async function sendLicenseDecisionEmail(email, { approved, reasonLabel, note }) {
+  const body = approved
+    ? "Your driver's license has been approved by a RideShareEU administrator. You can now post trips in Driver mode.\n\nYour license photo has been deleted from our system."
+    : `Your driver's license wasn't approved: ${reasonLabel}.\n\n` +
+      (note ? `Note from the administrator: ${note}\n\n` : '') +
+      'Your license photo has been deleted from our system. You can upload a new one from Profile > Driver\'s license.';
+  await deliver({
+    to: email,
+    subject: approved ? "Your driver's license is approved" : "Your driver's license wasn't approved",
+    text: body,
+    devLog: `License decision for ${email}:\n${body}`,
+  });
+}
+
 // Sent after every password reset, so the owner learns about a reset they
 // didn't make.
 async function sendPasswordChangedEmail(email, changedAt = new Date()) {
@@ -177,6 +192,7 @@ ${body}`,
 
 module.exports = {
   sendOtpEmail,
+  sendLicenseDecisionEmail,
   sendBanNotificationEmail,
   sendWarningEmail,
   sendPasswordChangedEmail,

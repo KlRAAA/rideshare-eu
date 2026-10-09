@@ -2,7 +2,7 @@ require('dotenv').config({ quiet: true });
 const app = require('../app');
 const prisma = require('../config/db');
 const { bearer } = require('../test-helpers/auth');
-const { newBag, makeUser, makeAdminUser, makeVehicle, makeTrip, makeMatch, makeNotification, cleanup } = require('../test-helpers/seed');
+const { newBag, makeLicense, makeUser, makeAdminUser, makeVehicle, makeTrip, makeMatch, makeNotification, cleanup } = require('../test-helpers/seed');
 
 // User A creates private records through the API; user B, signed in but
 // unrelated, tries to read, change and delete each one. Every attempt must be
@@ -85,6 +85,7 @@ beforeAll(async () => {
   // A notification and an official warning addressed to A
   a.notification = await makeNotification(bag, userA.id);
   a.warning = (await created(await call('POST', `/api/admin/users/${userA.id}/warnings`, admin.id, { reason: 'LATE_OR_NO_SHOW' }))).warning;
+  a.license = await makeLicense(bag, userA.id, { status: 'PENDING', decidedAt: null });
 });
 
 afterAll(async () => {
@@ -128,6 +129,9 @@ const ATTEMPTS = [
   ['acknowledge A’s warning', 'PATCH', () => `/api/warnings/${a.warning.id}/acknowledge`],
   // Admin view of A (B is not an admin)
   ['open A’s admin record', 'GET', () => `/api/admin/users/${userA.id}`],
+  ['view A’s license photo', 'GET', () => `/api/admin/licenses/${a.license.id}/photo`],
+  ['approve A’s license', 'POST', () => `/api/admin/licenses/${a.license.id}/approve`],
+  ['reject A’s license', 'POST', () => `/api/admin/licenses/${a.license.id}/reject`, { reason: 'UNREADABLE' }],
 ];
 
 describe('user B cannot read, change or delete user A’s records', () => {

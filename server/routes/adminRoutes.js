@@ -11,6 +11,7 @@ const { requireSuperAdmin } = require('../middleware/requireSuperAdmin');
 const { authAttemptLimiter } = require('../middleware/rateLimit');
 const dataRequests = require('../controllers/admin/dataRequestController');
 const { strictBody } = require('../middleware/strictBody');
+const licenses = require('../controllers/admin/licenseController');
 
 const router = express.Router();
 router.use(requireAdmin);
@@ -30,6 +31,11 @@ router.post('/users/:id/unban', strictBody('admin.unban'), users.unban);
 // Only the superadmin appoints or removes admins (superadmin spec D6).
 router.post('/users/:id/promote', requireSuperAdmin, strictBody('admin.promote'), users.promote);
 router.post('/users/:id/demote', requireSuperAdmin, strictBody('admin.demote'), users.demote);
+
+router.get('/licenses', licenses.list);
+router.get('/licenses/:id/photo', licenses.photo);
+router.post('/licenses/:id/approve', strictBody('admin.licenseApprove'), licenses.approve);
+router.post('/licenses/:id/reject', strictBody('admin.licenseReject'), licenses.reject);
 
 router.get('/reports', reports.listReports);
 router.patch('/reports/:id', strictBody('admin.reviewReport'), reports.reviewReport);

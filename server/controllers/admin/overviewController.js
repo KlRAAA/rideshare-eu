@@ -63,13 +63,14 @@ async function ridesAverage7d(now) {
 }
 
 async function queues() {
-  const [openReports, highAlertReports, oldestReport, openTickets, safetyTickets, oldestTicket] = await Promise.all([
+  const [openReports, highAlertReports, oldestReport, openTickets, safetyTickets, oldestTicket, pendingLicenses] = await Promise.all([
     prisma.report.count({ where: { status: 'OPEN' } }),
     prisma.report.count({ where: { status: 'OPEN', category: { in: HIGH_ALERT_CATEGORIES } } }),
     prisma.report.findFirst({ where: { status: 'OPEN' }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } }),
     prisma.supportTicket.count({ where: { status: 'OPEN' } }),
     prisma.supportTicket.count({ where: { status: 'OPEN', category: 'SAFETY' } }),
     prisma.supportTicket.findFirst({ where: { status: 'OPEN' }, orderBy: { updatedAt: 'asc' }, select: { updatedAt: true } }),
+    prisma.driverLicense.count({ where: { status: 'PENDING' } }),
   ]);
   return {
     openReports,
@@ -78,6 +79,7 @@ async function queues() {
     openTickets,
     safetyTickets,
     oldestTicketAt: oldestTicket ? oldestTicket.updatedAt : null,
+    pendingLicenses,
   };
 }
 
@@ -134,14 +136,15 @@ async function overview(req, res) {
 // it stays to three cheap counts (the full overview is too heavy for that).
 async function navCounts(req, res) {
   const now = new Date();
-  const [openReports, openTickets, overdueDataPaperwork] = await Promise.all([
+  const [openReports, openTickets, pendingLicenses, overdueDataPaperwork] = await Promise.all([
     prisma.report.count({ where: { status: 'OPEN' } }),
     prisma.supportTicket.count({ where: { status: 'OPEN' } }),
+    prisma.driverLicense.count({ where: { status: 'PENDING' } }),
     req.user.isSuperAdmin
       ? prisma.dataRequest.count({ where: { paperworkReceivedAt: null, paperworkDueAt: { lt: now } } })
       : null,
   ]);
-  res.json({ openReports, openTickets, overdueDataPaperwork });
+  res.json({ openReports, openTickets, pendingLicenses, overdueDataPaperwork });
 }
 
 // GET /api/admin/watchlist
