@@ -30,7 +30,10 @@ const FEED_LIMIT = 20;
 // GET /api/alerts/feed?after=<ISO>&mode= (sub-project F): notifications newer
 // than the client's cursor, oldest first, plus the unread count for the badge.
 // Without `after` it only returns the count (the client's first poll).
+// `cursor` is the next `after`: the server's clock, so a phone with a wrong
+// clock never skips anything (or the newest row's time when the page was full).
 async function feed(req, res) {
+  const serverNow = new Date();
   const after = req.query.after ? new Date(req.query.after) : null;
   if (after && Number.isNaN(after.getTime())) return res.status(400).json({ error: 'INVALID_CURSOR' });
   const { where } = await modeWhere(req.user.id, modeOf(req));
@@ -40,7 +43,9 @@ async function feed(req, res) {
       : [],
     prisma.notification.count({ where: { ...where, isRead: false } }),
   ]);
-  res.json({ notifications, unreadCount });
+  const full = notifications.length === FEED_LIMIT;
+  const cursor = (full ? notifications[notifications.length - 1].createdAt : serverNow).toISOString();
+  res.json({ notifications, unreadCount, cursor });
 }
 
 async function list(req, res) {

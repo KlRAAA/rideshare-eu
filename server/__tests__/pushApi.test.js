@@ -97,7 +97,8 @@ test('the feed returns what is newer than the cursor, by mode, with the unread c
   const riding = await makeTrip(bag, other.id, (await makeVehicle(bag, other.id)).id);
 
   const first = await (await req('GET', '/api/alerts/feed?mode=passenger', me.id)).json();
-  expect(first).toEqual({ notifications: [], unreadCount: 0 });
+  expect(first).toMatchObject({ notifications: [], unreadCount: 0 });
+  expect(Number.isNaN(Date.parse(first.cursor))).toBe(false);
   const cursor = new Date(Date.now() - 1000).toISOString();
 
   const approval = await makeNotification(bag, me.id, { type: 'APPROVAL', relatedTripId: riding.id });
