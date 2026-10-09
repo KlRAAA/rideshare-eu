@@ -488,8 +488,12 @@ plan `docs/superpowers/plans/2026-10-09-driver-passenger-modes.md`.
   both; adds `otherModeUnread`. Without `mode` it's unchanged.
 - Web: `getCurrentUser` is React-`cache`d; the `/auth` layout (and `HelpShell`)
   wraps pages in `ModeProvider` (`useMode()`). `Header`/`BottomNav` render
-  `tabsFor(mode)` from `src/lib/modeNav.ts` (Passenger: Home, Find a Ride, My
-  Rides, Alerts, Profile; Driver: Home, Post a Trip, My Trips, Alerts, Profile).
+  `tabsFor(mode)` from `src/lib/modeNav.ts` (Passenger: Home, My Rides, Find a
+  Ride, Alerts, Profile; Driver: Home, My Trips, Post a Trip, Alerts, Profile).
+  The main action (`primary`) sits in the middle of the bottom bar as a filled
+  circle. Mode colours: Driver maroon (`--rsu-color-primary`), Passenger
+  Enverga gold (`--rsu-color-passenger` #8a6a00, `-soft`, `--rsu-on-passenger`;
+  lighter in dark mode). Green stays for success states only.
   `ModeSwitchButton` in the header ("To Driver") and Profile; `WrongModeNotice`
   on Find a Ride in Driver mode and Post a Trip in Passenger mode; the dashboard,
   My Trips/My Rides and Alerts show only the current mode. The onboarding tour
