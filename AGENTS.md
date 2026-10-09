@@ -672,3 +672,18 @@ plan `docs/superpowers/plans/2026-10-09-passenger-location.md`.
   recent rides), a "This month: …" card on the Driver-mode dashboard, a link in
   Profile. Helpers in `src/lib/driverSummary.ts`. Postman: folder "24. Driver
   summary".
+
+**I. Icons and tooltips (done, designed in chat):**
+- `src/components/Tip.tsx`: an icon or short value whose meaning shows in a
+  tooltip; mouse hover and keyboard focus (`:focus-visible` only, since a tap
+  also focuses) open it, a tap toggles it, a tap elsewhere or Escape closes it;
+  the text is always in the DOM (`aria-describedby`, `sr-only` when closed).
+  The bubble shifts back inside the screen (it sets the CSS `translate`
+  property: Tailwind v4's translate utilities use it, not `transform`).
+  `mode="wrap"` for elements that are already links/buttons (header icons);
+  `side="bottom"` along the top edge.
+- `TripFacts` (one row: time, date, repeats, seats, ₱/seat, car) and
+  `RuleChips` (Women+ / Familiar, explained in tooltips; `RuleBadges` renders
+  them) replace the stacked sentences on Find a Ride results and My Trips /
+  My Rides; the Trip details card uses icon rows with the label as tooltip.
+  Wording in `src/lib/tripFacts.ts`. Facts only: buttons keep their words.
