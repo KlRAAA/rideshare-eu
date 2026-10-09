@@ -474,7 +474,8 @@ plan `docs/superpowers/plans/2026-10-09-driver-passenger-modes.md`.
 - `User.activeMode` (`AppMode`: PASSENGER default | DRIVER), set by
   `PATCH /api/users/me/mode { mode }` (400 `INVALID_MODE`); returned only on
   your own `GET /api/users/:id`. A view setting: no API refuses a call because
-  of the caller's mode. Anyone can switch until sub-project E gates Driver mode.
+  of the caller's mode. Since E, posting a trip needs an approved license; the
+  mode switch itself stays open.
 - Overlap rule (`services/scheduleRules.js`, pure; DB side in
   `services/scheduleConflicts.js`): two trips clash when they share a PH day
   (one-time dates, `recurrenceRunsOnDay`, or shared weekdays) and their spans
@@ -538,3 +539,48 @@ plan `docs/superpowers/plans/2026-10-09-trip-days.md`.
   fixtures that need an open trip use a future departure.
 - Demo: Juan confirmed his first weekday and skips the second (Maria approved).
   Postman: folder "20. Trip days".
+
+**E. Driver's license verification (done):** spec `docs/superpowers/specs/2026-10-09-driver-license-design.md`,
+plan `docs/superpowers/plans/2026-10-09-driver-license.md`.
+- `DriverLicense`: one row per submission (PENDING / APPROVED / REJECTED,
+  type, expiry, last 4 of the number). Verified = newest APPROVED row not yet
+  expired (PH day), so a pending or rejected renewal doesn't lock out a driver
+  whose old license is still valid. Pure rules in `services/licenseRules.js`,
+  DB work in `services/licenseService.js`.
+- The photo is AES-256-GCM encrypted (`encryptBuffer`, `PII_ENCRYPTION_KEY`)
+  into `LICENSE_DIR` (`/data/licenses` on Railway; git-ignored
+  `storage/licenses` locally), never under the public `UPLOADS_DIR`. The photo
+  and the full number (encrypted) exist only while PENDING; a decision erases
+  both and deletes the file. Account deletion removes the user's licenses and
+  files. Rows are backed up, photos never.
+- Driver: `POST /api/users/me/license` (multipart `photo` + `licenseNumber`,
+  `licenseType`, `expiresOn`; 400 `INVALID_IMAGE` / `INVALID_LICENSE` with
+  `field` / `LICENSE_EXPIRED`, 409 `LICENSE_PENDING`), `GET` returns
+  `{ license, verified, canPost, reason }` without the photo or full number.
+- Gate: only `createTrip`, first thing: 403 `LICENSE_REQUIRED` /
+  `LICENSE_PENDING` / `LICENSE_REJECTED` / `LICENSE_EXPIRED`. Posted trips keep
+  running; nothing else is gated.
+- Admin (`/api/admin/licenses`, any admin): queue (oldest first, with the full
+  number), `GET /:id/photo` (decrypted, `no-store`, CORP `same-site`, only while
+  PENDING), `POST /:id/approve`, `POST /:id/reject { reason, note }` (OTHER
+  needs a note; ≤300). 409 `ALREADY_DECIDED`, 403 `CANNOT_TARGET_SELF`. Each
+  decision writes `LICENSE_APPROVED` / `LICENSE_REJECTED` (audit + notification)
+  and emails the driver. Nav badge and overview tile: `pendingLicenses`.
+- Jobs: daily 8 AM PH `sendLicenseExpiryReminders` (30 and 7 days before,
+  `LICENSE_EXPIRING`, deduped by day; skipped when a renewal is already
+  approved). `npm run notify-license-required` (one-time, rerunnable) sends
+  `LICENSE_REQUIRED` to hosts with no license.
+- Web: `/auth/license` (status card + upload form, hidden while pending),
+  sign-up "Will you drive?" → `/auth/license?welcome=1`, Post a Trip shows the
+  status card instead of the form until approved, Profile card, admin
+  "Driver licenses" page. Helpers in `src/lib/license.ts`. The site's CSP
+  allows images from the API origin (only set locally).
+- Tests: `makeUser` gives every test user an approved license unless
+  `licensed: false`; `makeLicense` adds one. `makeTrip` departs in a week by
+  default: a search settles past trips on the searched date (D), which used to
+  close other files' fixtures mid-run. Server tests run with a 15 s timeout.
+- Demo: Juan, Miguel, Ana, Carlo approved; Rico's (made-up sample photo) waits
+  in the queue. Postman: host and passenger approved, a fourth account
+  `postman-driver@test.local` (no license) for folder "21. Driver licenses".
+- Deploy: set `LICENSE_DIR=/data/licenses` on Railway first; afterwards run
+  `npm run notify-license-required` once.

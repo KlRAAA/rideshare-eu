@@ -110,6 +110,7 @@ once you've verified a domain you own.)
    | `PII_ENCRYPTION_KEY` | from step 0 |
    | `ORIGIN_SECRET` | from step 0 |
    | `UPLOADS_DIR` | `/data/uploads` |
+   | `LICENSE_DIR` | `/data/licenses` (driver's license photos: private, encrypted, never served publicly) |
    | `TRUST_PROXY` | `2` (check it in step 6) |
    | `CORS_ORIGIN` | your Vercel address, e.g. `https://rideshare-eu.vercel.app` (set after step 3) |
    | `BREVO_API_KEY` | from step 1 |
@@ -175,6 +176,13 @@ The production database starts empty, with no demo accounts.
    railway ssh
    npm run make-superadmin your.email@mseuf.edu.ph
    npm run make-admin other.admin@mseuf.edu.ph
+   ```
+
+3. Once, after the driver's license check ships (sub-project E): ask everyone
+   who has already hosted a trip to upload their license. Safe to rerun.
+
+   ```bash
+   railway ssh --service rideshare-eu npm run notify-license-required
    ```
 
 ## 6. Checks after the first deploy

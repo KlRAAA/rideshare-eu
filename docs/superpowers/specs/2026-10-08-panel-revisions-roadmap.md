@@ -28,7 +28,7 @@ Everything in the notes is in scope; there is no fixed deadline.
 | B | Trip lifecycle: `ONGOING` status and Start Trip, no cancelling once started, elapsed time, ETA, driver location only after start, location bug | 0a, §2, §3 | yes | **done 8 Oct** (spec + plan) |
 | C | Driver and passenger modes, strict per-role screens, overlapping-times rule | §1 | yes (activeMode) | **done 9 Oct** (spec + plan) |
 | D | Recurring trip days: per-date records, skip a date, advance confirmation, unconfirmed warning, no-show | 0b, §11 | yes | **done 9 Oct** (spec + plan) |
-| E | Driver's license upload at sign-up and admin verification before posting | §4 | yes | spec |
+| E | Driver's license upload at sign-up and admin verification before posting | §4 | yes | **done 9 Oct** (spec + plan) |
 | F | Noticeable notifications: in-app pop-up, sound, vibration; then Web Push | §6 | yes | spec |
 | G | Passenger location shared with the driver | §3 | maybe | spec, after B |
 | H | Driver dashboard and fuel-share "earnings" report | §9 | no | design in chat |
