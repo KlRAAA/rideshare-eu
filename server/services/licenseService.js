@@ -10,6 +10,8 @@ const { validateLicenseInput, licenseStateFrom, REJECT_REASONS, MAX_REJECT_NOTE 
 const { record } = require('./adminActionService');
 const { sendLicenseDecisionEmail } = require('./emailService');
 const { phDateOnly } = require('./recurrenceMath');
+const { licenseChecks } = require('./licenseChecks');
+const { readText, ocrEnabled, enqueue } = require('./licenseOcr');
 
 // What the driver may see of their own license: never the photo or full number.
 const PUBLIC_FIELDS = {
@@ -22,6 +24,8 @@ const PUBLIC_FIELDS = {
   decidedAt: true,
   rejectReason: true,
   rejectNote: true,
+  checkedAt: true,
+  autoApproved: true,
 };
 
 function licenseRows(userId) {
@@ -61,6 +65,7 @@ async function submitLicense(userId, file, fields, now = new Date()) {
       data: { userId, licenseType, expiresOn, numberEnc: encryptField(number), numberLast4: last4, photoFile },
       select: PUBLIC_FIELDS,
     });
+    scheduleLicenseCheck(license.id);
     return { status: 201, body: { license } };
   } catch (err) {
     removeLicenseFile(photoFile);
@@ -92,14 +97,16 @@ async function pendingLicenses() {
     licenseNumber: r.numberEnc ? decryptField(r.numberEnc) : null,
     expiresOn: r.expiresOn,
     submittedAt: r.submittedAt,
+    checks: r.checks,
     user: decryptUserFields(r.user),
   }));
 }
 
 // The decrypted photo of a license still under review, or null.
 async function licensePhoto(id) {
-  const row = await prisma.driverLicense.findUnique({ where: { id }, select: { status: true, photoFile: true } });
-  if (!row || row.status !== 'PENDING' || !row.photoFile) return null;
+  const row = await prisma.driverLicense.findUnique({ where: { id }, select: { status: true, photoFile: true, autoApproved: true } });
+  const viewable = row && row.photoFile && (row.status === 'PENDING' || (row.status === 'APPROVED' && row.autoApproved));
+  if (!viewable) return null;
   const file = path.join(LICENSE_DIR, path.basename(row.photoFile));
   if (!fs.existsSync(file)) return null;
   const image = decryptBuffer(fs.readFileSync(file));
@@ -232,7 +239,166 @@ async function notifyLicenseRequired({ userIds } = {}) {
   return users.length;
 }
 
+// ---- Automatic check (OCR) ----
+
+const SPOT_CHECK_MS = 7 * DAY_MS;
+
+function scheduleLicenseCheck(id) {
+  if (!ocrEnabled()) return;
+  enqueue(() => checkLicense(id)).catch((err) => console.error(`[licenses] check failed: ${err.message}`));
+}
+
+// Reads the photo, compares it with what the driver typed, and approves the
+// license when every check passes. Only the yes/no results are stored, never
+// the text read from the photo.
+async function checkLicense(id, now = new Date()) {
+  const row = await prisma.driverLicense.findUnique({
+    where: { id },
+    include: { user: { select: { email: true, fullName: true } } },
+  });
+  if (!row || row.status !== 'PENDING' || !row.photoFile || !row.numberEnc) return;
+  let checks;
+  try {
+    const image = decryptBuffer(fs.readFileSync(path.join(LICENSE_DIR, path.basename(row.photoFile))));
+    const text = await readText(image);
+    checks = licenseChecks(text, {
+      fullName: decryptField(row.user.fullName),
+      number: decryptField(row.numberEnc),
+      expiresOn: row.expiresOn,
+      licenseType: row.licenseType,
+    });
+  } catch {
+    checks = { unreadable: true, passed: false };
+  }
+  if (!checks.passed) {
+    await prisma.driverLicense.updateMany({ where: { id, status: 'PENDING' }, data: { checks, checkedAt: now } });
+    return;
+  }
+  const approved = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.driverLicense.updateMany({
+      where: { id, status: 'PENDING' },
+      data: {
+        status: 'APPROVED',
+        decidedAt: now,
+        decidedById: null,
+        autoApproved: true,
+        checks,
+        checkedAt: now,
+        photoKeepUntil: new Date(now.getTime() + SPOT_CHECK_MS),
+      },
+    });
+    if (count === 0) return false;
+    await tx.notification.create({
+      data: { userId: row.userId, type: 'LICENSE_APPROVED', message: "Your driver's license is approved. You can post trips." },
+    });
+    await record(tx, { actorId: null, action: 'LICENSE_APPROVED', targetUserId: row.userId, details: { licenseId: id, automatic: true } });
+    return true;
+  });
+  if (!approved) return;
+  try {
+    await sendLicenseDecisionEmail(row.user.email, { approved: true });
+  } catch (err) {
+    console.error(`[licenses] approval email failed: ${err.message}`);
+  }
+}
+
+// Uploads the server never got to check (a restart, the demo seed): check them now.
+async function checkUncheckedLicenses() {
+  if (!ocrEnabled()) return 0;
+  const rows = await prisma.driverLicense.findMany({
+    where: { status: 'PENDING', checkedAt: null, photoFile: { not: null } },
+    select: { id: true },
+  });
+  for (const { id } of rows) scheduleLicenseCheck(id);
+  return rows.length;
+}
+
+// Automatic approvals of the last 7 days, newest first, for admin spot-checks.
+async function recentAutoApproved() {
+  const rows = await prisma.driverLicense.findMany({
+    where: { status: 'APPROVED', autoApproved: true, photoFile: { not: null } },
+    orderBy: { decidedAt: 'desc' },
+    include: { user: { select: { id: true, fullName: true, universityId: true } } },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    licenseType: r.licenseType,
+    licenseNumber: r.numberEnc ? decryptField(r.numberEnc) : null,
+    expiresOn: r.expiresOn,
+    decidedAt: r.decidedAt,
+    photoKeepUntil: r.photoKeepUntil,
+    checks: r.checks,
+    user: decryptUserFields(r.user),
+  }));
+}
+
+// Withdraws an approval (a spot-check found a problem). The driver must upload again.
+async function revokeLicense(id, adminId, { reason, note }, now = new Date()) {
+  if (!REJECT_REASONS.includes(reason)) return bad(400, { error: 'INVALID_REASON' });
+  const cleanNote = typeof note === 'string' && note.trim() ? note.trim() : null;
+  if (reason === 'OTHER' && !cleanNote) return bad(400, { error: 'NOTE_REQUIRED' });
+  if (cleanNote && cleanNote.length > MAX_REJECT_NOTE) return bad(400, { error: 'NOTE_TOO_LONG' });
+  const row = await prisma.driverLicense.findUnique({ where: { id }, include: { user: { select: { email: true } } } });
+  if (!row) return bad(404, { error: 'LICENSE_NOT_FOUND' });
+  if (row.userId === adminId) return bad(403, { error: 'CANNOT_TARGET_SELF' });
+  const done = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.driverLicense.updateMany({
+      where: { id, status: 'APPROVED' },
+      data: {
+        status: 'REJECTED',
+        rejectReason: reason,
+        rejectNote: cleanNote,
+        decidedAt: now,
+        decidedById: adminId,
+        photoFile: null,
+        numberEnc: null,
+        photoKeepUntil: null,
+      },
+    });
+    if (count === 0) return false;
+    await tx.notification.create({
+      data: {
+        userId: row.userId,
+        type: 'LICENSE_REJECTED',
+        message: `Your driver's license approval was withdrawn: ${REASON_TEXT[reason]}.${cleanNote ? ` ${cleanNote}` : ''} Upload it again to post trips.`,
+      },
+    });
+    await record(tx, { actorId: adminId, action: 'LICENSE_REVOKED', targetUserId: row.userId, details: { licenseId: id, reason, note: cleanNote } });
+    return true;
+  });
+  if (!done) return bad(409, { error: 'NOT_APPROVED' });
+  removeLicenseFile(row.photoFile);
+  try {
+    await sendLicenseDecisionEmail(row.user.email, { approved: false, reasonLabel: REASON_TEXT[reason], note: cleanNote });
+  } catch (err) {
+    console.error(`[licenses] revoke email failed: ${err.message}`);
+  }
+  return { status: 200, body: { status: 'REJECTED' } };
+}
+
+// Daily: spot-check photos older than 7 days are deleted, with the full number.
+async function purgeSpotCheckPhotos(now = new Date()) {
+  const rows = await prisma.driverLicense.findMany({
+    where: { photoKeepUntil: { lt: now } },
+    select: { id: true, photoFile: true },
+  });
+  for (const r of rows) removeLicenseFile(r.photoFile);
+  if (rows.length) {
+    await prisma.driverLicense.updateMany({
+      where: { id: { in: rows.map((r) => r.id) } },
+      data: { photoFile: null, numberEnc: null, photoKeepUntil: null },
+    });
+  }
+  return rows.length;
+}
+
 module.exports = {
+  scheduleLicenseCheck,
+  checkLicense,
+  checkUncheckedLicenses,
+  recentAutoApproved,
+  revokeLicense,
+  purgeSpotCheckPhotos,
   sendLicenseExpiryReminders,
   notifyLicenseRequired,
   licenseState,

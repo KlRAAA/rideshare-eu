@@ -136,6 +136,7 @@ const SCHEMAS = {
   'admin.licenseApprove': NONE,
   'match.locationSharing': { on: 'boolean' },
   'admin.licenseReject': { reason: 'string', note: 'string' },
+  'admin.licenseRevoke': { reason: 'string', note: 'string' },
   'push.subscribe': { endpoint: 'string', expirationTime: 'number', keys: { p256dh: 'string', auth: 'string' } },
   'push.unsubscribe': { endpoint: 'string' },
   'user.license': { licenseNumber: 'string', licenseType: 'string', expiresOn: 'string' },

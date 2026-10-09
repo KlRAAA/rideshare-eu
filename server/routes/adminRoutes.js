@@ -33,9 +33,11 @@ router.post('/users/:id/promote', requireSuperAdmin, strictBody('admin.promote')
 router.post('/users/:id/demote', requireSuperAdmin, strictBody('admin.demote'), users.demote);
 
 router.get('/licenses', licenses.list);
+router.get('/licenses/recent-auto', licenses.recentAuto);
 router.get('/licenses/:id/photo', licenses.photo);
 router.post('/licenses/:id/approve', strictBody('admin.licenseApprove'), licenses.approve);
 router.post('/licenses/:id/reject', strictBody('admin.licenseReject'), licenses.reject);
+router.post('/licenses/:id/revoke', strictBody('admin.licenseRevoke'), licenses.revoke);
 
 router.get('/reports', reports.listReports);
 router.patch('/reports/:id', strictBody('admin.reviewReport'), reports.reviewReport);

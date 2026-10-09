@@ -96,6 +96,7 @@ enum AdminActionType {
   WARNING_ISSUED
   LICENSE_APPROVED
   LICENSE_REJECTED
+  LICENSE_REVOKED
 }
 
 enum WarningReason {
@@ -678,6 +679,12 @@ model DriverLicense {
   decidedById  String? // plain id, like AdminAction's, so it survives account deletion
   rejectReason LicenseRejectReason?
   rejectNote   String?
+  // Automatic check (OCR): the five results, when they ran, whether it approved
+  // the license, and until when an auto-approved photo is kept for spot-checks.
+  checks         Json?
+  checkedAt      DateTime?
+  autoApproved   Boolean   @default(false)
+  photoKeepUntil DateTime?
 
   @@index([userId, submittedAt])
   @@index([status, submittedAt])

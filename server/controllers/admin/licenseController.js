@@ -1,4 +1,4 @@
-const { pendingLicenses, licensePhoto, decideLicense } = require('../../services/licenseService');
+const { pendingLicenses, licensePhoto, decideLicense, recentAutoApproved, revokeLicense } = require('../../services/licenseService');
 
 // Driver's license review (sub-project E).
 async function list(req, res) {
@@ -26,4 +26,15 @@ async function reject(req, res) {
   res.status(status).json(body);
 }
 
-module.exports = { list, photo, approve, reject };
+// Automatic approvals still within their 7-day spot-check window.
+async function recentAuto(req, res) {
+  res.json({ licenses: await recentAutoApproved() });
+}
+
+async function revoke(req, res) {
+  const { reason, note } = req.body || {};
+  const { status, body } = await revokeLicense(req.params.id, req.user.id, { reason, note });
+  res.status(status).json(body);
+}
+
+module.exports = { list, photo, approve, reject, recentAuto, revoke };

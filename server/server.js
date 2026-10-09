@@ -22,11 +22,13 @@ const app = require('./app');
 const { sendDueReminders } = require('./services/reminderService');
 const { endOverdueRuns } = require('./services/tripRunService');
 const { runDaySteps } = require('./services/tripDayService');
-const { sendLicenseExpiryReminders } = require('./services/licenseService');
+const { sendLicenseExpiryReminders, checkUncheckedLicenses, purgeSpotCheckPhotos } = require('./services/licenseService');
 const { createWebPushSender, sendPendingPushes } = require('./services/pushService');
 const { clearStaleRiderLocations } = require('./services/riderLocationService');
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`RideShareEU API listening on :${PORT}`));
+// Licenses uploaded while the server was down get their automatic check now.
+if (process.env.NODE_ENV !== 'test') checkUncheckedLicenses().catch(() => {});
 
 // Off during tests (Jest never boots this file, but guarding keeps a stray
 // `require` side-effect-free) — the only in-process scheduler in the app, so
@@ -36,6 +38,7 @@ if (process.env.NODE_ENV !== 'test') {
     sendDueReminders().catch((err) => console.error(`[reminders] run failed: ${err.message}`));
     endOverdueRuns().catch((err) => console.error(`[trip runs] auto-end failed: ${err.message}`));
     runDaySteps().catch((err) => console.error(`[trip days] steps failed: ${err.message}`));
+    checkUncheckedLicenses().catch((err) => console.error(`[licenses] sweep failed: ${err.message}`));
     clearStaleRiderLocations().catch((err) => console.error(`[rider locations] cleanup failed: ${err.message}`));
   });
 
@@ -60,6 +63,7 @@ if (process.env.NODE_ENV !== 'test') {
     '0 8 * * *',
     () => {
       sendLicenseExpiryReminders().catch((err) => console.error(`[licenses] reminders failed: ${err.message}`));
+      purgeSpotCheckPhotos().catch((err) => console.error(`[licenses] photo purge failed: ${err.message}`));
     },
     { timezone: 'Asia/Manila' }
   );
