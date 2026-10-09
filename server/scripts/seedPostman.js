@@ -21,7 +21,7 @@ const prisma = require('../config/db');
 const { encryptField } = require('../services/encryptionService');
 
 const ENV_FILE = path.join(__dirname, '..', '..', 'postman', 'local.postman_environment.json');
-const { AVATAR_DIR } = require('../config/uploads');
+const { AVATAR_DIR, LICENSE_DIR } = require('../config/uploads');
 const BCRYPT_ROUNDS = 10;
 
 function readEnvironment() {
@@ -89,6 +89,12 @@ async function removeExisting(emails) {
   await prisma.dataRequest.deleteMany({
     where: { OR: [{ createdById: { in: userIds } }, { subjectUserId: { in: userIds } }] },
   });
+  const licenses = await prisma.driverLicense.findMany({
+    where: { OR: [{ userId: { in: userIds } }, { decidedById: { in: userIds } }] },
+    select: { id: true, photoFile: true },
+  });
+  for (const { photoFile } of licenses) if (photoFile) fs.rmSync(path.join(LICENSE_DIR, photoFile), { force: true });
+  await prisma.driverLicense.deleteMany({ where: { id: { in: licenses.map((l) => l.id) } } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 
   for (const { avatarUrl } of users) {
@@ -119,7 +125,7 @@ async function createUser({ email, password, fullName, universityId, gender = 'M
 
 async function main() {
   const env = readEnvironment();
-  await removeExisting([env.hostEmail, env.passengerEmail, env.adminEmail]);
+  await removeExisting([env.hostEmail, env.passengerEmail, env.adminEmail, env.driverEmail]);
 
   const host = await createUser({
     email: env.hostEmail,
@@ -141,8 +147,21 @@ async function main() {
     universityId: 'POSTMAN-ADMIN',
   });
   await prisma.user.update({ where: { id: admin.id }, data: { isAdmin: true, isSuperAdmin: true } });
+  // Host and passenger may post trips (folder 19's passenger posts to reach the
+  // schedule check); the driver has no license, for "21. Driver licenses".
+  for (const userId of [host.id, passenger.id]) {
+    await prisma.driverLicense.create({
+      data: { userId, status: 'APPROVED', licenseType: 'NON_PROFESSIONAL', numberLast4: '0000', expiresOn: new Date('2030-12-31T00:00:00Z'), decidedAt: new Date() },
+    });
+  }
+  const driver = await createUser({
+    email: env.driverEmail,
+    password: env.driverPassword,
+    fullName: 'Postman Driver',
+    universityId: 'POSTMAN-DRIVER',
+  });
 
-  console.log(`Seeded Postman accounts: host ${host.email}, passenger ${passenger.email}, admin ${admin.email}`);
+  console.log(`Seeded Postman accounts: host ${host.email}, passenger ${passenger.email}, admin ${admin.email}, driver ${driver.email}`);
 }
 
 main()

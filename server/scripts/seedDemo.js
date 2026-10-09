@@ -11,6 +11,8 @@
 // Every demo account signs in with DEMO_PASSWORD below.
 
 require('dotenv').config({ quiet: true });
+const path = require('path');
+const fs = require('fs');
 // Never email anyone from demo data (placeholder addresses on a real domain).
 process.env.SMTP_HOST = '';
 const bcrypt = require('bcrypt');
@@ -61,8 +63,49 @@ function assertDemoDatabase() {
 // Every table, children first: the shared backup list (parents first),
 // reversed, so a new table can't be missed here.
 const MODELS = require('../../scripts/backupModels.cjs');
+const { LICENSE_DIR } = require('../config/uploads');
+const { submitLicense } = require('../services/licenseService');
+
+// A made-up license-shaped picture for the admin queue (no real details):
+// a pale card with a dark header band, a photo box and grey text lines.
+function sampleLicensePng(width = 480, height = 300) {
+  const zlib = require('zlib');
+  const raw = Buffer.alloc((width * 3 + 1) * height);
+  for (let y = 0; y < height; y++) {
+    raw[y * (width * 3 + 1)] = 0; // no filter
+    for (let x = 0; x < width; x++) {
+      let rgb = [226, 236, 246];
+      if (y < 54) rgb = [24, 58, 112];
+      else if (x > 24 && x < 144 && y > 78 && y < 228) rgb = [176, 186, 198];
+      else if (x > 170 && x < 440 && [96, 132, 168, 204].some((t) => y > t && y < t + 12)) rgb = [150, 160, 172];
+      raw.set(rgb, y * (width * 3 + 1) + 1 + x * 3);
+    }
+  }
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(zlib.crc32(body));
+    return Buffer.concat([len, body, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr.set([8, 2, 0, 0, 0], 8); // 8-bit RGB
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', zlib.deflateSync(raw)),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
 
 async function wipe() {
+  // License photos live on disk; remove those of the rows about to go.
+  for (const { photoFile } of await prisma.driverLicense.findMany({ where: { photoFile: { not: null } }, select: { photoFile: true } })) {
+    fs.rmSync(path.join(LICENSE_DIR, photoFile), { force: true });
+  }
   for (const model of [...MODELS].reverse()) await prisma[model].deleteMany();
 }
 
@@ -241,6 +284,20 @@ async function main() {
     await prisma.user.updateMany({
       where: { id: { in: [u.juan.id, u.miguel.id, u.ana.id, u.carlo.id] } },
       data: { activeMode: 'DRIVER' },
+    });
+    // Driver's licenses (sub-project E): the four drivers are approved; Rico's
+    // waits in the admin queue with a made-up sample photo.
+    const drivers = [['juan', '1001'], ['miguel', '1004'], ['ana', '1002'], ['carlo', '1003']];
+    for (const [name, last4] of drivers) {
+      await prisma.driverLicense.create({
+        data: {
+          userId: u[name].id, status: 'APPROVED', licenseType: 'NON_PROFESSIONAL', numberLast4: last4,
+          expiresOn: new Date('2029-06-30T00:00:00Z'), decidedAt: new Date(), decidedById: u.carlo.id,
+        },
+      });
+    }
+    await submitLicense(u.rico.id, { buffer: sampleLicensePng() }, {
+      licenseNumber: 'D00-00-000000', licenseType: 'NON_PROFESSIONAL', expiresOn: '2030-08-15',
     });
 
     for (const [fuelType, pricePerLiter] of Object.entries(FUEL_PRICES)) {
