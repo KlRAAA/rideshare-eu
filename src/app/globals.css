@@ -88,6 +88,11 @@ h1,h2,h3,h4,h5,h6 {
    ------------------------------------------------------------------- */
 :root {
 	--rsu-color-primary: #800000;
+	/* Passenger mode: Enverga gold (maroon is Driver mode). Deeper and browner
+	   than the amber used for warnings, and 5:1 on white. */
+	--rsu-color-passenger: #8a6a00;
+	--rsu-color-passenger-soft: #fbf3d6;
+	--rsu-on-passenger: #ffffff;
 	--color-primary-hover: color-mix(in srgb, var(--rsu-color-primary) 82%, black);
 	--color-mix-base: #ffffff;
 	--color-surface: #f9fafb;       /* page background — was bg-gray-50 */
@@ -110,6 +115,9 @@ h1,h2,h3,h4,h5,h6 {
    maroon-branded, not the identical hex in both modes. */
 [data-theme="dark"] {
 	--rsu-color-primary: #c2455a;
+	--rsu-color-passenger: #e3b341;
+	--rsu-color-passenger-soft: rgba(227, 179, 65, 0.15);
+	--rsu-on-passenger: #1f1700;
 	--color-primary-hover: color-mix(in srgb, var(--rsu-color-primary) 82%, white);
 	--color-mix-base: #000000;
 	--color-surface: #0d0d0f;

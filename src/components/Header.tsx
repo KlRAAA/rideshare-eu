@@ -54,7 +54,7 @@ export default function Header({ active, unreadCount: pageUnread = 0 }: HeaderPr
         <div className="flex items-center gap-1.5 shrink-0">
           <span
             className={`hidden sm:inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-              mode === 'DRIVER' ? 'bg-[color:var(--rsu-color-primary)]/10 text-[color:var(--rsu-color-primary)]' : 'bg-emerald-50 text-emerald-700'
+              mode === 'DRIVER' ? 'bg-[color:var(--rsu-color-primary)]/10 text-[color:var(--rsu-color-primary)]' : 'bg-[color:var(--rsu-color-passenger-soft)] text-[color:var(--rsu-color-passenger)]'
             }`}
           >
             {modeLabel(mode)}

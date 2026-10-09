@@ -76,7 +76,7 @@ export default function RiderLocationCard({ tripId, matchId, initialOn, departur
     <section aria-label="Share my location" className="rsu-card space-y-2">
       <label className="flex items-center justify-between gap-3">
         <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
-          <FaLocationArrow className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+          <FaLocationArrow className="h-3.5 w-3.5 text-[color:var(--rsu-color-passenger)]" aria-hidden />
           Share my location with the driver before pickup
         </span>
         <input
@@ -85,7 +85,7 @@ export default function RiderLocationCard({ tripId, matchId, initialOn, departur
           checked={on}
           disabled={busy}
           onChange={(e) => toggle(e.target.checked)}
-          className="h-5 w-5 shrink-0 accent-emerald-700"
+          className="h-5 w-5 shrink-0 accent-[color:var(--rsu-color-passenger)]"
         />
       </label>
       <p className="text-sm text-gray-600" role="status">
