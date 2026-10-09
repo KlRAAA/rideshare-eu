@@ -31,7 +31,7 @@ Everything in the notes is in scope; there is no fixed deadline.
 | E | Driver's license upload at sign-up and admin verification before posting | §4 | yes | **done 9 Oct** (spec + plan) |
 | F | Noticeable notifications: in-app pop-up, sound, vibration; then Web Push | §6 | yes | **done 9 Oct** (spec + plan) |
 | G | Passenger location shared with the driver | §3 | yes (Match columns) | **done 9 Oct** (spec + plan) |
-| H | Driver dashboard and fuel-share "earnings" report | §9 | no | design in chat |
+| H | Driver dashboard and fuel-share "earnings" report | §9 | yes (TripRun counts) | **done 9 Oct** (design in chat) |
 | I | Icons with tooltips (tap fallback on touch screens) | §8 | no | design in chat |
 | J | 200-concurrent-user performance: reproduce, find the bottleneck (each search loads every open trip), fix | §12 | no | design in chat |
 | K | Research and manuscript: automated fuel-price source (DOE), fee/markup cost model, cookie and cache usage, human-centered design justification | §10, §13 | no | documents |

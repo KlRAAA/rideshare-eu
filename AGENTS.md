@@ -654,3 +654,21 @@ plan `docs/superpowers/plans/2026-10-09-passenger-location.md`.
   Helpers in `src/lib/riderLocation.ts`.
 - Postman: folder "23. Rider location". Demo: Paolo is approved on Miguel's
   trip that leaves 10 minutes after seeding.
+
+**H. Driver dashboard (done, designed in chat):**
+- "Earnings" = fuel share the app showed riders; the app never handles money,
+  and the page says so.
+- `TripRun.riderCount` / `fuelShareTotal` are saved by `finishRun` (End Trip,
+  arrived, auto end) from the riders approved then (`fuelShareAmount`, else the
+  trip's `fuelSharePerSeat`).
+- `GET /api/driver/summary?period=week|month|all` (default month, 400
+  `INVALID_PERIOD`; your own trips only) → `{ totals: { rides, riders,
+  fuelShare }, weeks (last 12 PH weeks, Monday starts), recent (20) }`
+  (`services/driverSummaryService.js`). A ride is a completed recurring day
+  with riders, or a completed one-time trip with completed riders; recurring
+  days from before the counts existed use today's approved riders and are
+  flagged `estimated`.
+- Web: `/auth/driver` "My driving" (period tabs, three tiles, CSS bar chart,
+  recent rides), a "This month: …" card on the Driver-mode dashboard, a link in
+  Profile. Helpers in `src/lib/driverSummary.ts`. Postman: folder "24. Driver
+  summary".
