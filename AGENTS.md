@@ -584,3 +584,46 @@ plan `docs/superpowers/plans/2026-10-09-driver-license.md`.
   `postman-driver@test.local` (no license) for folder "21. Driver licenses".
 - Deploy: set `LICENSE_DIR=/data/licenses` on Railway first; afterwards run
   `npm run notify-license-required` once.
+
+**F. Noticeable notifications (done):** spec `docs/superpowers/specs/2026-10-09-loud-notifications-design.md`,
+plan `docs/superpowers/plans/2026-10-09-loud-notifications.md`.
+- Loud types (`LOUD_TYPES`, server `services/pushService.js`, web mirror
+  `src/lib/loudNotifications.ts`): MATCH_REQUEST, APPROVAL (approved,
+  declined and "filled up" all use it), CANCELLATION, TRIP_STARTED, MESSAGE,
+  CONFIRM_REQUEST, DRIVER_UNCONFIRMED, DRIVER_LATE, DRIVER_NO_SHOW,
+  TRIP_SKIPPED, LICENSE_APPROVED, LICENSE_REJECTED, DRIVER_ARRIVING. The rest
+  are badge-only.
+- Push outbox: `Notification.pushedAt`; `sendPendingPushes` (every 10 s in
+  `server.js`, overlap-guarded, only when `VAPID_PUBLIC_KEY`,
+  `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` are set) sends loud notifications from
+  the last 10 minutes once to each `PushSubscription` (TTL 600 s, urgency
+  high), deletes subscriptions answered 404/410, then stamps `pushedAt`. No
+  call site creates pushes itself. Tests pass a fake `send` and `userIds`.
+- `/api/push`: `GET /key`, `POST /subscriptions` (the browser's
+  `subscription.toJSON()`; https only; an endpoint moves to the newest account;
+  10 per user, oldest dropped; 400 `INVALID_SUBSCRIPTION`), `DELETE
+  /subscriptions { endpoint }` (own only, always 204). Account deletion removes
+  them.
+- `GET /api/alerts/feed?after=&mode=` → `{ notifications, unreadCount, cursor }`
+  (max 20 newer than `after`, oldest first; `cursor` is the server's clock, so a
+  phone's wrong clock can't skip anything; 400 `INVALID_CURSOR`).
+- Driver arriving: `tripRunController.updateLocation` → `notifyArrivingOnce`:
+  within 1 km (`services/arrivalRules.js`) of the meeting point, else the
+  origin; approved riders; once per trip and run day (`occurrenceDate`).
+- Web: `NotificationFeed` (in the `/auth` layout and `HelpShell`) polls every
+  20 s and on focus, feeds `useLiveUnread()` to `Header`/`BottomNav`, and for
+  loud types shows a pop-up, plays a Web Audio chime (after the first tap) and
+  vibrates (Android). No chat pop-up on that trip's own page. "Sounds and
+  vibration" is per device (`localStorage` `rsu.sound`).
+- Phone: `public/sw.js` shows pushes (chat grouped per trip, "N new
+  messages", sound at most once a minute) and opens the link on tap;
+  `src/app/manifest.ts` + `public/icons/` make the site installable (needed for
+  iPhone push, iOS 16.4+, from the Home Screen). `PushCard` ("Phone
+  notifications") on the dashboard (dismissable) and Profile (with Turn off and
+  the sound switch); `src/lib/push.ts` subscribes.
+- Testing push without a phone: Chrome DevTools protocol
+  `ServiceWorker.deliverPushMessage` drives `sw.js`; headless browsers refuse
+  `pushManager.subscribe`, so real delivery is checked on a phone.
+- Local dev: generate keys with `npx web-push generate-vapid-keys` into `.env`
+  (git-ignored). Postman: folder "22. Notifications".
+- Deploy: set the three VAPID variables on Railway (the website needs none).
