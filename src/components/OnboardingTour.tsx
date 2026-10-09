@@ -13,11 +13,11 @@ import { apiFetch } from '@/lib/api';
 const STEPS: Step[] = [
   {
     target: '[data-tour="main-nav"]',
-    content: 'These are your tabs. You start in Passenger mode: Home, Find a Ride, My Rides, Alerts and Profile.',
+    content: 'These are your tabs. You start in Passenger mode: Home, My Rides, Find a Ride in the middle, Alerts and Profile.',
   },
   {
     target: '[data-tour="mode-switch"]',
-    content: 'Driving somewhere? Switch to Driver mode here to post a trip, approve riders and start your trip. Switch back any time.',
+    content: 'Driving somewhere? Tap Driver here to post a trip, approve riders and start your trip. Tap Passenger to switch back any time.',
   },
   {
     target: '[data-tour="find-ride"]',

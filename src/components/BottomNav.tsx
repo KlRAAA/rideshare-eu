@@ -22,15 +22,13 @@ const ICONS: Record<TabKey, React.ComponentType<{ className?: string }>> = {
   profile: FaUser,
 };
 
-// The current mode's five tabs (sub-project C). The active tab is maroon in
-// Driver mode and Enverga gold in Passenger mode, so the mode is visible at a glance.
+// The current mode's five tabs (sub-project C), the main action in the middle.
+// Maroon in both modes; the tabs themselves and Home's mode switch show the mode.
 export default function BottomNav({ active, unreadCount: pageUnread = 0 }: BottomNavProps) {
   const mode = useMode();
   // The live count once the feed has polled; the page's own count until then.
   const unreadCount = useLiveUnread() ?? pageUnread;
-  const activeClass = mode === 'DRIVER' ? 'text-[color:var(--rsu-color-primary)]' : 'text-[color:var(--rsu-color-passenger)]';
-  const primaryBg =
-    mode === 'DRIVER' ? 'bg-[color:var(--rsu-color-primary)] text-white' : 'bg-[color:var(--rsu-color-passenger)] text-[color:var(--rsu-on-passenger)]';
+  const activeClass = 'text-[color:var(--rsu-color-primary)]';
   return (
     <nav className="rsu-bottom-nav md:hidden">
       {tabsFor(mode).map(({ key, href, label, primary }) => {
@@ -38,11 +36,12 @@ export default function BottomNav({ active, unreadCount: pageUnread = 0 }: Botto
         const isActive = key === active;
         return (
           <Link key={key} href={href} className={isActive ? activeClass : 'text-gray-400 hover:text-gray-600'}>
-            <span className="relative">
+            {/* Every icon sits in the same 32 px slot, so the labels line up. */}
+            <span className="relative flex h-8 items-center justify-center">
               {primary ? (
-                // The mode's main action stands out in the middle: a filled circle in the mode colour.
-                <span className={`-mt-1 flex h-9 w-9 items-center justify-center rounded-full shadow-md ${primaryBg}`}>
-                  <Icon className="w-4 h-4" />
+                // The mode's main action: a filled maroon circle the size of the slot.
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--rsu-color-primary)] text-white shadow-sm">
+                  <Icon className="w-3.5 h-3.5" />
                 </span>
               ) : (
                 <Icon className="w-5 h-5" />

@@ -6,11 +6,10 @@ import { FaBell } from 'react-icons/fa';
 import Logo from './Logo';
 import Wordmark from './Wordmark';
 import ThemeToggle from './ThemeToggle';
-import ModeSwitchButton from './ModeSwitchButton';
 import { useMode } from './ModeProvider';
 import { useLiveUnread } from './NotificationFeed';
 import Tip from './Tip';
-import { modeLabel, tabsFor } from '@/lib/modeNav';
+import { tabsFor } from '@/lib/modeNav';
 
 export type ActiveRoute = 'dashboard' | 'trips' | 'search' | 'post' | 'notifications' | 'profile' | 'help';
 
@@ -52,16 +51,6 @@ export default function Header({ active, unreadCount: pageUnread = 0 }: HeaderPr
         </nav>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <span
-            className={`hidden sm:inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-              mode === 'DRIVER' ? 'bg-[color:var(--rsu-color-primary)]/10 text-[color:var(--rsu-color-primary)]' : 'bg-[color:var(--rsu-color-passenger-soft)] text-[color:var(--rsu-color-passenger)]'
-            }`}
-          >
-            {modeLabel(mode)}
-          </span>
-          <span data-tour="mode-switch">
-            <ModeSwitchButton compact />
-          </span>
           <Tip label="Light or dark mode" mode="wrap" side="bottom">
             <ThemeToggle />
           </Tip>

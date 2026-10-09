@@ -490,11 +490,13 @@ plan `docs/superpowers/plans/2026-10-09-driver-passenger-modes.md`.
   wraps pages in `ModeProvider` (`useMode()`). `Header`/`BottomNav` render
   `tabsFor(mode)` from `src/lib/modeNav.ts` (Passenger: Home, My Rides, Find a
   Ride, Alerts, Profile; Driver: Home, My Trips, Post a Trip, Alerts, Profile).
-  The main action (`primary`) sits in the middle of the bottom bar as a filled
-  circle. Mode colours: Driver maroon (`--rsu-color-primary`), Passenger
-  Enverga gold (`--rsu-color-passenger` #8a6a00, `-soft`, `--rsu-on-passenger`;
-  lighter in dark mode). Green stays for success states only.
-  `ModeSwitchButton` in the header ("To Driver") and Profile; `WrongModeNotice`
+  The main action (`primary`) sits in the middle of the bottom bar as a 32 px
+  maroon circle (every icon has the same 32 px slot, so labels line up). Maroon
+  in both modes; green is for success states only.
+  `ModeSegmented` ("Passenger | Driver" radio group, current filled) on Home
+  under the welcome and in Profile; the header has no switch, so the logo and
+  name fit. `ModeSwitchButton` remains only inside `WrongModeNotice` and the
+  notifications nudge; `WrongModeNotice`
   on Find a Ride in Driver mode and Post a Trip in Passenger mode; the dashboard,
   My Trips/My Rides and Alerts show only the current mode. The onboarding tour
   points at the mode switch.

@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import PushCard from '@/components/PushCard';
+import ModeSegmented from '@/components/ModeSegmented';
 import { summaryLine, type DriverSummary } from '@/lib/driverSummary';
 import Link from 'next/link';
 import { FaCar, FaSearch, FaClock } from 'react-icons/fa';
@@ -102,6 +103,7 @@ export default async function DashboardPage() {
             </div>
             {user && <Badge tone="neutral">{roleLabel(user.role)}</Badge>}
           </div>
+          {user && <ModeSegmented className="mt-4 max-w-sm" />}
 
           <div className="dashboard-top-grid mt-6">
             {isDriver && (

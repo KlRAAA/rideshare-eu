@@ -317,7 +317,7 @@ export default function RouteMapView({
             <Marker key={r.label + r.lat + r.lng} longitude={r.lng} latitude={r.lat} anchor="center">
               <div
                 title={r.label}
-                className="w-7 h-7 rounded-full flex items-center justify-center shadow-md ring-2 ring-white text-xs font-bold bg-[#8a6a00] text-white"
+                className="w-7 h-7 rounded-full flex items-center justify-center shadow-md ring-2 ring-white text-xs font-bold bg-[#374151] text-white"
               >
                 {r.label.charAt(0)}
               </div>
@@ -387,7 +387,7 @@ export default function RouteMapView({
           )}
           {riderLocations.length > 0 && (
             <span className="flex items-center gap-1.5">
-              <span className="inline-block w-3 h-3 rounded-full bg-[#8a6a00]" /> Riders sharing their location
+              <span className="inline-block w-3 h-3 rounded-full bg-[#374151]" /> Riders sharing their location
             </span>
           )}
         </div>

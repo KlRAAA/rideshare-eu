@@ -52,12 +52,12 @@ export default function RidersNearbyCard({ tripId, departure, onRiders }: Riders
   return (
     <section aria-label="Riders before pickup" className="rsu-card space-y-2">
       <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900">
-        <FaUsers className="h-4 w-4 text-[color:var(--rsu-color-passenger)]" aria-hidden />
+        <FaUsers className="h-4 w-4 text-[color:var(--rsu-color-primary)]" aria-hidden />
         Riders before pickup
       </h2>
       <ul className="space-y-1 text-sm text-gray-800">
         {riders.map((r) => (
-          <li key={r.matchId} className={r.atPickup ? 'font-semibold text-[color:var(--rsu-color-passenger)]' : undefined}>
+          <li key={r.matchId} className={r.atPickup ? 'font-semibold text-gray-900' : undefined}>
             {riderStatusLine(r, now)}
           </li>
         ))}

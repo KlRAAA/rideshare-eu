@@ -11,7 +11,7 @@ import Avatar from '@/components/Avatar';
 import ReportHistoryModal from '@/components/ReportHistoryModal';
 import MyCarsCard from './MyCarsCard';
 import DeleteAccountPanel from './DeleteAccountPanel';
-import ModeSwitchButton from '@/components/ModeSwitchButton';
+import ModeSegmented from '@/components/ModeSegmented';
 import { useMode } from '@/components/ModeProvider';
 import { modeLabel } from '@/lib/modeNav';
 import { apiFetch, clearSessionCookie, API_BASE } from '@/lib/api';
@@ -275,7 +275,7 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
                 You’re in {modeLabel(mode)} mode. {mode === 'DRIVER' ? 'Switch to find rides.' : 'Switch to post trips and drive.'}
               </p>
             </div>
-            <ModeSwitchButton />
+            <ModeSegmented className="w-full sm:w-72" />
           </div>
         </Card>
 
