@@ -627,3 +627,30 @@ plan `docs/superpowers/plans/2026-10-09-loud-notifications.md`.
 - Local dev: generate keys with `npx web-push generate-vapid-keys` into `.env`
   (git-ignored). Postman: folder "22. Notifications".
 - Deploy: set the three VAPID variables on Railway (the website needs none).
+
+**G. Passenger location (done):** spec `docs/superpowers/specs/2026-10-09-passenger-location-design.md`,
+plan `docs/superpowers/plans/2026-10-09-passenger-location.md`.
+- `Match.sharesLocation` (the rider's remembered switch) and
+  `riderLat`/`riderLng`/`riderLocatedAt` (only the latest point). Pure rules
+  in `services/riderLocationRules.js` (window: 15 min before the next
+  startable departure to 60 min after; at pickup ≤ 100 m of the meeting point,
+  else the origin; stale after 30 min), DB work in
+  `services/riderLocationService.js`.
+- `PATCH /api/matches/:id/location-sharing { on }` (passenger, approved only:
+  403 / 409 `NOT_APPROVED`; off erases). `POST /api/trips/:id/rider-location
+  { lat, lng }` (409 `NOT_SHARING`, `NOT_IN_WINDOW` with `opensAt`,
+  `TRIP_STARTED`; 400 `INVALID_COORDINATES`). `GET /api/trips/:id/rider-locations`
+  (host only): approved riders with `sharing`, `location`, `metersToPickup`,
+  `atPickup`; empty once the day's run has started. `GET /api/trips/:id` adds
+  `myLocationSharing`.
+- Erased at Start Trip (`clearTripRiderLocations` in `startRun`), on switch off,
+  on account deletion, and by the 5-minute cron (`clearStaleRiderLocations`:
+  older than 30 min or not APPROVED). Never shown to admins or in data
+  releases.
+- Web: `RiderLocationCard` (rider: switch, flips at once and reverts on error;
+  sends every 30 s while on and in the window; the page must stay open) and
+  `RidersNearbyCard` (driver: list, polls every 30 s in the window);
+  `RouteMapView` `riderLocations` pins (emerald initial, in the fitted view).
+  Helpers in `src/lib/riderLocation.ts`.
+- Postman: folder "23. Rider location". Demo: Paolo is approved on Miguel's
+  trip that leaves 10 minutes after seeding.
