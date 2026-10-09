@@ -1,5 +1,5 @@
 import { describe, test, expect } from '@jest/globals';
-import { licenseStatusText, licenseErrorMessage, rejectReasonLabel, type MyLicense } from '../license';
+import { licenseStatusText, licenseErrorMessage, rejectReasonLabel, checkRows, type MyLicense } from '../license';
 
 const base: MyLicense = { license: null, verified: false, canPost: false, reason: 'LICENSE_REQUIRED' };
 const lic = (over: Partial<NonNullable<MyLicense['license']>>) => ({
@@ -18,7 +18,8 @@ const lic = (over: Partial<NonNullable<MyLicense['license']>>) => ({
 describe('licenseStatusText', () => {
   test('one plain sentence per state', () => {
     expect(licenseStatusText(base)).toMatchObject({ title: 'Upload your driver’s license', tone: 'neutral' });
-    expect(licenseStatusText({ ...base, reason: 'LICENSE_PENDING', license: lic({}) })).toMatchObject({ title: 'Your license is under review', tone: 'warn' });
+    expect(licenseStatusText({ ...base, reason: 'LICENSE_PENDING', license: lic({}) })).toMatchObject({ title: 'Checking your license…', tone: 'warn' });
+    expect(licenseStatusText({ ...base, reason: 'LICENSE_PENDING', license: lic({ checkedAt: '2026-10-09T00:00:05.000Z' }) })).toMatchObject({ title: 'Your license is under review' });
     expect(licenseStatusText({ ...base, verified: true, canPost: true, reason: null, license: lic({ status: 'APPROVED' }) })).toMatchObject({
       title: 'License approved',
       detail: 'Valid until 31 January 2030 · ending 6789',
@@ -40,5 +41,15 @@ describe('messages', () => {
     expect(licenseErrorMessage('LICENSE_PENDING')).toBe('Your license is already under review.');
     expect(licenseErrorMessage('INVALID_LICENSE', 'licenseNumber')).toBe('Check the license number: 5–20 letters, digits or dashes.');
     expect(licenseErrorMessage('SOMETHING_ELSE')).toBe('That didn’t work. Try again in a moment.');
+  });
+});
+
+describe('checkRows', () => {
+  test('five labelled results, or one line when unreadable, or nothing before the check', () => {
+    const rows = checkRows({ isLicense: true, nameMatch: false, numberMatch: true, expiryMatch: true, notStudentPermit: true, passed: false });
+    expect(rows).toHaveLength(5);
+    expect(rows?.[1]).toEqual({ label: 'Name matches the account', ok: false });
+    expect(checkRows({ unreadable: true, passed: false })).toEqual([{ label: 'The photo couldn’t be read', ok: false }]);
+    expect(checkRows(null)).toBeNull();
   });
 });

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FaUpload, FaLock } from 'react-icons/fa';
 import Card from '@/components/Card';
 import Select from '@/components/Select';
+import LicenseCamera from '@/components/LicenseCamera';
 import { API_BASE } from '@/lib/api';
 import { LICENSE_TYPE_OPTIONS, licenseErrorMessage, type LicenseType } from '@/lib/license';
 
@@ -13,7 +14,7 @@ const labelClass = 'block text-xs font-semibold text-gray-700 uppercase tracking
 
 export default function LicenseForm({ renewal }: { renewal: boolean }) {
   const router = useRouter();
-  const [photo, setPhoto] = useState<File | null>(null);
+  const [photo, setPhoto] = useState<Blob | null>(null);
   const [licenseNumber, setLicenseNumber] = useState('');
   const [licenseType, setLicenseType] = useState<LicenseType>('NON_PROFESSIONAL');
   const [expiresOn, setExpiresOn] = useState('');
@@ -29,7 +30,7 @@ export default function LicenseForm({ renewal }: { renewal: boolean }) {
     setBusy(true);
     setError(null);
     const form = new FormData();
-    form.append('photo', photo);
+    form.append('photo', photo, 'license.jpg');
     form.append('licenseNumber', licenseNumber);
     form.append('licenseType', licenseType);
     form.append('expiresOn', expiresOn);
@@ -53,18 +54,8 @@ export default function LicenseForm({ renewal }: { renewal: boolean }) {
       <form onSubmit={submit} className="space-y-4">
         <h2 className="text-sm font-bold text-gray-900">{renewal ? 'Upload a renewed license' : 'Upload your license'}</h2>
         <div>
-          <label htmlFor="license-photo" className={labelClass}>
-            Photo of the front
-          </label>
-          <input
-            id="license-photo"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            capture="environment"
-            onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-sm file:font-semibold"
-          />
-          <p className="text-xs text-gray-500 mt-1">Make sure your name, the number and the expiry date are easy to read. Up to 5 MB.</p>
+          <p className={labelClass}>Photo of the front</p>
+          <LicenseCamera onPhoto={setPhoto} />
         </div>
         <div>
           <label htmlFor="license-number" className={labelClass}>
@@ -112,7 +103,7 @@ export default function LicenseForm({ renewal }: { renewal: boolean }) {
             {error}
           </p>
         )}
-        <button type="submit" disabled={busy} className="rsu-btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-60">
+        <button type="submit" disabled={busy || !photo} className="rsu-btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-60">
           <FaUpload className="w-3.5 h-3.5" aria-hidden />
           {busy ? 'Uploading…' : 'Send for review'}
         </button>

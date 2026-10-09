@@ -13,6 +13,8 @@ import UserActions from './UserActions';
 import WarnUserForm from '../../WarnUserForm';
 import { warningReasonLabel, type AdminWarning } from '@/lib/warnings';
 import CancelTripButton from './CancelTripButton';
+import RevokeLicense from '../../licenses/RevokeLicense';
+import { licenseStatusText, type LicenseInfo } from '@/lib/license';
 
 interface TripRow {
   id: string;
@@ -47,6 +49,7 @@ interface UserDetail {
   supportTickets: { id: string; subject: string; category: string; status: SupportStatus; createdAt: string; updatedAt: string }[];
   securityCounts30d: Record<string, number>;
   warnings: AdminWarning[];
+  license: LicenseInfo | null;
 }
 
 const SECURITY_LABELS: Record<string, string> = {
@@ -74,7 +77,7 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
-  const { user, hostedTrips, warnings, ratings, reportsFiledCount, reportsReceived, banHistory, supportTickets, securityCounts30d } = data;
+  const { user, hostedTrips, warnings, license, ratings, reportsFiledCount, reportsReceived, banHistory, supportTickets, securityCounts30d } = data;
   const securityRows = Object.entries(securityCounts30d ?? {}).filter(([, n]) => n > 0);
   const banned = user.bannedUntil != null && new Date(user.bannedUntil) > new Date();
   const viewer = await getCurrentUser();
@@ -143,6 +146,21 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
               </li>
             ))}
           </ul>
+        )}
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-bold text-gray-900 mb-1">Driver’s license</h3>
+        {license ? (
+          <div className="space-y-2 text-sm">
+            <p className="text-gray-700">
+              {licenseStatusText({ license, verified: license.status === 'APPROVED', canPost: false, reason: license.status === 'PENDING' ? 'LICENSE_PENDING' : license.status === 'REJECTED' ? 'LICENSE_REJECTED' : null }).title}
+              {license.autoApproved && license.status === 'APPROVED' && <span className="text-gray-500"> · approved automatically</span>}
+            </p>
+            {license.status === 'APPROVED' && <RevokeLicense licenseId={license.id} />}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">None uploaded.</p>
         )}
       </Card>
 

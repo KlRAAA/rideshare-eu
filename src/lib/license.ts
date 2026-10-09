@@ -15,6 +15,9 @@ export interface LicenseInfo {
   decidedAt: string | null;
   rejectReason: RejectReason | null;
   rejectNote: string | null;
+  // The automatic check: null until it has run.
+  checkedAt?: string | null;
+  autoApproved?: boolean;
 }
 
 export interface MyLicense {
@@ -70,7 +73,9 @@ export function licenseStatusText(my: MyLicense): LicenseStatusText {
   }
   switch (my.reason) {
     case 'LICENSE_PENDING':
-      return { title: 'Your license is under review', detail: 'An admin checks it, usually within a day. You’ll get a notification.', tone: 'warn' };
+      return l && !l.checkedAt
+        ? { title: 'Checking your license…', detail: 'This usually takes a few seconds. You can leave this page; you’ll get a notification.', tone: 'warn' }
+        : { title: 'Your license is under review', detail: 'An admin checks it, usually within a day. You’ll get a notification.', tone: 'warn' };
     case 'LICENSE_REJECTED':
       return {
         title: 'Your license wasn’t approved',
@@ -97,11 +102,36 @@ const FIELD_HELP: Record<string, string> = {
 const ERRORS: Record<string, string> = {
   LICENSE_PENDING: 'Your license is already under review.',
   LICENSE_EXPIRED: 'That license has expired. Upload your renewed one.',
-  INVALID_IMAGE: 'Add a photo of the front of your license (JPEG, PNG or WebP).',
+  INVALID_IMAGE: 'Take a photo of the front of your license.',
   FILE_TOO_LARGE: 'That photo is over 5 MB. Try a smaller one.',
 };
 
 export function licenseErrorMessage(code: string | undefined, field?: string): string {
   if (code === 'INVALID_LICENSE' && field && FIELD_HELP[field]) return FIELD_HELP[field];
   return (code && ERRORS[code]) || 'That didn’t work. Try again in a moment.';
+}
+
+// The five automatic checks, in the order an admin reads them.
+export interface LicenseCheckResults {
+  isLicense?: boolean;
+  nameMatch?: boolean;
+  numberMatch?: boolean;
+  expiryMatch?: boolean;
+  notStudentPermit?: boolean;
+  unreadable?: boolean;
+  passed?: boolean;
+}
+
+const CHECK_LABELS: [keyof LicenseCheckResults, string][] = [
+  ['isLicense', 'Looks like an LTO driver’s license'],
+  ['nameMatch', 'Name matches the account'],
+  ['numberMatch', 'License number matches'],
+  ['expiryMatch', 'Expiry date matches'],
+  ['notStudentPermit', 'Not a student permit'],
+];
+
+export function checkRows(checks: LicenseCheckResults | null | undefined): { label: string; ok: boolean }[] | null {
+  if (!checks) return null;
+  if (checks.unreadable) return [{ label: 'The photo couldn’t be read', ok: false }];
+  return CHECK_LABELS.map(([key, label]) => ({ label, ok: checks[key] === true }));
 }

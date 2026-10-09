@@ -6,6 +6,7 @@ import LicenseStatusCard from '@/components/LicenseStatusCard';
 import { apiFetch } from '@/lib/api-server';
 import type { MyLicense } from '@/lib/license';
 import LicenseForm from './LicenseForm';
+import CheckingRefresh from './CheckingRefresh';
 
 // The driver's license: status, and the upload form unless one is under review (sub-project E).
 export default async function LicensePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -25,6 +26,7 @@ export default async function LicensePage({ searchParams }: { searchParams: Prom
           </p>
         </div>
         <LicenseStatusCard my={my} />
+        {pending && !my.license?.checkedAt && <CheckingRefresh />}
         {!pending && <LicenseForm renewal={my.verified} />}
       </main>
       <BottomNav active="profile" />

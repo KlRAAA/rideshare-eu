@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Select from '@/components/Select';
 import { API_BASE, apiFetch, ApiError } from '@/lib/api';
 import { formatDateTime } from '@/lib/admin';
+import LicenseChecks from './LicenseChecks';
 import { LICENSE_TYPE_OPTIONS, REJECT_REASON_OPTIONS, longDate, type LicenseType, type RejectReason } from '@/lib/license';
 
 export interface PendingLicense {
@@ -13,6 +14,7 @@ export interface PendingLicense {
   licenseNumber: string | null;
   expiresOn: string;
   submittedAt: string;
+  checks?: import('@/lib/license').LicenseCheckResults | null;
   user: { id: string; fullName: string; universityId: string };
 }
 
@@ -70,6 +72,7 @@ export default function LicenseReviewCard({ license }: { license: PendingLicense
           <dt className="text-gray-500">Sent</dt>
           <dd>{formatDateTime(license.submittedAt)}</dd>
         </dl>
+        <LicenseChecks checks={license.checks} />
         {rejecting ? (
           <div className="space-y-2">
             <label htmlFor={`reason-${license.id}`} className="block text-xs font-semibold text-gray-700">
