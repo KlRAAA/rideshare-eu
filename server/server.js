@@ -26,7 +26,26 @@ const { sendLicenseExpiryReminders, checkUncheckedLicenses, purgeSpotCheckPhotos
 const { createWebPushSender, sendPendingPushes } = require('./services/pushService');
 const { clearStaleRiderLocations } = require('./services/riderLocationService');
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`RideShareEU API listening on :${PORT}`));
+const server = app.listen(PORT, () => console.log(`RideShareEU API listening on :${PORT}`));
+
+// Railway stops the previous container with SIGTERM on every deploy. Stop
+// taking requests, let the ones in flight finish, and exit 0: killed by the
+// signal instead, `npm run server` exits with an error and Railway reports
+// the old deploy as crashed.
+const SHUTDOWN_GRACE_MS = 3000;
+function shutdown(signal) {
+  console.log(`RideShareEU API stopping (${signal})`);
+  setTimeout(() => process.exit(0), SHUTDOWN_GRACE_MS).unref();
+  server.close(() => {
+    require('./config/db')
+      .$disconnect()
+      .catch(() => {})
+      .finally(() => process.exit(0));
+  });
+  server.closeIdleConnections();
+}
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));
 // Licenses uploaded while the server was down get their automatic check now.
 if (process.env.NODE_ENV !== 'test') checkUncheckedLicenses().catch(() => {});
 
