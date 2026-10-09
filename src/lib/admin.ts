@@ -22,7 +22,9 @@ export interface AdminAction {
     | 'DATA_RELEASE_VIEWED'
     | 'DATA_PAPERWORK_RECEIVED'
     | 'SUPERADMIN_SET'
-    | 'WARNING_ISSUED';
+    | 'WARNING_ISSUED'
+    | 'LICENSE_APPROVED'
+    | 'LICENSE_REJECTED';
   targetUserId: string | null;
   targetUserName: string | null;
   targetTripId: string | null;
@@ -58,6 +60,8 @@ const ACTION_LABELS: Record<AdminAction['action'], string> = {
   DATA_PAPERWORK_RECEIVED: 'recorded paperwork',
   SUPERADMIN_SET: 'made the superadmin:',
   WARNING_ISSUED: 'warned',
+  LICENSE_APPROVED: 'approved the driver’s license of',
+  LICENSE_REJECTED: 'rejected the driver’s license of',
 };
 
 export function describeAction(a: AdminAction): string {
@@ -125,7 +129,7 @@ export function queueTone(count: number, urgent: number): 'danger' | 'warning' |
   return count > 0 ? 'warning' : 'clear';
 }
 
-export type AdminBadgeKey = 'openReports' | 'openTickets' | 'overdueDataPaperwork';
+export type AdminBadgeKey = 'openReports' | 'openTickets' | 'pendingLicenses' | 'overdueDataPaperwork';
 
 export interface AdminNavItem {
   href: string;
@@ -151,7 +155,13 @@ export function adminNavGroups(isSuperAdmin: boolean): AdminNavGroup[] {
         { href: '/auth/admin/watchlist', label: 'Watch list' },
       ],
     },
-    { label: 'People', items: [{ href: '/auth/admin/users', label: 'Users' }] },
+    {
+      label: 'People',
+      items: [
+        { href: '/auth/admin/users', label: 'Users' },
+        { href: '/auth/admin/licenses', label: 'Driver licenses', badge: 'pendingLicenses' },
+      ],
+    },
     {
       label: 'Platform',
       items: [

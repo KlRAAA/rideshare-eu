@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen, FaCommentDots, FaLifeRing, FaBullhorn, FaExclamationTriangle, FaBell, FaCar, FaQuestionCircle, FaUserClock, FaUserTimes, FaCalendarTimes } from 'react-icons/fa';
+import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen, FaCommentDots, FaLifeRing, FaBullhorn, FaExclamationTriangle, FaBell, FaCar, FaQuestionCircle, FaUserClock, FaUserTimes, FaCalendarTimes, FaIdCard } from 'react-icons/fa';
 import Card from '@/components/Card';
 import { apiFetch } from '@/lib/api';
 import ModeSwitchButton from '@/components/ModeSwitchButton';
@@ -27,7 +27,11 @@ export interface NotificationItem {
     | 'DRIVER_UNCONFIRMED'
     | 'DRIVER_LATE'
     | 'DRIVER_NO_SHOW'
-    | 'TRIP_SKIPPED';
+    | 'TRIP_SKIPPED'
+    | 'LICENSE_APPROVED'
+    | 'LICENSE_REJECTED'
+    | 'LICENSE_REQUIRED'
+    | 'LICENSE_EXPIRING';
   message: string;
   isRead: boolean;
   createdAt: string;
@@ -52,6 +56,10 @@ const TYPE_ICON: Record<NotificationItem['type'], React.ComponentType<{ classNam
   DRIVER_LATE: FaUserClock,
   DRIVER_NO_SHOW: FaUserTimes,
   TRIP_SKIPPED: FaCalendarTimes,
+  LICENSE_APPROVED: FaIdCard,
+  LICENSE_REJECTED: FaIdCard,
+  LICENSE_REQUIRED: FaIdCard,
+  LICENSE_EXPIRING: FaIdCard,
 };
 
 interface NotificationsClientProps {

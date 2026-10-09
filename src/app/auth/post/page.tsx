@@ -6,9 +6,14 @@ import { getCurrentUser } from '@/lib/session';
 import PostTripForm from './PostTripForm';
 import { isWomenPlusEligible } from '@/lib/riderRules';
 import WrongModeNotice from '@/components/WrongModeNotice';
+import LicenseStatusCard from '@/components/LicenseStatusCard';
+import { apiFetch } from '@/lib/api-server';
+import type { MyLicense } from '@/lib/license';
 
 export default async function PostTripPage() {
   const user = await getCurrentUser();
+  // Only drivers with an approved license post trips (sub-project E).
+  const license = user?.activeMode === 'DRIVER' ? await apiFetch<MyLicense>('/api/users/me/license') : null;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -21,6 +26,8 @@ export default async function PostTripPage() {
         </div>
         {user?.activeMode !== 'DRIVER' ? (
           <WrongModeNotice need="DRIVER" />
+        ) : license && !license.canPost ? (
+          <LicenseStatusCard my={license} linkLabel={license.license?.status === 'PENDING' ? 'View your license' : 'Upload your license'} />
         ) : user ? <PostTripForm hostId={user.id} canHostWomenPlus={isWomenPlusEligible(user.gender)} /> : <p className="text-sm text-gray-500">Sign in to post a trip.</p>}
       </main>
       <BottomNav active="post" />

@@ -15,6 +15,7 @@ interface AdminNavProps {
 const BADGE_TONE: Record<AdminBadgeKey, string> = {
   openReports: 'bg-red-50 text-red-600',
   openTickets: 'bg-amber-50 text-amber-800',
+  pendingLicenses: 'bg-amber-50 text-amber-800',
   overdueDataPaperwork: 'bg-red-50 text-red-600',
 };
 

@@ -5,12 +5,17 @@ import BottomNav from '@/components/BottomNav';
 import { getCurrentUser } from '@/lib/session';
 import { apiFetch } from '@/lib/api-server';
 import ProfileClient, { type Preference } from './ProfileClient';
+import LicenseStatusCard from '@/components/LicenseStatusCard';
+import type { MyLicense } from '@/lib/license';
 
 export default async function ProfilePage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const { preference } = await apiFetch<{ preference: Preference }>(`/api/preferences/${user.id}`);
+  const [{ preference }, license] = await Promise.all([
+    apiFetch<{ preference: Preference }>(`/api/preferences/${user.id}`),
+    apiFetch<MyLicense>('/api/users/me/license'),
+  ]);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -22,6 +27,9 @@ export default async function ProfilePage() {
         </div>
         {/* Remounts after a gender change, which can reset the Women+ preference. */}
         <ProfileClient key={user.gender} user={user} initialPreference={preference} />
+        <div className="mt-4">
+          <LicenseStatusCard my={license} linkLabel={license.verified ? 'Manage your license' : license.license?.status === 'PENDING' ? 'View your license' : 'Upload your license'} />
+        </div>
         <p className="text-xs text-center text-gray-500 mt-6">
           <Link href="/privacy" className="font-semibold text-gray-500 hover:underline">
             Privacy Policy

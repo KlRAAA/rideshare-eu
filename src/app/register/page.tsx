@@ -58,6 +58,7 @@ export default function RegisterPage() {
   const [universityId, setUniversityId] = useState('');
   // Nothing pre-selected: the user must choose (panel revisions §5).
   const [gender, setGender] = useState<Gender | ''>('');
+  const [willDrive, setWillDrive] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -143,7 +144,7 @@ export default function RegisterPage() {
       });
       await setSessionCookie(token);
       draft.clear();
-      router.push('/auth/dashboard');
+      router.push(willDrive ? '/auth/license?welcome=1' : '/auth/dashboard');
     } catch (err) {
       setErrorCode(err instanceof ApiError ? err.code : undefined);
     } finally {
@@ -314,6 +315,21 @@ export default function RegisterPage() {
                   </Select>
                   <p className="text-xs text-gray-500 mt-1">{GENDER_HELP}</p>
                 </div>
+
+                <fieldset>
+                  <legend className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Will you drive?</legend>
+                  <div className="flex gap-4 text-sm text-gray-800">
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="will-drive" checked={willDrive} onChange={() => setWillDrive(true)} />
+                      Yes, I’ll post trips
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="will-drive" checked={!willDrive} onChange={() => setWillDrive(false)} />
+                      Not now
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Drivers upload their license next. You can also do it later from Profile.</p>
+                </fieldset>
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">

@@ -21,6 +21,8 @@ export function notificationHref(n: NotificationRef): string | null {
   if (n.type === 'SUPPORT_REPLY') return '/help/requests';
   // An official warning: the dashboard shows it until the user acknowledges it.
   if (n.type === 'WARNING') return '/auth/dashboard';
+  // Driver's license decisions and reminders (sub-project E).
+  if (n.type.startsWith('LICENSE_')) return '/auth/license';
   if (!n.relatedTripId || !ROUTABLE_TYPES.has(n.type)) return null;
   const base = `/auth/trips/${n.relatedTripId}`;
   return n.relatedMatchId ? `${base}?requestId=${n.relatedMatchId}` : base;

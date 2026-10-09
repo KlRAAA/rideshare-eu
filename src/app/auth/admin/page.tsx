@@ -12,6 +12,7 @@ interface Overview {
     openTickets: number;
     safetyTickets: number;
     oldestTicketAt: string | null;
+    pendingLicenses: number;
   };
   today: { ridesToday: number; ridesAvg7d: number; newUsers24h: number; activeBans: number };
   security: {
@@ -106,7 +107,7 @@ export default async function AdminOverviewPage() {
 
       <section>
         <p className={SECTION_LABEL}>Needs your action</p>
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           <ActionCard
             href="/auth/admin/reports"
             count={queues.openReports}
@@ -127,6 +128,13 @@ export default async function AdminOverviewPage() {
             urgent={0}
             noun="flagged user"
             detail="Cancellations or reports in the last 30 days"
+          />
+          <ActionCard
+            href="/auth/admin/licenses"
+            count={queues.pendingLicenses}
+            urgent={0}
+            noun="driver license"
+            detail="Drivers waiting to post trips"
           />
         </div>
       </section>

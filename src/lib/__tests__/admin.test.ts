@@ -82,6 +82,6 @@ describe('adminNavGroups', () => {
     expect(adminNavGroups(false).map((g) => g.label)).toEqual(['Moderation', 'People', 'Platform', 'Records']);
     expect(labels(false)).not.toContain('Data requests');
     expect(labels(true)).toContain('Data requests');
-    expect(labels(false)).toEqual(['Overview', 'Reports', 'Support', 'Watch list', 'Users', 'Announcements', 'Fuel price', 'Activity']);
+    expect(labels(false)).toEqual(['Overview', 'Reports', 'Support', 'Watch list', 'Users', 'Driver licenses', 'Announcements', 'Fuel price', 'Activity']);
   });
 });
