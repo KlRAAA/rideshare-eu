@@ -18,6 +18,7 @@ export interface LicenseInfo {
   // The automatic check: null until it has run.
   checkedAt?: string | null;
   autoApproved?: boolean;
+  checks?: LicenseCheckResults | null;
 }
 
 export interface MyLicense {
@@ -75,7 +76,7 @@ export function licenseStatusText(my: MyLicense): LicenseStatusText {
     case 'LICENSE_PENDING':
       return l && !l.checkedAt
         ? { title: 'Checking your license…', detail: 'This usually takes a few seconds. You can leave this page; you’ll get a notification.', tone: 'warn' }
-        : { title: 'Your license is under review', detail: 'The automatic check couldn’t confirm it, so an admin will look, usually within a day. You’ll get a notification.', tone: 'warn' };
+        : { title: 'Your license is under review', detail: `${checkProblem(l?.checks)} An admin will look, usually within a day. You’ll get a notification.`, tone: 'warn' };
     case 'LICENSE_REJECTED':
       return {
         title: 'Your license wasn’t approved',
@@ -120,6 +121,10 @@ export interface LicenseCheckResults {
   notStudentPermit?: boolean;
   unreadable?: boolean;
   passed?: boolean;
+  // Why the name didn't match: parts of the account name not found on the
+  // photo, or an account name that's only a first name.
+  nameMissing?: string[];
+  nameTooShort?: boolean;
 }
 
 const CHECK_LABELS: [keyof LicenseCheckResults, string][] = [
@@ -130,8 +135,30 @@ const CHECK_LABELS: [keyof LicenseCheckResults, string][] = [
   ['notStudentPermit', 'Not a student permit'],
 ];
 
-export function checkRows(checks: LicenseCheckResults | null | undefined): { label: string; ok: boolean }[] | null {
+const titleCase = (word: string) => word.charAt(0) + word.slice(1).toLowerCase();
+const listWords = (words: string[]) => words.map((w) => `“${titleCase(w)}”`).join(' and ');
+
+// Why the name check failed, in a few words, or null.
+export function nameProblem(checks: LicenseCheckResults | null | undefined): string | null {
+  if (checks?.nameTooShort) return 'the account name is only a first name';
+  if (checks?.nameMissing?.length) return `${listWords(checks.nameMissing)} from the account name isn’t on the photo`;
+  return null;
+}
+
+// The driver's view of a check that didn't pass, as one sentence.
+export function checkProblem(checks: LicenseCheckResults | null | undefined): string {
+  if (checks?.nameTooShort) return 'Your account name is only a first name, so the automatic check can’t match it to the license.';
+  if (checks?.nameMissing?.length) return `The automatic check couldn’t find ${listWords(checks.nameMissing)} from your account name on the photo.`;
+  if (checks?.unreadable) return 'The automatic check couldn’t read the photo.';
+  return 'The automatic check couldn’t confirm it.';
+}
+
+export function checkRows(checks: LicenseCheckResults | null | undefined): { label: string; ok: boolean; note?: string }[] | null {
   if (!checks) return null;
   if (checks.unreadable) return [{ label: 'The photo couldn’t be read', ok: false }];
-  return CHECK_LABELS.map(([key, label]) => ({ label, ok: checks[key] === true }));
+  return CHECK_LABELS.map(([key, label]) => {
+    const ok = checks[key] === true;
+    const note = key === 'nameMatch' && !ok ? nameProblem(checks) : null;
+    return note ? { label, ok, note } : { label, ok };
+  });
 }

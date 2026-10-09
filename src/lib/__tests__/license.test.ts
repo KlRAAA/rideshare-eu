@@ -1,5 +1,5 @@
 import { describe, test, expect } from '@jest/globals';
-import { licenseStatusText, licenseErrorMessage, rejectReasonLabel, checkRows, type MyLicense } from '../license';
+import { licenseStatusText, licenseErrorMessage, rejectReasonLabel, checkRows, checkProblem, type MyLicense } from '../license';
 
 const base: MyLicense = { license: null, verified: false, canPost: false, reason: 'LICENSE_REQUIRED' };
 const lic = (over: Partial<NonNullable<MyLicense['license']>>) => ({
@@ -51,5 +51,24 @@ describe('checkRows', () => {
     expect(rows?.[1]).toEqual({ label: 'Name matches the account', ok: false });
     expect(checkRows({ unreadable: true, passed: false })).toEqual([{ label: 'The photo couldn’t be read', ok: false }]);
     expect(checkRows(null)).toBeNull();
+  });
+});
+
+describe('why the name check failed', () => {
+  test('names the parts of the account name that weren’t on the photo', () => {
+    const checks = { isLicense: true, nameMatch: false, nameMissing: ['DIMACALI'], numberMatch: true, expiryMatch: true, notStudentPermit: true };
+    expect(checkProblem(checks)).toBe('The automatic check couldn’t find “Dimacali” from your account name on the photo.');
+    expect(checkRows(checks)?.[1]).toEqual({ label: 'Name matches the account', ok: false, note: '“Dimacali” from the account name isn’t on the photo' });
+  });
+
+  test('explains a first-name-only account', () => {
+    expect(checkProblem({ nameMatch: false, nameTooShort: true })).toBe(
+      'Your account name is only a first name, so the automatic check can’t match it to the license.'
+    );
+  });
+
+  test('falls back to the general sentence', () => {
+    expect(checkProblem(null)).toBe('The automatic check couldn’t confirm it.');
+    expect(checkRows({ nameMatch: true })?.[1]).toEqual({ label: 'Name matches the account', ok: true });
   });
 });
