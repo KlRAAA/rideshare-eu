@@ -383,6 +383,22 @@ describe('Full registration flow: start → verify-otp → complete', () => {
     expect((await res.json()).error).toBe('FULL_NAME_TOO_SHORT');
   });
 
+  test.each([['Juan'], ['Juan M.']])('complete validation: %p has no last name → 400 FULL_NAME_NEEDS_LAST_NAME', async (fullName) => {
+    if (guard()) return;
+    const email = studentEmail();
+    const { otp } = await startRegistrationAndGetOtp(email);
+    const { verificationTicket } = await (await post('/api/auth/register/verify-otp', { email, otp })).json();
+    const res = await post('/api/auth/register/complete', {
+      verificationTicket,
+      password: 'NewPass123!',
+      fullName,
+      universityId: `X-${uniqueSuffix()}`,
+      gender: 'MAN',
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('FULL_NAME_NEEDS_LAST_NAME');
+  });
+
   test('complete validation: full name matching university ID → 400 FULL_NAME_MATCHES_ID', async () => {
     if (guard()) return;
     const email = studentEmail();

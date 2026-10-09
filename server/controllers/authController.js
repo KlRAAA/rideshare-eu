@@ -125,6 +125,11 @@ async function completeRegistration(req, res) {
   if (trimmedFullName.toLowerCase() === trimmedUniversityId.toLowerCase()) {
     return res.status(400).json({ error: 'FULL_NAME_MATCHES_ID' });
   }
+  // A first and a last name (2+ letters each; an initial doesn't count): the
+  // automatic license check matches them against the driver's license.
+  if ((trimmedFullName.match(/\p{L}{2,}/gu) ?? []).length < 2) {
+    return res.status(400).json({ error: 'FULL_NAME_NEEDS_LAST_NAME' });
+  }
   // Same check resetPassword already enforces (below) — this path had none at
   // all, so a brand-new account could be created with a 1-character password
   // (only a client-side minLength=8 on the register form stood in the way).

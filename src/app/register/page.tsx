@@ -30,6 +30,7 @@ function ErrorMessage({ code }: { code: string | undefined }) {
     EMPTY_FULL_NAME: 'Enter your full name.',
     FULL_NAME_TOO_SHORT: 'Full name must be at least 3 characters.',
     FULL_NAME_MATCHES_ID: "Full name can't be the same as your University ID.",
+    FULL_NAME_NEEDS_LAST_NAME: 'Enter your first and last name, as on your driver’s license or school ID. A middle initial is fine.',
     TERMS_NOT_ACCEPTED: 'You must agree to the Terms of Use and Privacy Policy to continue.',
     GENDER_REQUIRED: 'Choose your gender. “Prefer not to say” is one of the options.',
   };
@@ -45,6 +46,7 @@ function validateFullName(name: string, universityId: string): string | undefine
   if (!trimmed) return 'EMPTY_FULL_NAME';
   if (trimmed.length < 3) return 'FULL_NAME_TOO_SHORT';
   if (trimmed.toLowerCase() === universityId.trim().toLowerCase()) return 'FULL_NAME_MATCHES_ID';
+  if ((trimmed.match(/\p{L}{2,}/gu) ?? []).length < 2) return 'FULL_NAME_NEEDS_LAST_NAME';
   return undefined;
 }
 
@@ -275,9 +277,15 @@ export default function RegisterPage() {
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
+                      placeholder="e.g., Juan M. Dela Cruz"
+                      autoComplete="name"
+                      aria-describedby="register-full-name-help"
                       className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
                     />
                   </div>
+                  <p id="register-full-name-help" className="text-xs text-gray-500 mt-1">
+                    First and last name, as on your driver’s license or school ID. You can’t change it later.
+                  </p>
                 </div>
 
                 <div>

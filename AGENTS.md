@@ -617,6 +617,14 @@ plan `docs/superpowers/plans/2026-10-09-driver-license.md`.
   `NOT_APPROVED`; erases photo and number, notifies, `LICENSE_REVOKED`); the
   admin user page shows the newest license with Revoke. It checks consistency,
   not authenticity: there's no free LTO service to confirm a license is real.
+- Name rule (`licenseChecks.js`): every account name part of 2+ letters
+  (initials skipped) must be on the photo; one OCR slip from 4 letters, two
+  from 8; surnames joined or split either way ("DELACRUZ"/"DELA CRUZ"). A
+  first-name-only account never passes (`nameTooShort`); a failure stores
+  `nameMissing` (the account's own name parts, never the photo text), shown to
+  the driver and the admin. Since sign-up requires a first and a last name
+  (`register/complete` 400 `FULL_NAME_NEEDS_LAST_NAME`; names can't be edited
+  later), only older accounts can hit `nameTooShort`.
 
 **F. Noticeable notifications (done):** spec `docs/superpowers/specs/2026-10-09-loud-notifications-design.md`,
 plan `docs/superpowers/plans/2026-10-09-loud-notifications.md`.
