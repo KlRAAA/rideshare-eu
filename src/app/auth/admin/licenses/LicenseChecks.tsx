@@ -13,6 +13,7 @@ export default function LicenseChecks({ checks }: { checks: LicenseCheckResults 
           {r.ok ? <FaCheckCircle className="h-3 w-3 text-gray-500" aria-hidden /> : <FaTimesCircle className="h-3 w-3" aria-hidden />}
           <span className="sr-only">{r.ok ? 'Passed:' : 'Failed:'}</span>
           {r.label}
+          {r.note && <span className="font-normal">: {r.note}</span>}
         </li>
       ))}
     </ul>

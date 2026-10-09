@@ -45,3 +45,35 @@ test('a student permit never passes', () => {
   expect(licenseChecks(CLEAN.replace("NON-PROFESSIONAL DRIVER'S LICENSE", 'STUDENT PERMIT'), typed)).toMatchObject({ notStudentPermit: false, passed: false });
   expect(licenseChecks(CLEAN, { ...typed, licenseType: 'STUDENT_PERMIT' })).toMatchObject({ notStudentPermit: false, passed: false });
 });
+
+describe('name on the account vs the name on the license', () => {
+  const FULL = CLEAN.replace('DELA CRUZ, JUAN SANTOS', 'DELA CRUZ, JUAN MARTINEZ SANTOS');
+  const nameCheck = (fullName, text = FULL) => {
+    const { nameMatch, nameMissing, nameTooShort } = licenseChecks(text, { ...typed, fullName });
+    return { nameMatch, nameMissing, nameTooShort };
+  };
+
+  test.each([
+    ['the full name', 'Juan Martinez Santos Dela Cruz'],
+    ['a middle initial for a full middle name', 'Juan M. Dela Cruz'],
+    ['an initial without a dot', 'Juan M Dela Cruz'],
+    ['no middle name', 'Juan Dela Cruz'],
+    ['a surname typed as one word', 'Juan DelaCruz'],
+  ])('passes with %s', (_, fullName) => {
+    expect(nameCheck(fullName)).toEqual({ nameMatch: true, nameMissing: undefined, nameTooShort: undefined });
+  });
+
+  test('a long name may have two OCR slips, a short one none', () => {
+    const slips = FULL.replace('MARTINEZ', 'MARTlNES').replace('JUAN', 'JUAM');
+    expect(nameCheck('Juan Martinez Dela Cruz', slips).nameMatch).toBe(true);
+    expect(nameCheck('Jon Dela Cruz').nameMatch).toBe(false);
+  });
+
+  test('a first name alone waits for an admin, and says why', () => {
+    expect(nameCheck('Juan')).toEqual({ nameMatch: false, nameMissing: undefined, nameTooShort: true });
+  });
+
+  test('a different surname fails and names the part that wasn’t found', () => {
+    expect(nameCheck('Juan Dela Krus')).toEqual({ nameMatch: false, nameMissing: ['KRUS'], nameTooShort: undefined });
+  });
+});

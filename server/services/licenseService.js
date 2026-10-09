@@ -26,6 +26,8 @@ const PUBLIC_FIELDS = {
   rejectNote: true,
   checkedAt: true,
   autoApproved: true,
+  // yes/no results, plus which parts of the account's own name weren't found
+  checks: true,
 };
 
 function licenseRows(userId) {
