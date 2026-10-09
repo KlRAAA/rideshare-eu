@@ -114,6 +114,8 @@ const ATTEMPTS = [
   ['confirm a day of A’s trip', 'POST', () => `/api/trips/${a.trip.id}/days/${a.tripDate}/confirm`],
   ['skip a day of A’s trip', 'POST', () => `/api/trips/${a.trip.id}/days/${a.tripDate}/skip`, { reason: 'hijacked' }],
   ['undo a skipped day of A’s trip', 'DELETE', () => `/api/trips/${a.trip.id}/days/${a.tripDate}/skip`],
+  ['read the riders’ locations on A’s trip', 'GET', () => `/api/trips/${a.trip.id}/rider-locations`],
+  ['post a rider location on A’s trip', 'POST', () => `/api/trips/${a.trip.id}/rider-location`, { lat: 13.9, lng: 121.6 }],
   // Support request
   ['read A’s support request', 'GET', () => `/api/support/${a.ticket.id}`],
   ['reply to A’s support request', 'POST', () => `/api/support/${a.ticket.id}/messages`, { body: 'hijacked' }],
@@ -123,6 +125,7 @@ const ATTEMPTS = [
   ['change A’s preferences', 'PATCH', () => `/api/preferences/${userA.id}`, { flexWindowMinutes: 120 }],
   // Join request (B is neither the passenger nor the host)
   ['approve A’s join request', 'PATCH', () => `/api/matches/${a.match.id}`, { status: 'APPROVED' }],
+  ['switch location sharing on A’s join request', 'PATCH', () => `/api/matches/${a.match.id}/location-sharing`, { on: true }],
   ['rate on A’s join request', 'POST', () => `/api/matches/${a.match.id}/ratings`, () => ({ rateeId: userA.id, score: 1 })],
   // Notification and warning
   ['mark A’s notification read', 'PATCH', () => `/api/alerts/${a.notification.id}/read`],

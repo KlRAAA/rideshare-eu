@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { setSharing } = require('../services/riderLocationService');
 const { conflictWithHosted, conflictBody } = require('../services/scheduleConflicts');
 const { runPSGA, runShowAllFallback, computeRouteOverlapDetail, tripRunsOnSearchDate } = require('../services/psgaService');
 const { settleTrips, phDay } = require('../services/tripDayService');
@@ -325,6 +326,12 @@ async function declineIneligible(match) {
 // checked against the verified req.user.id (phase 2), which the auth middleware
 // set from the session token. Before phase 2 this endpoint checked no caller
 // identity at all.
+// Sub-project G: the rider's "share my location with the driver" switch.
+async function setLocationSharing(req, res) {
+  const { status, body } = await setSharing(req.params.id, req.user.id, req.body?.on);
+  res.status(status).json(body);
+}
+
 async function updateStatus(req, res) {
   const { id } = req.params;
   const { status } = req.body; // 'APPROVED' | 'DECLINED'
@@ -505,4 +512,4 @@ async function routeOverlap(req, res) {
   });
 }
 
-module.exports = { search, showAll, create, updateStatus, routeOverlap };
+module.exports = { search, showAll, create, updateStatus, routeOverlap, setLocationSharing };

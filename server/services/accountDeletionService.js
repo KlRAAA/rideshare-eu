@@ -97,6 +97,7 @@ async function deleteAccount(userId) {
     licenseFiles.push(...licenses.map((l) => l.photoFile).filter(Boolean));
     await tx.driverLicense.deleteMany({ where: { userId } });
     await tx.pushSubscription.deleteMany({ where: { userId } });
+    await tx.match.updateMany({ where: { passengerId: userId }, data: { sharesLocation: false, riderLat: null, riderLng: null, riderLocatedAt: null } });
     await tx.preference.deleteMany({ where: { userId } });
     await tx.notification.deleteMany({ where: { userId } });
     await tx.message.deleteMany({ where: { senderId: userId } });

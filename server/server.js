@@ -24,6 +24,7 @@ const { endOverdueRuns } = require('./services/tripRunService');
 const { runDaySteps } = require('./services/tripDayService');
 const { sendLicenseExpiryReminders } = require('./services/licenseService');
 const { createWebPushSender, sendPendingPushes } = require('./services/pushService');
+const { clearStaleRiderLocations } = require('./services/riderLocationService');
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`RideShareEU API listening on :${PORT}`));
 
@@ -35,6 +36,7 @@ if (process.env.NODE_ENV !== 'test') {
     sendDueReminders().catch((err) => console.error(`[reminders] run failed: ${err.message}`));
     endOverdueRuns().catch((err) => console.error(`[trip runs] auto-end failed: ${err.message}`));
     runDaySteps().catch((err) => console.error(`[trip days] steps failed: ${err.message}`));
+    clearStaleRiderLocations().catch((err) => console.error(`[rider locations] cleanup failed: ${err.message}`));
   });
 
   // Phone notifications (sub-project F): every 10 s, push loud notifications

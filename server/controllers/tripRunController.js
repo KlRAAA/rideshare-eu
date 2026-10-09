@@ -2,6 +2,7 @@ const prisma = require('../config/db');
 const { ongoingRun, startRun, endRun } = require('../services/tripRunService');
 const { confirmDay, skipDay, unskipDay } = require('../services/tripDayService');
 const { isNearPickup } = require('../services/arrivalRules');
+const { saveRiderLocation, riderLocationsFor } = require('../services/riderLocationService');
 
 const STALE_LOCATION_MS = 90 * 1000; // ~3 missed 30 s ticks
 const MAX_ETA_SECONDS = 6 * 60 * 60;
@@ -118,4 +119,12 @@ async function unskip(req, res) {
   return reply(res, await unskipDay(req.params.id, req.user.id, req.params.date));
 }
 
-module.exports = { start, end, arrived, updateLocation, getLocation, confirm, skip, unskip };
+// Sub-project G: an approved rider's position for the driver, before pickup.
+async function postRiderLocation(req, res) {
+  return reply(res, await saveRiderLocation(req.params.id, req.user.id, req.body || {}));
+}
+async function getRiderLocations(req, res) {
+  return reply(res, await riderLocationsFor(req.params.id, req.user.id));
+}
+
+module.exports = { start, end, arrived, updateLocation, getLocation, confirm, skip, unskip, postRiderLocation, getRiderLocations };

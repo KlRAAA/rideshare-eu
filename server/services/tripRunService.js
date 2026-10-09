@@ -4,6 +4,7 @@ const { decryptTripFields } = require('./encryptionService');
 const { phDateOnly } = require('./recurrenceMath');
 const { startCheck, plannedArrival, AUTO_END_AFTER_ARRIVAL_MS } = require('./tripRunRules');
 const { completeTrip, completeRecurringOccurrence } = require('./tripCompletionService');
+const { clearTripRiderLocations } = require('./riderLocationService');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOT_STARTED = ['CONFIRMED', 'SKIPPED'];
@@ -40,6 +41,7 @@ async function startRun(tripId, userId, now = new Date()) {
     if (err.code === 'P2002' || err.code === 'P2025') return { status: 409, body: { error: 'ALREADY_STARTED' } };
     throw err;
   }
+  await clearTripRiderLocations(tripId); // riders' positions are for pickup only (sub-project G)
   const { destinationAddress } = decryptTripFields(trip);
   if (trip.matches.length > 0) {
     await prisma.notification.createMany({

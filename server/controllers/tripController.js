@@ -297,6 +297,10 @@ async function getById(req, res) {
     matches: tripRaw.matches.map((m) => ({ ...m, passenger: decryptUserFields(m.passenger) })),
   };
 
+  // Sub-project G: the rider's own sharing switch.
+  const mine = tripRaw.matches.find((m) => m.passengerId === userId && m.status === 'APPROVED');
+  trip.myLocationSharing = mine ? mine.sharesLocation : null;
+
   if (!canViewPlate(trip, userId)) {
     trip.vehicle = { ...trip.vehicle, plate: null };
   }
