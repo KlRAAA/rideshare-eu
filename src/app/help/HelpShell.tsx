@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav';
 import Logo from '@/components/Logo';
 import Wordmark from '@/components/Wordmark';
 import { ModeProvider } from '@/components/ModeProvider';
+import NotificationFeed from '@/components/NotificationFeed';
 import { getCurrentUser } from '@/lib/session';
 
 interface HelpShellProps {
@@ -20,11 +21,13 @@ export default async function HelpShell({ signedIn, children }: HelpShellProps) 
     const user = await getCurrentUser();
     return (
       <ModeProvider mode={user?.activeMode ?? 'PASSENGER'}>
-        <div className="min-h-screen bg-gray-50 pb-24">
-          <Header active="help" />
-          <main className="app-desktop w-full pt-2 md:pt-4 max-w-3xl">{children}</main>
-          <BottomNav active="profile" />
-        </div>
+        <NotificationFeed>
+          <div className="min-h-screen bg-gray-50 pb-24">
+            <Header active="help" />
+            <main className="app-desktop w-full pt-2 md:pt-4 max-w-3xl">{children}</main>
+            <BottomNav active="profile" />
+          </div>
+        </NotificationFeed>
       </ModeProvider>
     );
   }

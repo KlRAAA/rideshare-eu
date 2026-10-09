@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { FaHome, FaCar, FaBell, FaUser, FaSearch, FaPlusCircle } from 'react-icons/fa';
 import type { ActiveRoute } from './Header';
 import { useMode } from './ModeProvider';
+import { useLiveUnread } from './NotificationFeed';
 import { tabsFor, type TabKey } from '@/lib/modeNav';
 
 interface BottomNavProps {
@@ -23,8 +24,10 @@ const ICONS: Record<TabKey, React.ComponentType<{ className?: string }>> = {
 
 // The current mode's five tabs (sub-project C). The active tab is maroon in
 // Driver mode and green in Passenger mode, so the mode is visible at a glance.
-export default function BottomNav({ active, unreadCount = 0 }: BottomNavProps) {
+export default function BottomNav({ active, unreadCount: pageUnread = 0 }: BottomNavProps) {
   const mode = useMode();
+  // The live count once the feed has polled; the page's own count until then.
+  const unreadCount = useLiveUnread() ?? pageUnread;
   const activeClass = mode === 'DRIVER' ? 'text-[color:var(--rsu-color-primary)]' : 'text-emerald-700';
   return (
     <nav className="rsu-bottom-nav md:hidden">

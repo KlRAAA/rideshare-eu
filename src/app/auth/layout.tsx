@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser, getSessionUserId, getSuspension } from '@/lib/session';
 import { ModeProvider } from '@/components/ModeProvider';
 import BannedScreen from '@/components/BannedScreen';
+import NotificationFeed from '@/components/NotificationFeed';
 
 export default async function AuthLayout({
   children,
@@ -25,5 +26,10 @@ export default async function AuthLayout({
 
   // Driver or Passenger mode (sub-project C), for the header, bottom bar and pages.
   const user = await getCurrentUser();
-  return <ModeProvider mode={user?.activeMode ?? 'PASSENGER'}>{children}</ModeProvider>;
+  // The live badge, pop-ups, sound and vibration (sub-project F).
+  return (
+    <ModeProvider mode={user?.activeMode ?? 'PASSENGER'}>
+      <NotificationFeed>{children}</NotificationFeed>
+    </ModeProvider>
+  );
 }

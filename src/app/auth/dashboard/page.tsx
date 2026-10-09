@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react';
+import PushCard from '@/components/PushCard';
 import Link from 'next/link';
 import { FaCar, FaSearch, FaClock } from 'react-icons/fa';
 import Header from '@/components/Header';
@@ -84,6 +85,7 @@ export default async function DashboardPage() {
       <main className="app-desktop w-full p-0 pt-2 md:pt-4 space-y-6 flex-grow">
         <WarningBanner />
         <AnnouncementBanner />
+        <PushCard placement="dashboard" />
         <section>
           <div className="flex justify-between items-start">
             <div>

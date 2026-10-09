@@ -8,6 +8,7 @@ import Wordmark from './Wordmark';
 import ThemeToggle from './ThemeToggle';
 import ModeSwitchButton from './ModeSwitchButton';
 import { useMode } from './ModeProvider';
+import { useLiveUnread } from './NotificationFeed';
 import { modeLabel, tabsFor } from '@/lib/modeNav';
 
 export type ActiveRoute = 'dashboard' | 'trips' | 'search' | 'post' | 'notifications' | 'profile' | 'help';
@@ -19,9 +20,11 @@ interface HeaderProps {
 
 const HELP: { key: ActiveRoute; href: string; label: string } = { key: 'help', href: '/help', label: 'Help' };
 
-export default function Header({ active, unreadCount = 0 }: HeaderProps) {
+export default function Header({ active, unreadCount: pageUnread = 0 }: HeaderProps) {
   // Only the current mode's tabs (sub-project C), plus Help.
   const mode = useMode();
+  // The live count once the feed has polled; the page's own count until then.
+  const unreadCount = useLiveUnread() ?? pageUnread;
   const navItems: { key: ActiveRoute; href: string; label: string }[] = [...tabsFor(mode), HELP];
   return (
     <header

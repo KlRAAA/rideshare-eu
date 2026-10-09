@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/session';
 import { apiFetch } from '@/lib/api-server';
 import ProfileClient, { type Preference } from './ProfileClient';
 import LicenseStatusCard from '@/components/LicenseStatusCard';
+import PushCard from '@/components/PushCard';
 import type { MyLicense } from '@/lib/license';
 
 export default async function ProfilePage() {
@@ -27,6 +28,9 @@ export default async function ProfilePage() {
         </div>
         {/* Remounts after a gender change, which can reset the Women+ preference. */}
         <ProfileClient key={user.gender} user={user} initialPreference={preference} />
+        <div className="mt-4">
+          <PushCard placement="profile" />
+        </div>
         <div className="mt-4">
           <LicenseStatusCard my={license} linkLabel={license.verified ? 'Manage your license' : license.license?.status === 'PENDING' ? 'View your license' : 'Upload your license'} />
         </div>
