@@ -90,7 +90,7 @@ once you've verified a domain you own.)
    | Custom Build Command | `npx prisma generate` |
    | Watch Paths | leave empty (see section 8) |
    | Pre-deploy step | `npx prisma db push` (creates/updates the tables) |
-   | Custom Start Command | `npm run server` |
+   | Custom Start Command | `node server/server.js` (not `npm run server`: npm and its shell can swallow the stop signal, and Railway then reports every redeploy as "Deploy Crashed") |
    | Healthcheck Path | `/api/health` |
    | Serverless | **off** (the scheduled jobs need it awake) |
    | Source branch | `main`, auto deploys on |

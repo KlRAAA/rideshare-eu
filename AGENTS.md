@@ -379,7 +379,9 @@ Guide: `docs/deployment/railway-vercel.md`.
 - Railway service settings live in the dashboard (Railway no longer reads
   `railway.json` for new services; the file was removed): build
   `npx prisma generate`, pre-deploy `npx prisma db push`, start
-  `npm run server`, healthcheck `/api/health`, one replica (the cron jobs run
+  `node server/server.js` (directly, so Railway's SIGTERM reaches the API,
+  which then exits 0; through npm a redeploy was reported as "Deploy
+  Crashed"; `gracefulShutdown.test.js`, Linux/CI only), healthcheck `/api/health`, one replica (the cron jobs run
   in-process). Auto-deploy needs the Railway GitHub app installed on the repo.
   Watch Paths are empty on purpose: Railway checks them against only the
   newest commit of a push, so a push ending in a docs-only commit was skipped
