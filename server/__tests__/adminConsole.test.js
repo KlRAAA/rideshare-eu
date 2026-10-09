@@ -65,6 +65,7 @@ describe('GET /api/admin/nav-counts', () => {
     expect(forAdmin).toEqual({
       openReports: expect.any(Number),
       openTickets: expect.any(Number),
+      pendingLicenses: expect.any(Number),
       overdueDataPaperwork: null,
     });
     const forSa = await (await get('/api/admin/nav-counts', sa.id)).json();

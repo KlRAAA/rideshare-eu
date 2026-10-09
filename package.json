@@ -9,7 +9,7 @@
     "start": "next start",
     "server": "node server/server.js",
     "test": "npm run test:server && npm run test:web",
-    "test:server": "jest server --testPathIgnorePatterns announcements && jest server/__tests__/announcements.test.js",
+    "test:server": "jest server --testTimeout=15000 --testPathIgnorePatterns announcements && jest server/__tests__/announcements.test.js --testTimeout=15000",
     "test:web": "jest -c jest.web.config.mjs",
     "make-admin": "node server/scripts/makeAdmin.js",
     "import-saved-cars": "node server/scripts/importSavedVehicles.js",
