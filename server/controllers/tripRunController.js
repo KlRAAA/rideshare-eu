@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const { ongoingRun, startRun, endRun } = require('../services/tripRunService');
 const { confirmDay, skipDay, unskipDay } = require('../services/tripDayService');
+const { isNearPickup } = require('../services/arrivalRules');
 
 const STALE_LOCATION_MS = 90 * 1000; // ~3 missed 30 s ticks
 const MAX_ETA_SECONDS = 6 * 60 * 60;
@@ -33,7 +34,42 @@ async function updateLocation(req, res) {
       ...(etaSeconds != null && { etaAt: new Date(now.getTime() + etaSeconds * 1000) }),
     },
   });
+  try {
+    await notifyArrivingOnce(req.params.id, run, { lat: latNum, lng: lngNum });
+  } catch (err) {
+    // Never fail the location write over this.
+    console.error(`[arriving] ${err.message}`);
+  }
   res.json({ ok: true });
+}
+
+// Sub-project F: once per trip day, approved riders hear the driver is close.
+async function notifyArrivingOnce(tripId, run, point) {
+  const trip = await prisma.trip.findUnique({
+    where: { id: tripId },
+    select: {
+      originLat: true,
+      originLng: true,
+      meetingPointLat: true,
+      meetingPointLng: true,
+      matches: { where: { status: 'APPROVED' }, select: { passengerId: true } },
+    },
+  });
+  if (!trip || trip.matches.length === 0 || !isNearPickup(point, trip)) return;
+  const told = await prisma.notification.findFirst({
+    where: { type: 'DRIVER_ARRIVING', relatedTripId: tripId, occurrenceDate: run.runDate },
+    select: { id: true },
+  });
+  if (told) return;
+  await prisma.notification.createMany({
+    data: trip.matches.map((m) => ({
+      userId: m.passengerId,
+      type: 'DRIVER_ARRIVING',
+      message: 'Your driver is almost at the meeting point (about 5 minutes away).',
+      relatedTripId: tripId,
+      occurrenceDate: run.runDate,
+    })),
+  });
 }
 
 function canViewLocation(trip, userId) {
