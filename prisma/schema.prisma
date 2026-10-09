@@ -623,6 +623,8 @@ model TripRun {
   startedAt             DateTime? // set only by Start Trip
   confirmedAt           DateTime?
   skipReason            String?
+  riderCount            Int? // approved riders when the run ended (sub-project H)
+  fuelShareTotal        Float? // their fuel share, as shown to them
   plannedArrivalAt      DateTime
   endedAt               DateTime?
   endReason             RunEndReason?

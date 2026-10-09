@@ -97,6 +97,9 @@ describe('ending a run', () => {
     expect((await req('POST', `/api/trips/${trip.id}/end`, host.id, {})).status).toBe(200);
     expect((await prisma.trip.findUnique({ where: { id: trip.id } })).status).toBe('OPEN');
     expect((await prisma.match.findUnique({ where: { id: match.id } })).status).toBe('APPROVED');
+    // Sub-project H: the day keeps who rode and their fuel share (25 per seat in the fixture).
+    const run = await prisma.tripRun.findFirst({ where: { tripId: trip.id } });
+    expect(run).toMatchObject({ riderCount: 1, fuelShareTotal: 25 });
   });
 
   test('arriving near campus before the trip started does nothing (early-completion bug)', async () => {

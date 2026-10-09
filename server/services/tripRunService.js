@@ -60,13 +60,15 @@ async function startRun(tripId, userId, now = new Date()) {
 // the trip as before: the whole trip for one-time trips, that day for
 // recurring ones.
 async function finishRun(run, reason, now = new Date()) {
+  const trip = await prisma.trip.findUnique({ where: { id: run.tripId }, include: { matches: true } });
+  // Sub-project H: who rode that day and their fuel share, for the driver's summary.
+  const riders = trip ? trip.matches.filter((m) => m.status === 'APPROVED') : [];
+  const fuelShareTotal = riders.reduce((sum, m) => sum + (m.fuelShareAmount ?? trip.fuelSharePerSeat ?? 0), 0);
   const { count } = await prisma.tripRun.updateMany({
     where: { id: run.id, status: 'ONGOING' },
-    data: { status: 'COMPLETED', endedAt: now, endReason: reason },
+    data: { status: 'COMPLETED', endedAt: now, endReason: reason, riderCount: riders.length, fuelShareTotal },
   });
-  if (count === 0) return;
-  const trip = await prisma.trip.findUnique({ where: { id: run.tripId }, include: { matches: true } });
-  if (!trip) return;
+  if (count === 0 || !trip) return;
   if (trip.recurrenceType === 'ONE_TIME') await completeTrip(trip);
   else await completeRecurringOccurrence(trip, run.runDate);
 }
