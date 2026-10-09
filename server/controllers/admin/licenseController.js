@@ -5,11 +5,13 @@ async function list(req, res) {
   res.json({ licenses: await pendingLicenses() });
 }
 
-// Only while under review; never cached by the browser or a proxy.
+// Only while under review; never cached by the browser or a proxy. same-site
+// (not helmet's same-origin) so the admin page can show it when the site and
+// the API run on different ports locally; production serves both from one origin.
 async function photo(req, res) {
   const found = await licensePhoto(req.params.id);
   if (!found) return res.status(404).json({ error: 'LICENSE_NOT_FOUND' });
-  res.set({ 'Content-Type': found.mime, 'Cache-Control': 'no-store' });
+  res.set({ 'Content-Type': found.mime, 'Cache-Control': 'no-store', 'Cross-Origin-Resource-Policy': 'same-site' });
   res.send(found.image);
 }
 

@@ -59,7 +59,7 @@ export function proxy(request: NextRequest) {
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''};
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src 'self' https://fonts.gstatic.com;
-    img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com;
+    img-src 'self' ${apiOrigin} data: blob: https://api.mapbox.com https://*.tiles.mapbox.com;
     worker-src 'self' blob:;
     connect-src 'self' ${apiOrigin} https://api.mapbox.com https://events.mapbox.com https://cloud.umami.is https://gateway.umami.is https://*.ingest.us.sentry.io;
     frame-ancestors 'none';

@@ -82,6 +82,7 @@ test('an admin sees the queue and the photo; others cannot', async () => {
   expect(photo.status).toBe(200);
   expect(photo.headers.get('content-type')).toBe('image/png');
   expect(photo.headers.get('cache-control')).toBe('no-store');
+  expect(photo.headers.get('cross-origin-resource-policy')).toBe('same-site');
   expect(Buffer.from(await photo.arrayBuffer()).equals(PNG_1x1)).toBe(true);
 
   expect((await fetch(`${base}/api/admin/licenses/${license.id}/photo`, { headers: bearer(driver.id) })).status).toBe(403);
