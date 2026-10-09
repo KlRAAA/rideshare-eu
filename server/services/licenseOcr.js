@@ -11,11 +11,20 @@ async function tesseractRead(image) {
   workerPromise ??= (async () => {
     const { createWorker } = require('tesseract.js');
     const langPath = path.dirname(require.resolve('@tesseract.js-data/eng/4.0.0/eng.traineddata.gz'));
-    return createWorker('eng', 1, { langPath, gzip: true, cacheMethod: 'none' });
+    // Without an errorHandler a photo Tesseract can't read throws outside the
+    // job's promise and takes the whole server down.
+    return createWorker('eng', 1, { langPath, gzip: true, cacheMethod: 'none', errorHandler: () => {} });
   })();
   const worker = await workerPromise;
-  const { data } = await worker.recognize(image);
+  const { data } = await worker.recognize(await normalise(image));
   return data.text;
+}
+
+// Decode the photo ourselves first (a broken file fails here, harmlessly), and
+// give Tesseract a clean grayscale image of a sensible size, which reads better.
+async function normalise(image) {
+  const sharp = require('sharp');
+  return sharp(image).rotate().grayscale().resize({ width: 1600, withoutEnlargement: true }).normalise().png().toBuffer();
 }
 
 function setOcrReader(fn) {
