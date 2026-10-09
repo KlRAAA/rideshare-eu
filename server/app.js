@@ -105,6 +105,7 @@ app.use('/api/alerts', notificationRoutes); // POST/GET notification endpoints p
 app.use('/api/admin', adminRoutes);
 app.use('/api/warnings', warningRoutes);
 app.use('/api/push', require('./routes/pushRoutes'));
+app.use('/api/driver', require('./routes/driverRoutes'));
 
 // Reports the error to Sentry, then calls next(err) itself so the existing
 // handler below still runs unchanged — same response shape for clients,
