@@ -590,6 +590,29 @@ plan `docs/superpowers/plans/2026-10-09-driver-license.md`.
   `postman-driver@test.local` (no license) for folder "21. Driver licenses".
 - Deploy: set `LICENSE_DIR=/data/licenses` on Railway first; afterwards run
   `npm run notify-license-required` once.
+- **Automatic check (OCR, follow-up):** the photo is taken with the in-page
+  camera only (`LicenseCamera`, `getUserMedia`, no gallery or file picker; no
+  camera → "open this page on your phone"). After an upload,
+  `scheduleLicenseCheck` queues `checkLicense` (one at a time,
+  `services/licenseOcr.js`): `sharp` decodes and normalises the photo, Tesseract
+  (`tesseract.js` + the bundled `@tesseract.js-data/eng`, free, on our server,
+  with an `errorHandler` so a bad image can't crash the API) reads it, and
+  `services/licenseChecks.js` compares it with the typed details: LTO license
+  wording, every name part (one OCR slip allowed), the number and the expiry
+  (OCR letter/digit mix-ups and date layouts tolerated), not a student permit.
+  Only the yes/no results are stored (`checks`, `checkedAt`), never the text.
+  All pass → APPROVED with `autoApproved`, `decidedById` null, audit
+  `LICENSE_APPROVED` with `actorId` null and `{ automatic: true }`; the photo
+  and number are kept until `photoKeepUntil` (7 days) for spot-checks, then
+  deleted by the daily `purgeSpotCheckPhotos`. Anything else stays PENDING for
+  an admin, who sees the checks (✓/✗). Unchecked uploads are swept at startup
+  and every 5 minutes (`checkUncheckedLicenses`). `LICENSE_OCR=off` disables it;
+  under Jest it runs only when a test sets `setOcrReader`.
+- Admin: `GET /api/admin/licenses/recent-auto` (spot-check list with photos),
+  `POST /api/admin/licenses/:id/revoke { reason, note }` (APPROVED only, 409
+  `NOT_APPROVED`; erases photo and number, notifies, `LICENSE_REVOKED`); the
+  admin user page shows the newest license with Revoke. It checks consistency,
+  not authenticity: there's no free LTO service to confirm a license is real.
 
 **F. Noticeable notifications (done):** spec `docs/superpowers/specs/2026-10-09-loud-notifications-design.md`,
 plan `docs/superpowers/plans/2026-10-09-loud-notifications.md`.
