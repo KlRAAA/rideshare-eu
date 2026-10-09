@@ -111,6 +111,9 @@ once you've verified a domain you own.)
    | `ORIGIN_SECRET` | from step 0 |
    | `UPLOADS_DIR` | `/data/uploads` |
    | `LICENSE_DIR` | `/data/licenses` (driver's license photos: private, encrypted, never served publicly) |
+   | `VAPID_PUBLIC_KEY` | phone notifications: from `npx web-push generate-vapid-keys` (push stays off without all three) |
+   | `VAPID_PRIVATE_KEY` | from the same command; keep it secret |
+   | `VAPID_SUBJECT` | `mailto:` the admin contact address |
    | `TRUST_PROXY` | `2` (check it in step 6) |
    | `CORS_ORIGIN` | your Vercel address, e.g. `https://rideshare-eu.vercel.app` (set after step 3) |
    | `BREVO_API_KEY` | from step 1 |

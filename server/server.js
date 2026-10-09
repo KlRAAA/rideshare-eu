@@ -23,6 +23,7 @@ const { sendDueReminders } = require('./services/reminderService');
 const { endOverdueRuns } = require('./services/tripRunService');
 const { runDaySteps } = require('./services/tripDayService');
 const { sendLicenseExpiryReminders } = require('./services/licenseService');
+const { createWebPushSender, sendPendingPushes } = require('./services/pushService');
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`RideShareEU API listening on :${PORT}`));
 
@@ -35,6 +36,22 @@ if (process.env.NODE_ENV !== 'test') {
     endOverdueRuns().catch((err) => console.error(`[trip runs] auto-end failed: ${err.message}`));
     runDaySteps().catch((err) => console.error(`[trip days] steps failed: ${err.message}`));
   });
+
+  // Phone notifications (sub-project F): every 10 s, push loud notifications
+  // that haven't been sent yet. Off until the VAPID keys are set.
+  const send = createWebPushSender();
+  if (send) {
+    let pushing = false;
+    setInterval(() => {
+      if (pushing) return;
+      pushing = true;
+      sendPendingPushes({ send })
+        .catch((err) => console.error(`[push] outbox run failed: ${err.message}`))
+        .finally(() => {
+          pushing = false;
+        });
+    }, 10 * 1000).unref();
+  }
 
   // Driver's license expiry reminders, 30 and 7 days ahead (sub-project E).
   cron.schedule(
