@@ -11,6 +11,9 @@
 // Every demo account signs in with DEMO_PASSWORD below.
 
 require('dotenv').config({ quiet: true });
+// The demo API checks license photos when it starts; the seed itself must not
+// start the OCR worker (it would keep this script from exiting).
+process.env.LICENSE_OCR = 'off';
 const path = require('path');
 const fs = require('fs');
 // Never email anyone from demo data (placeholder addresses on a real domain).
