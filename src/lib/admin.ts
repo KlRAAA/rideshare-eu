@@ -13,6 +13,7 @@ export interface AdminAction {
     | 'REPORT_DISMISSED'
     | 'TRIP_CANCELLED'
     | 'FUEL_PRICE_SET'
+    | 'DOE_PRICES_DISMISSED'
     | 'PROMOTE'
     | 'DEMOTE'
     | 'SUPPORT_REPLIED'
@@ -50,6 +51,7 @@ const ACTION_LABELS: Record<AdminAction['action'], string> = {
   REPORT_DISMISSED: 'dismissed a report on',
   TRIP_CANCELLED: 'cancelled a trip hosted by',
   FUEL_PRICE_SET: 'set the official fuel price',
+  DOE_PRICES_DISMISSED: 'kept the current fuel prices',
   PROMOTE: 'made an admin:',
   DEMOTE: 'removed admin from',
   SUPPORT_REPLIED: 'replied to a support request from',
@@ -65,12 +67,20 @@ const ACTION_LABELS: Record<AdminAction['action'], string> = {
 };
 
 export function describeAction(a: AdminAction): string {
-  const actor = a.actorName ?? (a.details?.automatic ? 'Automatic strike ladder' : a.details?.via ? 'Server command' : 'System');
+  const fromDoe = a.details?.source === 'DOE';
+  const actor =
+    a.actorName ??
+    (a.details?.automatic ? 'Automatic strike ladder' : fromDoe ? 'DOE update' : a.details?.via ? 'Server command' : 'System');
+  const week = typeof a.details?.period === 'string' ? ` (${a.details.period})` : '';
   if (a.action === 'FUEL_PRICE_SET') {
     // Entries from before per-type prices have no fuelType.
     const fuelType = a.details?.fuelType;
     const type = isFuelType(fuelType) ? `${FUEL_TYPE_SHORT_LABELS[fuelType]} ` : 'fuel ';
-    return `${actor} set the official ${type}price to ₱${Number(a.details?.to).toFixed(2)}/L`;
+    const doe = fromDoe && a.actorName ? ' from the DOE file' : '';
+    return `${actor} set the official ${type}price to ₱${Number(a.details?.to).toFixed(2)}/L${doe}${week}`;
+  }
+  if (a.action === 'DOE_PRICES_DISMISSED') {
+    return `${actor} kept the current fuel prices instead of the DOE prices${week}`;
   }
   const ref = typeof a.details?.referenceNumber === 'string' ? a.details.referenceNumber : 'unknown';
   if (a.action === 'DATA_RELEASED') {

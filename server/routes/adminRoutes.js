@@ -1,7 +1,7 @@
 const express = require('express');
 const { requireAdmin } = require('../middleware/requireAdmin');
 const { overview, listActions, watchlist, navCounts } = require('../controllers/admin/overviewController');
-const { setOfficial, history } = require('../controllers/fuelPriceController');
+const { setOfficial, history, doeImports, checkDoe, applyDoe, dismissDoe } = require('../controllers/fuelPriceController');
 const users = require('../controllers/admin/userController');
 const reports = require('../controllers/admin/reportController');
 const { cancelTripAsAdmin } = require('../controllers/admin/tripController');
@@ -22,6 +22,10 @@ router.get('/actions', listActions);
 router.get('/watchlist', watchlist);
 router.put('/fuel-price', strictBody('admin.fuelPrice'), setOfficial);
 router.get('/fuel-price/history', history);
+router.get('/fuel-price/doe', doeImports);
+router.post('/fuel-price/doe/check', strictBody('admin.doeCheck'), checkDoe);
+router.post('/fuel-price/doe/:id/apply', strictBody('admin.doeDecide'), applyDoe);
+router.post('/fuel-price/doe/:id/dismiss', strictBody('admin.doeDecide'), dismissDoe);
 
 router.get('/users', users.searchUsers);
 router.get('/users/:id', users.getUserDetail);

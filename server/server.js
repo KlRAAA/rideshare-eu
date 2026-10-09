@@ -68,6 +68,17 @@ if (process.env.NODE_ENV !== 'test') {
     { timezone: 'Asia/Manila' }
   );
 
+  // Official fuel prices from the DOE's weekly file, 10 AM and 3 PM: the DOE
+  // posts on no fixed day, and a file already handled is skipped.
+  const { checkDoeFuelPrices } = require('./services/doeFuelService');
+  cron.schedule(
+    '0 10,15 * * *',
+    () => {
+      checkDoeFuelPrices().catch((err) => console.error(`[doe fuel] check failed: ${err.message}`));
+    },
+    { timezone: 'Asia/Manila' }
+  );
+
   // Keep a database copy of security events for the admin console (no IP or
   // email), and delete copies older than 30 days every night.
   const { addSecurityLogSink } = require('./services/securityLog');

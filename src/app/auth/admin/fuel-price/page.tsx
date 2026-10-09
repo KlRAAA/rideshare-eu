@@ -11,19 +11,22 @@ import {
   type OfficialFuelPrices,
 } from '@/lib/fuelTypes';
 import FuelPriceForm from './FuelPriceForm';
+import DoeCard, { type DoeImport } from './DoeCard';
 
 interface HistoryRow {
   id: string;
   fuelType: FuelType;
   pricePerLiter: number;
   createdAt: string;
-  setBy: { id: string; fullName: string };
+  setBy: { id: string; fullName: string } | null; // null: applied automatically from a DOE file
+  doe: { period: string | null; sourceUrl: string | null } | null;
 }
 
 export default async function AdminFuelPricePage() {
-  const [{ prices }, { history }] = await Promise.all([
+  const [{ prices }, { history }, doe] = await Promise.all([
     adminFetch<{ prices: OfficialFuelPrices }>('/api/fuel-price'),
     adminFetch<{ history: HistoryRow[] }>('/api/admin/fuel-price/history'),
+    adminFetch<{ imports: DoeImport[]; sourcePage: string }>('/api/admin/fuel-price/doe'),
   ]);
 
   return (
@@ -32,6 +35,7 @@ export default async function AdminFuelPricePage() {
         Hosts can enter their car&apos;s official price or less when posting a trip, never more. Trips already posted keep
         their price.
       </p>
+      <DoeCard imports={doe.imports} sourcePage={doe.sourcePage} prices={prices} />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {FUEL_TYPES.map((type) => {
           const price = prices[type];
@@ -73,7 +77,8 @@ export default async function AdminFuelPricePage() {
                   <span className="tabular-nums font-semibold text-gray-900">₱{h.pricePerLiter.toFixed(2)}</span>
                 </span>
                 <span className="text-xs text-gray-500 text-right">
-                  {h.setBy.fullName} · {formatDateTime(h.createdAt)}
+                  {h.setBy?.fullName ?? 'DOE update'}
+                  {h.doe?.period ? ` · DOE ${h.doe.period}` : ''} · {formatDateTime(h.createdAt)}
                 </span>
               </li>
             ))}

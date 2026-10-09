@@ -61,6 +61,7 @@ enum NotificationType {
   LICENSE_REQUIRED
   LICENSE_EXPIRING
   DRIVER_ARRIVING
+  FUEL_PRICE_CHECK // admins: DOE prices held for a tap, or a weekly file that couldn't be read
 }
 
 enum ReportStatus {
@@ -84,6 +85,7 @@ enum AdminActionType {
   REPORT_DISMISSED
   TRIP_CANCELLED
   FUEL_PRICE_SET
+  DOE_PRICES_DISMISSED
   PROMOTE
   DEMOTE
   SUPPORT_REPLIED
@@ -183,31 +185,31 @@ enum ReportCategory {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  universityId String   @unique // self-reported (e.g. "2023-12345"); no live ICTD record to verify it against
-  email        String   @unique
-  passwordHash String   // bcrypt — there is no ICTD/Workspace SSO to hand off to
+  id                String    @id @default(cuid())
+  universityId      String    @unique // self-reported (e.g. "2023-12345"); no live ICTD record to verify it against
+  email             String    @unique
+  passwordHash      String // bcrypt — there is no ICTD/Workspace SSO to hand off to
   // fullName and gender are AES-256-GCM ciphertext at rest (iv:authTag:data,
   // base64 — server/services/encryptionService.js), encrypted/decrypted in
   // application code, never filtered or sorted on at the DB level. gender is
   // self-declared: WOMAN / MAN / NON_BINARY / PREFER_NOT_TO_SAY (the safe
   // default). It only decides Women+ eligibility (server/services/riderRules.js)
   // and is never shown to other users.
-  fullName     String
-  role         Role
-  gender       String   // Women+ eligibility only — see riderRules.js
-  verified     Boolean  @default(false) // true once registration's OTP + domain whitelist checks pass
-  avatarUrl    String?  // /uploads/avatars/<uuid>.<ext>, served from Next's public/; null = show initials
-  trustScore   Float    @default(5.0)
-  tripCount    Int      @default(0)
-  createdAt    DateTime @default(now())
+  fullName          String
+  role              Role
+  gender            String // Women+ eligibility only — see riderRules.js
+  verified          Boolean   @default(false) // true once registration's OTP + domain whitelist checks pass
+  avatarUrl         String? // /uploads/avatars/<uuid>.<ext>, served from Next's public/; null = show initials
+  trustScore        Float     @default(5.0)
+  tripCount         Int       @default(0)
+  createdAt         DateTime  @default(now())
   // Terms-of-use / privacy-policy consent, captured at registration
   // (authController.completeRegistration) — both null for any account that
   // predates this column. termsVersion records WHICH version was agreed to,
   // since re-prompting on a future terms change means comparing against a
   // stored version, not just checking "is this non-null".
-  termsAcceptedAt DateTime?
-  termsVersion    String?
+  termsAcceptedAt   DateTime?
+  termsVersion      String?
   // Moderation state — set by the strike ladder in
   // reportEnforcementService.js or by an admin (/api/admin/users/:id/ban);
   // every change is recorded in AdminAction. A far-future bannedUntil (year 9999)
@@ -215,52 +217,52 @@ model User {
   // authenticate middleware's ban check stays one timestamp comparison
   // instead of needing a second branch. banReason stores the ReportCategory
   // that triggered this specific ban action.
-  bannedUntil DateTime?
-  banReason   String?
-  banSeverity String? // "STANDARD" | "HIGH_ALERT"
+  bannedUntil       DateTime?
+  banReason         String?
+  banSeverity       String? // "STANDARD" | "HIGH_ALERT"
   // Flips true the first time this user finishes or skips the onboarding
   // tour (PATCH /api/users/me/onboarding) — either one means "don't auto-show
   // again," not just a completed run. "Show tutorial again" replays the tour
   // client-side without touching this column.
-  hasSeenOnboarding Boolean @default(false)
+  hasSeenOnboarding Boolean   @default(false)
   // Read by the authenticate middleware on every request, so a demotion
   // takes effect immediately. Granted by `npm run make-admin` or another admin.
-  isAdmin Boolean @default(false)
+  isAdmin           Boolean   @default(false)
   // The one superadmin (the school's Data Protection Officer): manages admins
   // and alone releases records for a data request. Set only by
   // `npm run make-superadmin`; read by authenticate on every request.
-  isSuperAdmin Boolean @default(false)
+  isSuperAdmin      Boolean   @default(false)
   // Set when the user deletes their account (accountDeletionService). The row
   // stays, anonymized, so other people's trip history, ratings and safety
   // reports still resolve; authenticate refuses any session for it.
-  deletedAt DateTime?
+  deletedAt         DateTime?
 
-  vehicles        Vehicle[]
-  savedVehicles   SavedVehicle[]
-  licenses        DriverLicense[]
+  vehicles          Vehicle[]
+  savedVehicles     SavedVehicle[]
+  licenses          DriverLicense[]
   pushSubscriptions PushSubscription[]
-  hostedTrips     Trip[]          @relation("HostTrips")
-  matches         Match[]         @relation("PassengerMatches")
-  notifications   Notification[]
-  preference      Preference?
-  ratingsGiven    Rating[]        @relation("RaterRatings")
-  ratingsReceived Rating[]        @relation("RateeRatings")
-  messagesSent    Message[]
-  reportsFiled    Report[]        @relation("ReportsFiled")
-  reportsReceived Report[]        @relation("ReportsReceived")
-  reportsReviewed Report[]        @relation("ReportsReviewed")
-  fuelPricesSet   FuelPrice[]
-  adminActions    AdminAction[]   @relation("AdminActionActor")
-  supportTickets  SupportTicket[]  @relation("SupportTickets")
-  supportMessages SupportMessage[] @relation("SupportMessages")
-  announcements   Announcement[]   @relation("Announcements")
-  activeMode      AppMode          @default(PASSENGER) // Driver or Passenger mode (sub-project C)
+  hostedTrips       Trip[]             @relation("HostTrips")
+  matches           Match[]            @relation("PassengerMatches")
+  notifications     Notification[]
+  preference        Preference?
+  ratingsGiven      Rating[]           @relation("RaterRatings")
+  ratingsReceived   Rating[]           @relation("RateeRatings")
+  messagesSent      Message[]
+  reportsFiled      Report[]           @relation("ReportsFiled")
+  reportsReceived   Report[]           @relation("ReportsReceived")
+  reportsReviewed   Report[]           @relation("ReportsReviewed")
+  fuelPricesSet     FuelPrice[]
+  adminActions      AdminAction[]      @relation("AdminActionActor")
+  supportTickets    SupportTicket[]    @relation("SupportTickets")
+  supportMessages   SupportMessage[]   @relation("SupportMessages")
+  announcements     Announcement[]     @relation("Announcements")
+  activeMode        AppMode            @default(PASSENGER) // Driver or Passenger mode (sub-project C)
 }
 
 model Vehicle {
-  id                String  @id @default(cuid())
+  id                String   @id @default(cuid())
   ownerId           String
-  owner             User    @relation(fields: [ownerId], references: [id])
+  owner             User     @relation(fields: [ownerId], references: [id])
   make              String
   model             String
   color             String
@@ -292,46 +294,46 @@ model SavedVehicle {
 }
 
 model Trip {
-  id                  String           @id @default(cuid())
-  hostId              String
-  host                User             @relation("HostTrips", fields: [hostId], references: [id])
-  vehicleId           String
-  vehicle             Vehicle          @relation(fields: [vehicleId], references: [id])
+  id                    String           @id @default(cuid())
+  hostId                String
+  host                  User             @relation("HostTrips", fields: [hostId], references: [id])
+  vehicleId             String
+  vehicle               Vehicle          @relation(fields: [vehicleId], references: [id])
   // originAddress/destinationAddress/meetingPointAddress are AES-256-GCM
   // ciphertext at rest (same scheme as User.fullName/gender) — the
   // human-readable text is what reveals a home/work location by name, unlike
   // the bare lat/lng pair; those stay plaintext since the PSGA does real
   // arithmetic on them (haversine, route-overlap sampling) that ciphertext
   // can't support without decrypting on every single computation.
-  originAddress       String
-  originLat           Float
-  originLng           Float
-  destinationAddress  String
-  destinationLat      Float
-  destinationLng      Float
-  routeWaypoints      Json?            // [{lat,lng}, ...] road geometry from the Mapbox Directions call at creation; null if it failed the sanity check
-  distanceMeters      Int?             // road distance from the same Directions call; feeds nothing yet but persisted alongside durationSeconds so both survive
-  departureTime       DateTime
-  recurrenceType      RecurrenceType
-  customDays          Int[]            @default([]) // 0=Sun..6=Sat, used when CUSTOM
-  totalSeats          Int
-  filledSeats         Int              @default(0)
-  fuelShareSuggested  Float?           // DEPRECATED — old host-typed guess, no longer read or written; superseded by fuelSharePerSeat. Kept only to avoid a destructive column drop; safe to remove in a later migration.
-  fuelPricePerLiter   Float?           // host-entered retail price (PHP/L) at posting time — no reliable free PH fuel-price API exists, so the host supplies today's price instead of a stale hardcoded default. Frozen alongside fuelSharePerSeat once computed.
-  fuelSharePerSeat    Float?           // fixed voluntary contribution per passenger seat, computed once at posting from distance / vehicle efficiency / fuelPricePerLiter ÷ totalSeats (driver excluded); null if distance or price was unavailable
-  driverNotes         String?
-  genderPreference    GenderPreference @default(ANY)
-  flexibleDeparture   Boolean          @default(false)
-  flexWindowMinutes   Int              @default(15)
-  familiarRidersOnly  Boolean          @default(false)
-  meetingPointAddress String?
-  meetingPointLat     Float?
-  meetingPointLng     Float?
-  status              TripStatus       @default(OPEN)
-  createdAt           DateTime         @default(now())
-  durationSeconds     Int?             // from the Mapbox Directions call at creation; null if routing failed/implausible — auto-completion skips those, manual override still works
-  cancelReason        String?          // host's optional reason, shown in the passenger cancellation notification
-  cancelledAt         DateTime?
+  originAddress         String
+  originLat             Float
+  originLng             Float
+  destinationAddress    String
+  destinationLat        Float
+  destinationLng        Float
+  routeWaypoints        Json? // [{lat,lng}, ...] road geometry from the Mapbox Directions call at creation; null if it failed the sanity check
+  distanceMeters        Int? // road distance from the same Directions call; feeds nothing yet but persisted alongside durationSeconds so both survive
+  departureTime         DateTime
+  recurrenceType        RecurrenceType
+  customDays            Int[]            @default([]) // 0=Sun..6=Sat, used when CUSTOM
+  totalSeats            Int
+  filledSeats           Int              @default(0)
+  fuelShareSuggested    Float? // DEPRECATED — old host-typed guess, no longer read or written; superseded by fuelSharePerSeat. Kept only to avoid a destructive column drop; safe to remove in a later migration.
+  fuelPricePerLiter     Float? // host-entered retail price (PHP/L) at posting time — no reliable free PH fuel-price API exists, so the host supplies today's price instead of a stale hardcoded default. Frozen alongside fuelSharePerSeat once computed.
+  fuelSharePerSeat      Float? // fixed voluntary contribution per passenger seat, computed once at posting from distance / vehicle efficiency / fuelPricePerLiter ÷ totalSeats (driver excluded); null if distance or price was unavailable
+  driverNotes           String?
+  genderPreference      GenderPreference @default(ANY)
+  flexibleDeparture     Boolean          @default(false)
+  flexWindowMinutes     Int              @default(15)
+  familiarRidersOnly    Boolean          @default(false)
+  meetingPointAddress   String?
+  meetingPointLat       Float?
+  meetingPointLng       Float?
+  status                TripStatus       @default(OPEN)
+  createdAt             DateTime         @default(now())
+  durationSeconds       Int? // from the Mapbox Directions call at creation; null if routing failed/implausible — auto-completion skips those, manual override still works
+  cancelReason          String? // host's optional reason, shown in the passenger cancellation notification
+  cancelledAt           DateTime?
   // The driver's position lives on the day's TripRun (sub-project B). These
   // three are unused since then; they stay only so deploys (plain `db push`)
   // don't need a data-loss change. Drop them with the move to migrations.
@@ -339,9 +341,9 @@ model Trip {
   lastKnownLng          Float?
   lastLocationUpdatedAt DateTime?
 
-  matches             Match[]
-  messages            Message[]
-  runs                TripRun[]
+  matches  Match[]
+  messages Message[]
+  runs     TripRun[]
 
   @@index([hostId])
   @@index([status])
@@ -358,8 +360,8 @@ model Match {
   scheduleAlignment Float
   preferenceMatch   Boolean
   status            MatchStatus @default(PENDING)
-  message           String?     // optional note from the passenger to the host, sent with the join request
-  fuelShareAmount   Float?      // snapshot of the trip's fuelSharePerSeat at request time; null if the trip had no computed share
+  message           String? // optional note from the passenger to the host, sent with the join request
+  fuelShareAmount   Float? // snapshot of the trip's fuelSharePerSeat at request time; null if the trip had no computed share
   createdAt         DateTime    @default(now())
   respondedAt       DateTime?
   // Sub-project G: the rider's switch and latest position, shown only to the
@@ -369,8 +371,8 @@ model Match {
   riderLng          Float?
   riderLocatedAt    DateTime?
 
-  ratings           Rating[]
-  reports           Report[]
+  ratings Rating[]
+  reports Report[]
 
   @@index([tripId])
   @@index([passengerId])
@@ -383,8 +385,8 @@ model Notification {
   user           User             @relation(fields: [userId], references: [id])
   type           NotificationType
   message        String
-  relatedMatchId String?          // the specific join request, when the notification is about one
-  relatedTripId  String?          // the trip a click on this notification navigates to
+  relatedMatchId String? // the specific join request, when the notification is about one
+  relatedTripId  String? // the trip a click on this notification navigates to
   // Which calendar occurrence this notification is about — set for REMINDER
   // and RATING_PROMPT on a recurring trip, where the same trip/match produces
   // one of these per occurrence rather than once ever, and for the trip-day
@@ -417,34 +419,34 @@ model Message {
 }
 
 model Preference {
-  id                   String           @id @default(cuid())
-  userId               String           @unique
-  user                 User             @relation(fields: [userId], references: [id])
-  genderPreference     GenderPreference @default(ANY)
-  flexWindowMinutes    Int              @default(15)
-  familiarRidersOnly   Boolean          @default(false)
+  id                  String           @id @default(cuid())
+  userId              String           @unique
+  user                User             @relation(fields: [userId], references: [id])
+  genderPreference    GenderPreference @default(ANY)
+  flexWindowMinutes   Int              @default(15)
+  familiarRidersOnly  Boolean          @default(false)
   // Unused since Start Trip shares location (sub-project B); kept so deploys
   // don't need a data-loss change. Drop with the move to migrations.
-  liveLocationSharing  Boolean          @default(false)
+  liveLocationSharing Boolean          @default(false)
 }
 
 model Rating {
-  id        String   @id @default(cuid())
-  matchId   String
-  match     Match    @relation(fields: [matchId], references: [id])
-  raterId   String
-  rater     User     @relation("RaterRatings", fields: [raterId], references: [id])
-  rateeId   String
-  ratee     User     @relation("RateeRatings", fields: [rateeId], references: [id])
-  score     Int
-  comment   String?
-  anonymous Boolean  @default(false) // rater chose to hide their name on the ratee's public profile; enforced in GET /api/users/:id/ratings, which then omits every rater-identifying field
+  id             String   @id @default(cuid())
+  matchId        String
+  match          Match    @relation(fields: [matchId], references: [id])
+  raterId        String
+  rater          User     @relation("RaterRatings", fields: [raterId], references: [id])
+  rateeId        String
+  ratee          User     @relation("RateeRatings", fields: [rateeId], references: [id])
+  score          Int
+  comment        String?
+  anonymous      Boolean  @default(false) // rater chose to hide their name on the ratee's public profile; enforced in GET /api/users/:id/ratings, which then omits every rater-identifying field
   // The calendar occurrence this rating is for. For a ONE_TIME trip there is
   // only ever one value, computed once from the trip's departureTime, so
   // behavior is unchanged. For a recurring trip this is what lets the same
   // standing match accumulate one rating per ride instead of one ever.
   occurrenceDate DateTime
-  createdAt DateTime @default(now())
+  createdAt      DateTime @default(now())
 
   // One rating per direction per match PER OCCURRENCE: the passenger rates
   // the host once per ride, the host rates the passenger once per ride.
@@ -472,7 +474,7 @@ model Report {
   reportedMatchId String?
   reportedMatch   Match?         @relation(fields: [reportedMatchId], references: [id])
   category        ReportCategory
-  description     String?        // optional free text, capped at 500 chars (server-enforced, not just UI)
+  description     String? // optional free text, capped at 500 chars (server-enforced, not just UI)
   createdAt       DateTime       @default(now())
   status          ReportStatus   @default(OPEN)
   reviewedById    String?
@@ -490,15 +492,45 @@ model Report {
 // Official fuel price history. The newest row is the current cap on the
 // price a host may enter when posting a trip; no rows means no cap.
 model FuelPrice {
-  id            String   @id @default(cuid())
-  fuelType      FuelType @default(REGULAR) // rows from before per-type prices are Regular
+  id            String         @id @default(cuid())
+  fuelType      FuelType       @default(REGULAR) // rows from before per-type prices are Regular
   pricePerLiter Float
-  setById       String
-  setBy         User     @relation(fields: [setById], references: [id])
-  createdAt     DateTime @default(now())
+  setById       String? // null when applied automatically from the DOE file
+  setBy         User?          @relation(fields: [setById], references: [id])
+  importId      String? // the DOE weekly file this price came from
+  import        DoeFuelImport? @relation(fields: [importId], references: [id])
+  createdAt     DateTime       @default(now())
 
   @@index([createdAt])
   @@index([fuelType, createdAt])
+}
+
+enum DoeImportStatus {
+  APPLIED // official prices updated (automatically, or by an admin's tap)
+  HELD // a change over 15%: waits for an admin
+  DISMISSED // an admin kept the current prices instead
+  FAILED // the page or file couldn't be read; admins enter prices by hand
+}
+
+// One row per DOE weekly Region IV-A file read for the official fuel prices
+// (Lucena's highest monitored price per grade). `key` is the file's URL, or
+// "page:<PH date>" when the DOE page had no file, so each is handled once.
+model DoeFuelImport {
+  id          String          @id @default(cuid())
+  key         String          @unique
+  sourceUrl   String?
+  period      String? // as printed in the file, e.g. "September 29-October 5, 2026"
+  regular     Float?
+  premium     Float?
+  diesel      Float?
+  status      DoeImportStatus
+  reason      String?
+  decidedById String? // the admin who applied or dismissed a held import
+  decidedAt   DateTime?
+  createdAt   DateTime        @default(now())
+  prices      FuelPrice[]
+
+  @@index([createdAt])
 }
 
 // Audit log of every admin action and every automatic ban (actorId null).
@@ -539,7 +571,7 @@ model SupportTicket {
   user          User             @relation("SupportTickets", fields: [userId], references: [id])
   category      SupportCategory
   subject       String
-  relatedTripId String?          // one of the user's own trips, for context
+  relatedTripId String? // one of the user's own trips, for context
   status        SupportStatus    @default(OPEN)
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
@@ -582,7 +614,7 @@ model SecurityEvent {
   id        String   @id @default(cuid())
   event     String
   reason    String?
-  userId    String?  // no relation: a failed sign-in may name no real account
+  userId    String? // no relation: a failed sign-in may name no real account
   route     String
   createdAt DateTime @default(now())
 
@@ -607,8 +639,8 @@ enum RunStatus {
 }
 
 enum RunEndReason {
-  DRIVER  // End Trip
-  AUTO    // 60 minutes after planned arrival
+  DRIVER // End Trip
+  AUTO // 60 minutes after planned arrival
   ARRIVED // near campus while ongoing
 }
 
@@ -665,25 +697,25 @@ enum LicenseRejectReason {
 }
 
 model DriverLicense {
-  id           String               @id @default(cuid())
-  userId       String
-  user         User                 @relation(fields: [userId], references: [id])
-  status       LicenseStatus        @default(PENDING)
-  licenseType  LicenseType
-  numberEnc    String? // full number, encrypted; erased on the decision
-  numberLast4  String
-  expiresOn    DateTime // a Philippine date, stored at 00:00 UTC
-  photoFile    String? // file name under LICENSE_DIR; null once decided
-  submittedAt  DateTime             @default(now())
-  decidedAt    DateTime?
-  decidedById  String? // plain id, like AdminAction's, so it survives account deletion
-  rejectReason LicenseRejectReason?
-  rejectNote   String?
+  id             String               @id @default(cuid())
+  userId         String
+  user           User                 @relation(fields: [userId], references: [id])
+  status         LicenseStatus        @default(PENDING)
+  licenseType    LicenseType
+  numberEnc      String? // full number, encrypted; erased on the decision
+  numberLast4    String
+  expiresOn      DateTime // a Philippine date, stored at 00:00 UTC
+  photoFile      String? // file name under LICENSE_DIR; null once decided
+  submittedAt    DateTime             @default(now())
+  decidedAt      DateTime?
+  decidedById    String? // plain id, like AdminAction's, so it survives account deletion
+  rejectReason   LicenseRejectReason?
+  rejectNote     String?
   // Automatic check (OCR): the five results, when they ran, whether it approved
   // the license, and until when an auto-approved photo is kept for spot-checks.
   checks         Json?
   checkedAt      DateTime?
-  autoApproved   Boolean   @default(false)
+  autoApproved   Boolean              @default(false)
   photoKeepUntil DateTime?
 
   @@index([userId, submittedAt])

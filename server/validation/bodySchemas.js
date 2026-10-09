@@ -154,6 +154,8 @@ const SCHEMAS = {
 
   // Admin console
   'admin.fuelPrice': { fuelType: 'string', pricePerLiter: 'numeric' },
+  'admin.doeCheck': NONE,
+  'admin.doeDecide': NONE,
   'admin.warn': { reason: 'string', note: 'string', ticketId: 'string', reportId: 'string' },
   'admin.ban': { duration: 'string', reason: 'string', note: 'string' },
   'admin.unban': { note: 'string' },

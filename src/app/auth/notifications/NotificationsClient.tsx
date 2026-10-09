@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen, FaCommentDots, FaLifeRing, FaBullhorn, FaExclamationTriangle, FaBell, FaCar, FaQuestionCircle, FaUserClock, FaUserTimes, FaCalendarTimes, FaIdCard, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen, FaCommentDots, FaLifeRing, FaBullhorn, FaExclamationTriangle, FaBell, FaCar, FaQuestionCircle, FaUserClock, FaUserTimes, FaCalendarTimes, FaIdCard, FaMapMarkerAlt, FaGasPump } from 'react-icons/fa';
 import Card from '@/components/Card';
 import { apiFetch } from '@/lib/api';
 import ModeSwitchButton from '@/components/ModeSwitchButton';
@@ -32,7 +32,8 @@ export interface NotificationItem {
     | 'LICENSE_REJECTED'
     | 'LICENSE_REQUIRED'
     | 'LICENSE_EXPIRING'
-    | 'DRIVER_ARRIVING';
+    | 'DRIVER_ARRIVING'
+    | 'FUEL_PRICE_CHECK';
   message: string;
   isRead: boolean;
   createdAt: string;
@@ -62,6 +63,7 @@ const TYPE_ICON: Record<NotificationItem['type'], React.ComponentType<{ classNam
   LICENSE_REQUIRED: FaIdCard,
   LICENSE_EXPIRING: FaIdCard,
   DRIVER_ARRIVING: FaMapMarkerAlt,
+  FUEL_PRICE_CHECK: FaGasPump,
 };
 
 interface NotificationsClientProps {

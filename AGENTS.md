@@ -718,3 +718,30 @@ plan `docs/superpowers/plans/2026-10-09-passenger-location.md`.
   them) replace the stacked sentences on Find a Ride results and My Trips /
   My Rides; the Trip details card uses icon rows with the label as tooltip.
   Wording in `src/lib/tripFacts.ts`. Facts only: buttons keep their words.
+
+## Automatic DOE fuel prices (Oct 2026)
+
+Designed in chat. The official caps come from the DOE's weekly price
+monitoring instead of an admin typing them in.
+
+- Every day at 10 AM and 3 PM PH (`server.js` cron; the DOE posts on no fixed
+  day) `doeFuelService.checkDoeFuelPrices` reads the DOE South Luzon page,
+  takes the newest Region IV-A file (week labels under year headings), reads
+  the PDF (`services/doePdf.js`, `pdfjs-dist` legacy build, no eval) and takes
+  **Lucena's highest monitored price** (the range's top) for RON 91 →
+  Regular, RON 95 → Premium, DIESEL → Diesel. Parsing is pure in
+  `services/doeFuelRules.js`; fixtures are the real page excerpt and the
+  Sep 29 – Oct 5, 2026 file's text in `server/test-helpers/fixtures/`.
+- `DoeFuelImport` (one row per file, `key` = its URL, or `page:<PH date>` when
+  the page lists no file): `APPLIED` when every grade moved ≤ 15%
+  (`FuelPrice` rows with `importId`, `setById` null; `FUEL_PRICE_SET` audit
+  with `actorId` null and `source: 'DOE'`); `HELD` when one moved more,
+  `FAILED` when the file can't be read: both notify every admin
+  (`FUEL_PRICE_CHECK`, links to the fuel price page). The DOE site being down
+  records nothing, so the next run retries. Only changed grades get a row.
+- Admin routes: `GET /api/admin/fuel-price/doe` (last 5), `POST .../doe/check`
+  (502 `DOE_UNREACHABLE`; one run at a time, shared with the cron),
+  `POST .../doe/:id/apply` and `.../dismiss` (404 `NOT_FOUND`, 409 `NOT_HELD`;
+  dismiss writes `DOE_PRICES_DISMISSED`). Manual prices still work.
+- Under Jest nothing reaches the DOE: tests call `setDoeSource` with a fake.
+  Postman leaves out "check now" (live site).

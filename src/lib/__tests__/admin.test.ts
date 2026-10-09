@@ -85,3 +85,31 @@ describe('adminNavGroups', () => {
     expect(labels(false)).toEqual(['Overview', 'Reports', 'Support', 'Watch list', 'Users', 'Driver licenses', 'Announcements', 'Fuel price', 'Activity']);
   });
 });
+
+describe('describeAction for DOE fuel prices', () => {
+  const base: AdminAction = {
+    id: 'a2',
+    actorId: null,
+    actorName: null,
+    action: 'FUEL_PRICE_SET',
+    targetUserId: null,
+    targetUserName: null,
+    targetTripId: null,
+    targetReportId: null,
+    details: { fuelType: 'DIESEL', from: 90, to: 98.13, source: 'DOE', period: 'September 29-October 5, 2026' },
+    createdAt: hoursAgo(1),
+  };
+
+  test('names the DOE file as the source of an automatic or tapped update', () => {
+    expect(describeAction(base)).toBe('DOE update set the official Diesel price to ₱98.13/L (September 29-October 5, 2026)');
+    expect(describeAction({ ...base, actorId: 'admin', actorName: 'Carlo Reyes' })).toBe(
+      'Carlo Reyes set the official Diesel price to ₱98.13/L from the DOE file (September 29-October 5, 2026)'
+    );
+  });
+
+  test('says when an admin kept the current prices', () => {
+    expect(
+      describeAction({ ...base, actorId: 'admin', actorName: 'Carlo Reyes', action: 'DOE_PRICES_DISMISSED', details: { period: 'October 6-12, 2026' } })
+    ).toBe('Carlo Reyes kept the current fuel prices instead of the DOE prices (October 6-12, 2026)');
+  });
+});

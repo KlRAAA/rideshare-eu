@@ -2784,6 +2784,97 @@
               }
             },
             {
+              "name": "DOE price checks",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('lists the files read', () => pm.expect(pm.response.json().imports).to.be.an('array'));",
+                      "pm.test('links the DOE page', () => pm.expect(pm.response.json().sourcePage).to.include('doe.gov.ph'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/fuel-price/doe",
+                "description": "The weekly DOE files read for the official prices. \"Check DOE now\" (POST /api/admin/fuel-price/doe/check) is left out: it reads the live DOE site and can change the prices.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "DOE price checks as a regular user",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/fuel-price/doe",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Apply an unknown DOE file",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 404', () => pm.response.to.have.status(404));",
+                      "pm.test('says not found', () => pm.expect(pm.response.json().error).to.eql('NOT_FOUND'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/fuel-price/doe/unknown-file/apply",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
+            },
+            {
               "name": "Audit log",
               "event": [
                 {

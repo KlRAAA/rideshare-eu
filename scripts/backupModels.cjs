@@ -18,6 +18,7 @@ module.exports = [
   'supportTicket',
   'supportMessage',
   'userWarning',
+  'doeFuelImport',
   'fuelPrice',
   'announcement',
   'dataRequest',
