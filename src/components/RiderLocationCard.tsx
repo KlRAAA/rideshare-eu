@@ -53,6 +53,7 @@ export default function RiderLocationCard({ tripId, matchId, initialOn, departur
 
   async function toggle(next: boolean) {
     setBusy(true);
+    setOn(next); // flips at once; reverts if the server says no
     try {
       const res = await apiFetch<{ sharesLocation: boolean }>(`/api/matches/${matchId}/location-sharing`, {
         method: 'PATCH',
@@ -60,7 +61,7 @@ export default function RiderLocationCard({ tripId, matchId, initialOn, departur
       });
       setOn(res.sharesLocation);
     } catch {
-      /* keep the old state */
+      setOn(!next);
     } finally {
       setBusy(false);
     }
