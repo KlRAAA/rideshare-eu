@@ -181,6 +181,7 @@ async function cleanup(bag) {
   });
   for (const l of licenses) if (l.photoFile) fs.rmSync(path.join(LICENSE_DIR, l.photoFile), { force: true });
   await prisma.driverLicense.deleteMany({ where: { id: { in: licenses.map((l) => l.id) } } });
+  await prisma.pushSubscription.deleteMany({ where: { userId: { in: bag.userIds } } });
   await prisma.user.deleteMany({ where: { id: { in: bag.userIds } } });
 }
 

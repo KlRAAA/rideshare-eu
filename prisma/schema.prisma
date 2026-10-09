@@ -60,6 +60,7 @@ enum NotificationType {
   LICENSE_REJECTED
   LICENSE_REQUIRED
   LICENSE_EXPIRING
+  DRIVER_ARRIVING
 }
 
 enum ReportStatus {
@@ -236,6 +237,7 @@ model User {
   vehicles        Vehicle[]
   savedVehicles   SavedVehicle[]
   licenses        DriverLicense[]
+  pushSubscriptions PushSubscription[]
   hostedTrips     Trip[]          @relation("HostTrips")
   matches         Match[]         @relation("PassengerMatches")
   notifications   Notification[]
@@ -383,8 +385,10 @@ model Notification {
   occurrenceDate DateTime?
   isRead         Boolean          @default(false)
   createdAt      DateTime         @default(now())
+  pushedAt       DateTime? // set by the push outbox once handled (sub-project F)
 
   @@index([userId])
+  @@index([createdAt])
 }
 
 // One shared thread per trip — the host and every APPROVED passenger, not
@@ -669,4 +673,19 @@ model DriverLicense {
 
   @@index([userId, submittedAt])
   @@index([status, submittedAt])
+}
+
+// A phone or browser that accepted Web Push (sub-project F). An endpoint
+// belongs to the newest account that registered it.
+model PushSubscription {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  @@index([userId])
 }
