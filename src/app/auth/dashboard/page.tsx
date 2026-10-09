@@ -108,18 +108,19 @@ export default async function DashboardPage() {
           <div className="dashboard-top-grid mt-6">
             {isDriver && (
             <Card data-tour="post-ride" className="border-2 border-[color:var(--rsu-color-primary)/0.18]">
+              {/* Icon and text on one row; the button spans the card below them. */}
               <div className="flex items-start gap-4">
-                <div className="p-2 bg-white rounded-md">
+                <div className="w-10 h-10 shrink-0 bg-gray-100 rounded-lg flex items-center justify-center">
                   <FaCar className="w-5 h-5 text-[color:var(--rsu-color-primary)]" />
                 </div>
-                <div className="flex-1">
+                <div className="min-w-0">
                   <h2 className="text-base font-semibold text-gray-900 mb-1">Post a Trip</h2>
-                  <p className="text-sm text-gray-500 mt-0 mb-4">Share your vehicle and help others commute</p>
-                  <Link href="/auth/post" className="rsu-btn-primary w-full md:w-auto">
-                    Create New Trip
-                  </Link>
+                  <p className="text-sm text-gray-500">Share your vehicle and help others commute</p>
                 </div>
               </div>
+              <Link href="/auth/post" className="rsu-btn-primary mt-4 w-full">
+                Create New Trip
+              </Link>
             </Card>
             )}
 
@@ -149,17 +150,17 @@ export default async function DashboardPage() {
             {!isDriver && (
             <Card data-tour="find-ride">
               <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 shrink-0 bg-gray-100 rounded-lg flex items-center justify-center">
                   <FaSearch className="w-5 h-5 text-gray-500" />
                 </div>
-                <div className="flex-1">
+                <div className="min-w-0">
                   <h2 className="text-base font-semibold text-gray-900 mb-1">Find a Ride</h2>
-                  <p className="text-sm text-gray-500 mt-0 mb-4">Search for available carpools to join</p>
-                  <Link href="/auth/search" className="rsu-btn-primary w-full md:w-48">
-                    Search Rides
-                  </Link>
+                  <p className="text-sm text-gray-500">Search for available carpools to join</p>
                 </div>
               </div>
+              <Link href="/auth/search" className="rsu-btn-primary mt-4 w-full">
+                Search Rides
+              </Link>
             </Card>
             )}
           </div>
