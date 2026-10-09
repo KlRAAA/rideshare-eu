@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { FaCamera, FaRedo, FaCheck } from 'react-icons/fa';
+import { FaCamera, FaRedo, FaCheck, FaVideoSlash } from 'react-icons/fa';
 
 interface LicenseCameraProps {
   // The captured photo (JPEG), or null after "Retake".
@@ -11,29 +11,39 @@ interface LicenseCameraProps {
 const MAX_WIDTH = 1600;
 const CARD_RATIO = 85.6 / 54; // ID-1 card size
 
-type CameraState = 'starting' | 'live' | 'taken' | 'denied' | 'none';
+type CameraState = 'off' | 'starting' | 'live' | 'taken' | 'denied' | 'none';
 
 // The license photo is taken here, with the camera, never picked from the
 // gallery (E, follow-up): harder to submit an edited or borrowed image.
+// The camera turns on only when the user taps "Open camera", and off again
+// after the photo, on Cancel, when the page is hidden, or when it's left.
 export default function LicenseCamera({ onPhoto }: LicenseCameraProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [state, setState] = useState<CameraState>('starting');
+  // False once the user cancels or leaves, so a camera still starting turns straight off.
+  const wantedRef = useRef(false);
+  const [state, setState] = useState<CameraState>('off');
   const [preview, setPreview] = useState<string | null>(null);
 
   const stop = useCallback(() => {
+    wantedRef.current = false;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
   }, []);
 
   const start = useCallback(async () => {
     setState('starting');
+    wantedRef.current = true;
     if (!navigator.mediaDevices?.getUserMedia) return setState('none');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false,
       });
+      if (!wantedRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -46,10 +56,25 @@ export default function LicenseCamera({ onPhoto }: LicenseCameraProps) {
     }
   }, []);
 
+  // Off on leaving the page, and when the user switches app or tab.
   useEffect(() => {
-    void start();
-    return stop;
-  }, [start, stop]);
+    const hidden = () => {
+      if (document.visibilityState === 'hidden' && (streamRef.current || wantedRef.current)) {
+        stop();
+        setState('off');
+      }
+    };
+    document.addEventListener('visibilitychange', hidden);
+    return () => {
+      document.removeEventListener('visibilitychange', hidden);
+      stop();
+    };
+  }, [stop]);
+
+  function cancel() {
+    stop();
+    setState('off');
+  }
 
   useEffect(() => () => {
     if (preview) URL.revokeObjectURL(preview);
@@ -79,7 +104,7 @@ export default function LicenseCamera({ onPhoto }: LicenseCameraProps) {
   function retake() {
     setPreview(null);
     onPhoto(null);
-    void start();
+    setState('off');
   }
 
   if (state === 'denied' || state === 'none') {
@@ -96,6 +121,24 @@ export default function LicenseCamera({ onPhoto }: LicenseCameraProps) {
             Try again
           </button>
         )}
+      </div>
+    );
+  }
+
+  if (state === 'off') {
+    return (
+      <div className="space-y-2">
+        <div
+          className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-6 text-center"
+          style={{ aspectRatio: '4 / 3' }}
+        >
+          <FaVideoSlash className="h-6 w-6 text-gray-400" aria-hidden />
+          <p className="text-sm font-semibold text-gray-700">Camera is off</p>
+          <p className="max-w-xs text-xs text-gray-500">It turns on only when you tap the button below, and off again right after the photo.</p>
+        </div>
+        <button type="button" onClick={() => void start()} className="rsu-btn-primary flex w-full items-center justify-center gap-2">
+          <FaCamera className="h-4 w-4" aria-hidden /> Open camera
+        </button>
       </div>
     );
   }
@@ -129,14 +172,19 @@ export default function LicenseCamera({ onPhoto }: LicenseCameraProps) {
           </p>
         </div>
       ) : (
-        <button
-          type="button"
-          disabled={state !== 'live'}
-          onClick={take}
-          className="rsu-btn-primary flex w-full items-center justify-center gap-2 disabled:opacity-60"
-        >
-          <FaCamera className="h-4 w-4" aria-hidden /> Take photo
-        </button>
+        <div className="flex gap-2">
+          <button type="button" onClick={cancel} className="rsu-btn-secondary px-4 py-2 text-sm">
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={state !== 'live'}
+            onClick={take}
+            className="rsu-btn-primary flex flex-1 items-center justify-center gap-2 disabled:opacity-60"
+          >
+            <FaCamera className="h-4 w-4" aria-hidden /> Take photo
+          </button>
+        </div>
       )}
       <p className="text-xs text-gray-500">Fit the license inside the frame. Make sure your name, the number and the expiry date are sharp, with no glare.</p>
     </div>

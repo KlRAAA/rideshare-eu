@@ -592,7 +592,9 @@ plan `docs/superpowers/plans/2026-10-09-driver-license.md`.
   `npm run notify-license-required` once.
 - **Automatic check (OCR, follow-up):** the photo is taken with the in-page
   camera only (`LicenseCamera`, `getUserMedia`, no gallery or file picker; no
-  camera → "open this page on your phone"). After an upload,
+  camera → "open this page on your phone"). The camera starts only on "Open
+  camera" and stops after the photo, on Cancel, when the page is hidden or left
+  (a camera still starting when cancelled is stopped at once). After an upload,
   `scheduleLicenseCheck` queues `checkLicense` (one at a time,
   `services/licenseOcr.js`): `sharp` decodes and normalises the photo, Tesseract
   (`tesseract.js` + the bundled `@tesseract.js-data/eng`, free, on our server,
