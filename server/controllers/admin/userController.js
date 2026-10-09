@@ -1,4 +1,5 @@
 const prisma = require('../../config/db');
+const { PUBLIC_FIELDS: LICENSE_PUBLIC_FIELDS } = require('../../services/licenseService');
 const safeUserSelect = require('../../config/safeUserSelect');
 const { decryptField, decryptUserFields, decryptTripFields } = require('../../services/encryptionService');
 const { banUser, notifyBan, unbanUser, setAdmin, sendAdminError } = require('../../services/adminModerationService');
@@ -40,7 +41,7 @@ async function getUserDetail(req, res) {
   const tripSelect = { id: true, destinationAddress: true, departureTime: true, status: true, filledSeats: true, totalSeats: true };
   // Open trips only, so an admin can cancel one. Past and joined trips are
   // released only through a recorded data request (superadmin spec D8).
-  const [hostedTrips, ratings, reportsFiledCount, reportsReceived, banHistory, supportTickets, securityCounts30d, warnings] = await Promise.all([
+  const [hostedTrips, ratings, reportsFiledCount, reportsReceived, banHistory, supportTickets, securityCounts30d, warnings, license] = await Promise.all([
     prisma.trip.findMany({
       where: { hostId: id, status: { in: ['OPEN', 'FULL'] } },
       orderBy: { departureTime: 'asc' },
@@ -73,6 +74,8 @@ async function getUserDetail(req, res) {
     }),
     userSecurityCounts(id),
     prisma.userWarning.findMany({ where: { userId: id }, orderBy: { createdAt: 'desc' }, take: DETAIL_LIMIT }),
+    // The newest driver's license (sub-project E), so an admin can revoke it.
+    prisma.driverLicense.findFirst({ where: { userId: id }, orderBy: { submittedAt: 'desc' }, select: LICENSE_PUBLIC_FIELDS }),
   ]);
 
   // Declared gender is shown to admins only, for reviewing Women+ reports (D10).
@@ -87,6 +90,7 @@ async function getUserDetail(req, res) {
     supportTickets,
     securityCounts30d,
     warnings: await withIssuerNames(warnings),
+    license,
   });
 }
 
