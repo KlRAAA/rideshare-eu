@@ -23,21 +23,30 @@ const ICONS: Record<TabKey, React.ComponentType<{ className?: string }>> = {
 };
 
 // The current mode's five tabs (sub-project C). The active tab is maroon in
-// Driver mode and green in Passenger mode, so the mode is visible at a glance.
+// Driver mode and Enverga gold in Passenger mode, so the mode is visible at a glance.
 export default function BottomNav({ active, unreadCount: pageUnread = 0 }: BottomNavProps) {
   const mode = useMode();
   // The live count once the feed has polled; the page's own count until then.
   const unreadCount = useLiveUnread() ?? pageUnread;
-  const activeClass = mode === 'DRIVER' ? 'text-[color:var(--rsu-color-primary)]' : 'text-emerald-700';
+  const activeClass = mode === 'DRIVER' ? 'text-[color:var(--rsu-color-primary)]' : 'text-[color:var(--rsu-color-passenger)]';
+  const primaryBg =
+    mode === 'DRIVER' ? 'bg-[color:var(--rsu-color-primary)] text-white' : 'bg-[color:var(--rsu-color-passenger)] text-[color:var(--rsu-on-passenger)]';
   return (
     <nav className="rsu-bottom-nav md:hidden">
-      {tabsFor(mode).map(({ key, href, label }) => {
+      {tabsFor(mode).map(({ key, href, label, primary }) => {
         const Icon = ICONS[key];
         const isActive = key === active;
         return (
           <Link key={key} href={href} className={isActive ? activeClass : 'text-gray-400 hover:text-gray-600'}>
             <span className="relative">
-              <Icon className="w-5 h-5" />
+              {primary ? (
+                // The mode's main action stands out in the middle: a filled circle in the mode colour.
+                <span className={`-mt-1 flex h-9 w-9 items-center justify-center rounded-full shadow-md ${primaryBg}`}>
+                  <Icon className="w-4 h-4" />
+                </span>
+              ) : (
+                <Icon className="w-5 h-5" />
+              )}
               {key === 'notifications' && unreadCount > 0 && (
                 <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
                   {unreadCount}

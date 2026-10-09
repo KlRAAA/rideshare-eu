@@ -8,10 +8,18 @@ const HOME = { key: 'dashboard' as TabKey, href: '/auth/dashboard', label: 'Home
 const ALERTS = { key: 'notifications' as TabKey, href: '/auth/notifications', label: 'Alerts' };
 const PROFILE = { key: 'profile' as TabKey, href: '/auth/profile', label: 'Profile' };
 
-export function tabsFor(mode: AppMode) {
+export interface Tab {
+  key: TabKey;
+  href: string;
+  label: string;
+  // The mode's main action, in the middle of the bottom bar.
+  primary?: boolean;
+}
+
+export function tabsFor(mode: AppMode): Tab[] {
   return mode === 'DRIVER'
-    ? [HOME, { key: 'post' as TabKey, href: '/auth/post', label: 'Post a Trip' }, { key: 'trips' as TabKey, href: '/auth/trips', label: 'My Trips' }, ALERTS, PROFILE]
-    : [HOME, { key: 'search' as TabKey, href: '/auth/search', label: 'Find a Ride' }, { key: 'trips' as TabKey, href: '/auth/trips', label: 'My Rides' }, ALERTS, PROFILE];
+    ? [HOME, { key: 'trips', href: '/auth/trips', label: 'My Trips' }, { key: 'post', href: '/auth/post', label: 'Post a Trip', primary: true }, ALERTS, PROFILE]
+    : [HOME, { key: 'trips', href: '/auth/trips', label: 'My Rides' }, { key: 'search', href: '/auth/search', label: 'Find a Ride', primary: true }, ALERTS, PROFILE];
 }
 
 export const otherMode = (mode: AppMode): AppMode => (mode === 'DRIVER' ? 'PASSENGER' : 'DRIVER');

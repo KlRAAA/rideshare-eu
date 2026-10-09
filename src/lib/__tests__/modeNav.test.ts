@@ -3,9 +3,11 @@ import { tabsFor, otherMode, conflictMessage } from '../modeNav';
 
 describe('mode navigation', () => {
   test('passenger and driver tabs', () => {
-    expect(tabsFor('PASSENGER').map((t) => t.label)).toEqual(['Home', 'Find a Ride', 'My Rides', 'Alerts', 'Profile']);
-    expect(tabsFor('DRIVER').map((t) => t.label)).toEqual(['Home', 'Post a Trip', 'My Trips', 'Alerts', 'Profile']);
-    expect(tabsFor('DRIVER')[1].href).toBe('/auth/post');
+    // The main action sits in the middle, where the thumb rests.
+    expect(tabsFor('PASSENGER').map((t) => t.label)).toEqual(['Home', 'My Rides', 'Find a Ride', 'Alerts', 'Profile']);
+    expect(tabsFor('DRIVER').map((t) => t.label)).toEqual(['Home', 'My Trips', 'Post a Trip', 'Alerts', 'Profile']);
+    expect(tabsFor('DRIVER')[2]).toMatchObject({ href: '/auth/post', primary: true });
+    expect(tabsFor('PASSENGER').filter((t) => t.primary).map((t) => t.key)).toEqual(['search']);
     expect(otherMode('DRIVER')).toBe('PASSENGER');
   });
   test('a clash names the time of the other trip', () => {
