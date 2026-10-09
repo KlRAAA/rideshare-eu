@@ -104,6 +104,7 @@ app.use('/api', matchRoutes); // exposes POST /api/matches/search and POST /api/
 app.use('/api/alerts', notificationRoutes); // POST/GET notification endpoints per traceability matrix
 app.use('/api/admin', adminRoutes);
 app.use('/api/warnings', warningRoutes);
+app.use('/api/push', require('./routes/pushRoutes'));
 
 // Reports the error to Sentry, then calls next(err) itself so the existing
 // handler below still runs unchanged — same response shape for clients,

@@ -96,6 +96,7 @@ async function deleteAccount(userId) {
     const licenses = await tx.driverLicense.findMany({ where: { userId }, select: { photoFile: true } });
     licenseFiles.push(...licenses.map((l) => l.photoFile).filter(Boolean));
     await tx.driverLicense.deleteMany({ where: { userId } });
+    await tx.pushSubscription.deleteMany({ where: { userId } });
     await tx.preference.deleteMany({ where: { userId } });
     await tx.notification.deleteMany({ where: { userId } });
     await tx.message.deleteMany({ where: { senderId: userId } });

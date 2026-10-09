@@ -13,6 +13,36 @@ const DEFAULT_NOTIFICATION_LIMIT = 50;
 // otherwise a page boundary landing mid-tie could skip or repeat a row.
 // The owner is the verified req.user.id (phase 2) — the `userId` query param
 // the frontend still sends is ignored.
+const modeOf = (req) => (req.query.mode === 'driver' || req.query.mode === 'passenger' ? req.query.mode : null);
+
+// The where-clause for one mode's notifications, and the other side's filter.
+async function modeWhere(userId, mode) {
+  if (!mode) return { where: { userId }, other: null };
+  const hosted = (await prisma.trip.findMany({ where: { hostId: userId }, select: { id: true } })).map((t) => t.id);
+  const driverSide = { relatedTripId: { in: hosted } };
+  const passengerSide = { relatedTripId: { not: null, notIn: hosted } };
+  const [mine, other] = mode === 'driver' ? [driverSide, passengerSide] : [passengerSide, driverSide];
+  return { where: { userId, OR: [mine, { relatedTripId: null }] }, other };
+}
+
+const FEED_LIMIT = 20;
+
+// GET /api/alerts/feed?after=<ISO>&mode= (sub-project F): notifications newer
+// than the client's cursor, oldest first, plus the unread count for the badge.
+// Without `after` it only returns the count (the client's first poll).
+async function feed(req, res) {
+  const after = req.query.after ? new Date(req.query.after) : null;
+  if (after && Number.isNaN(after.getTime())) return res.status(400).json({ error: 'INVALID_CURSOR' });
+  const { where } = await modeWhere(req.user.id, modeOf(req));
+  const [notifications, unreadCount] = await Promise.all([
+    after
+      ? prisma.notification.findMany({ where: { ...where, createdAt: { gt: after } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: FEED_LIMIT })
+      : [],
+    prisma.notification.count({ where: { ...where, isRead: false } }),
+  ]);
+  res.json({ notifications, unreadCount });
+}
+
 async function list(req, res) {
   const { limit, cursor } = req.query;
   const take = limit ? Number(limit) : DEFAULT_NOTIFICATION_LIMIT;
@@ -20,17 +50,11 @@ async function list(req, res) {
   // ?mode=driver|passenger (sub-project C): a notification belongs to Driver
   // mode when the user hosts its trip, to Passenger mode when it's about
   // another trip; one without a trip shows in both.
-  const mode = req.query.mode === 'driver' || req.query.mode === 'passenger' ? req.query.mode : null;
-  let where = { userId: req.user.id };
-  let otherModeUnread;
-  if (mode) {
-    const hosted = (await prisma.trip.findMany({ where: { hostId: req.user.id }, select: { id: true } })).map((t) => t.id);
-    const driverSide = { relatedTripId: { in: hosted } };
-    const passengerSide = { relatedTripId: { not: null, notIn: hosted } };
-    const [mine, other] = mode === 'driver' ? [driverSide, passengerSide] : [passengerSide, driverSide];
-    where = { userId: req.user.id, OR: [mine, { relatedTripId: null }] };
-    otherModeUnread = await prisma.notification.count({ where: { userId: req.user.id, isRead: false, ...other } });
-  }
+  const mode = modeOf(req);
+  const { where, other } = await modeWhere(req.user.id, mode);
+  const otherModeUnread = mode
+    ? await prisma.notification.count({ where: { userId: req.user.id, isRead: false, ...other } })
+    : undefined;
 
   const rows = await prisma.notification.findMany({
     where,
@@ -60,4 +84,4 @@ async function markRead(req, res) {
   res.json({ notification });
 }
 
-module.exports = { list, markRead };
+module.exports = { list, markRead, feed };

@@ -134,6 +134,8 @@ const SCHEMAS = {
   'user.avatar': NONE,
   'admin.licenseApprove': NONE,
   'admin.licenseReject': { reason: 'string', note: 'string' },
+  'push.subscribe': { endpoint: 'string', expirationTime: 'number', keys: { p256dh: 'string', auth: 'string' } },
+  'push.unsubscribe': { endpoint: 'string' },
   'user.license': { licenseNumber: 'string', licenseType: 'string', expiresOn: 'string' },
   'user.mode': { mode: 'string' }, // the image itself is the multipart file, not a body field
   'user.onboarding': NONE,
