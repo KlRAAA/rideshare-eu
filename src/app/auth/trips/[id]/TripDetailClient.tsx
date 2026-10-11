@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaFlag, FaBan, FaPen } from 'react-icons/fa';
@@ -157,14 +157,21 @@ export default function TripDetailClient({
   // Sub-project G / live trip map: approved riders for the driver; pins for those not picked up.
   const [riders, setRiders] = useState<RiderLocation[] | null>(null);
   const showRiderPins = useCallback((list: RiderLocation[]) => setRiders(list), []);
-  const riderPins = (riders ?? []).flatMap((r) => (r.location && !r.pickedUp ? [{ ...r.location, label: r.fullName }] : []));
+  const riderPins = useMemo(
+    () => (riders ?? []).flatMap((r) => (r.location && !r.pickedUp ? [{ ...r.location, label: r.fullName }] : [])),
+    [riders]
+  );
   const [pickedUp, setPickedUp] = useState(false);
-  const meetingPoint =
-    trip.meetingPointLat != null && trip.meetingPointLng != null ? { lat: trip.meetingPointLat, lng: trip.meetingPointLng } : null;
-  const pickupPoint = meetingPoint ?? { lat: trip.originLat, lng: trip.originLng };
+  // Memoised: the GPS hook re-renders this page on every fix, and the map refetches/refits when these change identity.
+  const origin = useMemo(() => ({ lat: trip.originLat, lng: trip.originLng }), [trip.originLat, trip.originLng]);
+  const destination = useMemo(() => ({ lat: trip.destinationLat, lng: trip.destinationLng }), [trip.destinationLat, trip.destinationLng]);
+  const meetingPoint = useMemo(
+    () => (trip.meetingPointLat != null && trip.meetingPointLng != null ? { lat: trip.meetingPointLat, lng: trip.meetingPointLng } : null),
+    [trip.meetingPointLat, trip.meetingPointLng]
+  );
+  const pickupPoint = useMemo(() => meetingPoint ?? origin, [meetingPoint, origin]);
   const approvedCount = trip.matches.filter((m) => m.status === 'APPROVED').length;
   const someoneWaiting = riders === null ? approvedCount > 0 : riders.some((r) => !r.pickedUp);
-  const destination = { lat: trip.destinationLat, lng: trip.destinationLng };
   const departureForSharing = trip.nextDeparture?.departure ?? null;
   const dayLine =
     !isHost && myMatch && (myActiveMatch?.status === 'APPROVED' || trip.status === 'CANCELLED')
@@ -241,7 +248,7 @@ export default function TripDetailClient({
 
         <LiveRouteMap
           tripId={trip.id}
-          origin={{ lat: trip.originLat, lng: trip.originLng }}
+          origin={origin}
           destination={destination}
           meetingPoint={meetingPoint}
           routeWaypoints={isHost && runOngoing && nav.route ? nav.route.line : trip.routeWaypoints}

@@ -20,6 +20,7 @@ export default function RidersNearbyCard({ tripId, departure, runOngoing, onRide
   const [now, setNow] = useState(() => new Date());
   const open = runOngoing || sharingState(departure, now).state === 'open';
   const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -41,11 +42,12 @@ export default function RidersNearbyCard({ tripId, departure, runOngoing, onRide
 
   async function setPickedUp(matchId: string, pickedUp: boolean) {
     setBusy(matchId);
+    setError(null);
     try {
       await apiFetch(`/api/matches/${matchId}/picked-up`, { method: pickedUp ? 'POST' : 'DELETE', body: '{}' });
       await load();
     } catch {
-      /* the next poll shows the real state */
+      setError('Couldn’t update that rider. Try again.');
     } finally {
       setBusy(null);
     }
@@ -82,6 +84,7 @@ export default function RidersNearbyCard({ tripId, departure, runOngoing, onRide
           </li>
         ))}
       </ul>
+      {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
       <p className="text-xs text-gray-500">
         Riders who turned sharing on appear on the map until you mark them picked up. Their positions are erased then, and when the trip ends.
       </p>
