@@ -194,3 +194,36 @@ test('after Start Trip riders keep sharing until the driver picks them up', asyn
   expect(riders.find((r) => r.passengerId === s.rider.id)).toMatchObject({ pickedUp: true, location: null });
   expect(riders.find((r) => r.passengerId === s.quiet.id)).toMatchObject({ pickedUp: false, sharing: false });
 });
+
+// Positions reach only the driver (GET /rider-locations); pickup status only
+// that rider (GET /location) and the driver. Trip responses carry neither.
+const PRIVATE_MATCH_FIELDS = ['riderLat', 'riderLng', 'riderLocatedAt', 'pickedUpAt', 'sharesLocation'];
+const expectNoPrivateFields = (matches) => {
+  expect(matches.length).toBeGreaterThan(0);
+  for (const m of matches) for (const f of PRIVATE_MATCH_FIELDS) expect(m).not.toHaveProperty(f);
+};
+
+test('trip responses never include riders\' positions or pickup status', async () => {
+  if (guard()) return;
+  const s = await seed();
+  const outsider = await makeUser(bag, { fullName: 'Nosy Outsider' });
+  await share(s, s.rider.id, s.match.id);
+  expect((await req('POST', `/api/trips/${s.trip.id}/start`, s.host.id, {})).status).toBe(201);
+  expect((await post(s, s.rider.id, FAR)).status).toBe(200);
+  await prisma.match.update({ where: { id: s.quietMatch.id }, data: { pickedUpAt: new Date() } });
+
+  for (const viewer of [s.quiet, outsider, s.host]) {
+    const res = await req('GET', `/api/trips/${s.trip.id}`, viewer.id);
+    expect(res.status).toBe(200);
+    expectNoPrivateFields((await res.json()).trip.matches);
+  }
+  // The rider's own switch still comes back.
+  expect((await (await req('GET', `/api/trips/${s.trip.id}`, s.rider.id)).json()).trip.myLocationSharing).toBe(true);
+
+  const mine = await (await req('GET', '/api/trips/mine', s.host.id)).json();
+  expectNoPrivateFields(mine.hosted.find((t) => t.id === s.trip.id).matches);
+
+  const noChange = await req('PATCH', `/api/trips/${s.trip.id}`, s.host.id, { driverNotes: s.trip.driverNotes ?? null });
+  expect(noChange.status).toBe(200);
+  expectNoPrivateFields((await noChange.json()).trip.matches);
+});

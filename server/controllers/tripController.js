@@ -22,6 +22,11 @@ const { validateNewTrip } = require('../services/tripValidation');
 const { GENDER_PREFERENCES, canHostWomenPlus, isWomenPlusEligible } = require('../services/riderRules');
 const { riderFacts } = require('../services/riderFacts');
 
+// Riders' positions reach only the driver (GET /rider-locations) and pickup
+// status only that rider (GET /location) and the driver, so Match rows in trip
+// responses never carry them, not even the host's own.
+const RIDER_LOCATION_OMIT = { riderLat: true, riderLng: true, riderLocatedAt: true, pickedUpAt: true, sharesLocation: true };
+
 // For a recurring trip, an APPROVED match never reaches COMPLETED (it's a
 // standing rider across every occurrence), so `ratedByMe` — a lifetime "have
 // I ever rated this match" flag — can't gate the Rate button by itself the
@@ -196,7 +201,7 @@ async function listMine(req, res) {
     include: {
       runs: ONGOING_RUN,
       vehicle: true,
-      matches: { include: { passenger: { select: { id: true, fullName: true, avatarUrl: true } } } },
+      matches: { omit: RIDER_LOCATION_OMIT, include: { passenger: { select: { id: true, fullName: true, avatarUrl: true } } } },
     },
     orderBy: { departureTime: 'asc' },
   });
@@ -283,7 +288,7 @@ async function getById(req, res) {
     include: {
       host: { select: safeUserSelect },
       vehicle: true,
-      matches: { include: { passenger: { select: safeUserSelect } } },
+      matches: { omit: RIDER_LOCATION_OMIT, include: { passenger: { select: safeUserSelect } } },
       runs: { where: { status: { in: ['ONGOING', 'COMPLETED'] } }, orderBy: { startedAt: 'desc' }, take: 1 },
     },
   });
@@ -298,7 +303,11 @@ async function getById(req, res) {
   };
 
   // Sub-project G: the rider's own sharing switch.
-  const mine = tripRaw.matches.find((m) => m.passengerId === userId && m.status === 'APPROVED');
+  // sharesLocation is omitted from the matches above, so read only the viewer's.
+  const mine = await prisma.match.findFirst({
+    where: { tripId: tripRaw.id, passengerId: userId, status: 'APPROVED' },
+    select: { sharesLocation: true },
+  });
   trip.myLocationSharing = mine ? mine.sharesLocation : null;
 
   if (!canViewPlate(trip, userId)) {
@@ -510,7 +519,7 @@ async function updateTrip(req, res) {
   const { userId: _clientUserId, confirmStructural, vehicle: vehiclePatch, ...bodyFields } = req.body;
   const userId = req.user.id;
 
-  const tripRaw = await prisma.trip.findUnique({ where: { id }, include: { matches: true, vehicle: true } });
+  const tripRaw = await prisma.trip.findUnique({ where: { id }, include: { matches: { omit: RIDER_LOCATION_OMIT }, vehicle: true } });
   if (!tripRaw) return res.status(404).json({ error: 'TRIP_NOT_FOUND' });
   if (tripRaw.hostId !== userId) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
   if (tripRaw.status !== 'OPEN' && tripRaw.status !== 'FULL') return res.status(409).json({ error: 'TRIP_NOT_EDITABLE' });
