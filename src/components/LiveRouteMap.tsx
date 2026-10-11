@@ -7,6 +7,8 @@ import { riderTripLine, type DriverFeed } from '@/lib/riderLocation';
 
 // Riders poll as often as the driver's phone sends (every 10 s).
 const DRIVER_POLL_MS = 10 * 1000;
+// Advances "now" so "paused" and "last seen" keep moving even when polls fail.
+const CLOCK_TICK_MS = 5 * 1000;
 
 interface LatLng {
   lat: number;
@@ -73,9 +75,12 @@ export default function LiveRouteMap({
     };
     poll();
     const intervalId = setInterval(poll, DRIVER_POLL_MS);
+    // So "paused" and "last seen" advance even when polls fail.
+    const tickId = setInterval(() => setNow(new Date()), CLOCK_TICK_MS);
     return () => {
       cancelled = true;
       clearInterval(intervalId);
+      clearInterval(tickId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId, canWatchDriverLocation]);
