@@ -63,6 +63,55 @@ test('off route only beyond 50 m from the line', () => {
   expect(isOffRoute(route.line, { lat: 13.902, lng: 121.605 })).toBe(true); // ~221 m
 });
 
+// Out and back: east to a dead-end pickup, back west over the same road, then north.
+const OUT_AND_BACK = {
+  routes: [
+    {
+      distance: 3267,
+      duration: 400,
+      geometry: {
+        coordinates: [
+          [121.6, 13.9],
+          [121.61, 13.9],
+          [121.6, 13.9],
+          [121.6, 13.91],
+        ],
+      },
+      legs: [
+        {
+          duration: 200,
+          steps: [
+            { name: 'Quezon Ave', maneuver: { type: 'depart', location: [121.6, 13.9], instruction: 'Head east on Quezon Ave' } },
+            { name: '', maneuver: { type: 'arrive', location: [121.61, 13.9], instruction: 'You have arrived at your 1st destination' } },
+            { name: 'Quezon Ave', maneuver: { type: 'continue', modifier: 'uturn', location: [121.61, 13.9], instruction: 'Make a U-turn onto Quezon Ave' } },
+            { name: 'Rizal St', maneuver: { type: 'turn', modifier: 'right', location: [121.6, 13.9], instruction: 'Turn right onto Rizal St' } },
+            { name: '', maneuver: { type: 'arrive', location: [121.6, 13.91], instruction: 'You have arrived at your destination' } },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+test('a road driven twice: the return pass is not matched to the outbound pass', () => {
+  const out = parseNavRoute(OUT_AND_BACK, true)!;
+  // Outbound, halfway to the pickup: the pickup is next, about 540 m away.
+  const outbound = nextManeuver(out, { lat: 13.9, lng: 121.605 })!;
+  expect(outbound.step.type).toBe('arrive');
+  expect(outbound.meters).toBeGreaterThan(520);
+  expect(outbound.meters).toBeLessThan(560);
+  // Back on the return pass, about 215 m west of the pickup. The hint is where the car was matched there.
+  const hint = nextManeuver(out, { lat: 13.9, lng: 121.608 }, 1080)!.along;
+  expect(hint).toBeGreaterThan(1250);
+  expect(hint).toBeLessThan(1340);
+  // The same point as the outbound check, now on the way back: the next step is the right turn onto Rizal St.
+  const back = nextManeuver(out, { lat: 13.9, lng: 121.605 }, hint)!;
+  expect(back.step.type).toBe('turn');
+  expect(back.step.name).toBe('Rizal St');
+  expect(back.meters).toBeGreaterThan(500);
+  expect(back.meters).toBeLessThan(580);
+});
+
 test('arrows, distances and hand-off links', () => {
   expect(arrowFor('turn', 'left')).toBe('left');
   expect(arrowFor('turn', 'slight right')).toBe('slight-right');

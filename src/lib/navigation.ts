@@ -33,6 +33,8 @@ export type Arrow =
 
 export const OFF_ROUTE_M = 50;
 const PASSED_M = 10; // a maneuver this close behind the car counts as done
+const TIE_M = 1; // matches this close to each other are a tie, not a closer pass
+const BACKTRACK_SLACK_M = 30; // GPS jitter can put the car slightly behind its last match. ponytail: a car this close behind the earlier pass snaps to it.
 const M_PER_DEG_LAT = 110540;
 
 interface MapboxStep {
@@ -72,9 +74,10 @@ function toXY(q: LatLng, p: LatLng) {
 }
 
 // How far along the line p's nearest point lies, and how far p is from it.
-// ponytail: first-nearest segment; a route that doubles back on itself can
-// match the wrong pass. Track the last matched segment if that ever shows up.
-function project(line: LatLng[], p: LatLng): { along: number; meters: number } {
+// Only the line from fromAlong (less the slack) on counts, so a road driven
+// twice matches the pass that is ahead of the last match, not the earlier one.
+function project(line: LatLng[], p: LatLng, fromAlong = 0): { along: number; meters: number } {
+  const floor = fromAlong - BACKTRACK_SLACK_M;
   let best = { along: 0, meters: Infinity };
   let walked = 0;
   for (let i = 0; i < line.length - 1; i++) {
@@ -83,19 +86,34 @@ function project(line: LatLng[], p: LatLng): { along: number; meters: number } {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const len = Math.hypot(dx, dy);
-    const t = len === 0 ? 0 : Math.max(0, Math.min(1, -(a.x * dx + a.y * dy) / (len * len)));
-    const meters = Math.hypot(a.x + t * dx, a.y + t * dy);
-    if (meters < best.meters) best = { along: walked + t * len, meters };
+    if (walked + len >= floor) {
+      const lo = len === 0 ? 0 : Math.max(0, Math.min(1, (floor - walked) / len));
+      const raw = len === 0 ? 0 : -(a.x * dx + a.y * dy) / (len * len);
+      const t = Math.min(1, Math.max(lo, raw));
+      const meters = Math.hypot(a.x + t * dx, a.y + t * dy);
+      // Within TIE_M the earlier segment wins: a point on both passes is the first.
+      if (meters < best.meters - TIE_M) best = { along: walked + t * len, meters };
+    }
     walked += len;
   }
   return best;
 }
 
-export function nextManeuver(route: NavRoute, car: LatLng): { step: NavStep; meters: number } | null {
-  const carAlong = project(route.line, car).along;
+// fromAlong is the `along` the previous call returned: where the car was
+// matched last time. Steps are searched in route order, each from the one before.
+export function nextManeuver(
+  route: NavRoute,
+  car: LatLng,
+  fromAlong = 0
+): { step: NavStep; meters: number; along: number } | null {
+  const carAlong = project(route.line, car, fromAlong).along;
+  let stepFrom = 0;
   for (const step of route.steps) {
-    const along = project(route.line, step).along;
-    if (along > carAlong + PASSED_M) return { step, meters: Math.round(along - carAlong) };
+    const stepAlong = project(route.line, step, stepFrom).along;
+    stepFrom = stepAlong;
+    if (stepAlong > carAlong + PASSED_M) {
+      return { step, meters: Math.round(stepAlong - carAlong), along: Math.round(carAlong) };
+    }
   }
   return null;
 }
