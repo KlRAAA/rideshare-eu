@@ -3,7 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import RouteMap from './RouteMap';
 import { apiFetch } from '@/lib/api';
-import { LOCATION_POLL_INTERVAL_MS } from '@/lib/constants';
+import { riderTripLine, type DriverFeed } from '@/lib/riderLocation';
+
+// Riders poll as often as the driver's phone sends (every 10 s).
+const DRIVER_POLL_MS = 10 * 1000;
 
 interface LatLng {
   lat: number;
@@ -19,13 +22,17 @@ interface LiveRouteMapProps {
   // Precomputed by the caller (passenger side, APPROVED match, active trip) —
   // this component only needs to know whether to poll, not why.
   canWatchDriverLocation: boolean;
-  // Sharing riders, for the driver before pickup (sub-project G).
+  // Riders not yet picked up, for the driver (sub-project G, live trip map).
   riderLocations?: (LatLng & { label: string })[];
+  // The driver's own position from their phone; drawn as the car, no polling.
+  ownLocation?: LatLng | null;
   // The live ETA the driver's phone last sent (null when there's none).
   onEta?: (etaAt: string | null) => void;
+  // Whether the driver marked this rider picked up (rider side).
+  onPickedUp?: (pickedUp: boolean) => void;
 }
 
-// Owns the driverLocation poll and its ~30s interval so that tick only
+// Owns the driver location poll and its 10 s interval so that tick only
 // re-renders this component + RouteMap, not the whole trip detail page.
 // Extracted from TripDetailClient, where this same state used to live at the
 // top level: every poll tick re-rendered the entire page — DriverIdentityCard,
@@ -40,45 +47,55 @@ export default function LiveRouteMap({
   routeWaypoints,
   canWatchDriverLocation,
   riderLocations,
+  ownLocation,
   onEta,
+  onPickedUp,
 }: LiveRouteMapProps) {
-  const [driverLocation, setDriverLocation] = useState<LatLng | null>(null);
+  const [feed, setFeed] = useState<DriverFeed | null>(null);
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     if (!canWatchDriverLocation) {
-      setDriverLocation(null);
+      setFeed(null);
       return;
     }
     let cancelled = false;
     const poll = () => {
-      apiFetch<{ location: { lat: number; lng: number; updatedAt: string } | null; etaAt?: string | null }>(
-        `/api/trips/${tripId}/location`
-      )
+      apiFetch<DriverFeed>(`/api/trips/${tripId}/location`)
         .then((data) => {
           if (cancelled) return;
-          setDriverLocation(data.location ? { lat: data.location.lat, lng: data.location.lng } : null);
+          setFeed(data);
+          setNow(new Date());
           onEta?.(data.etaAt ?? null);
+          onPickedUp?.(data.pickedUp);
         })
-        .catch(() => {
-          if (!cancelled) setDriverLocation(null);
-        });
+        .catch(() => {});
     };
     poll();
-    const intervalId = setInterval(poll, LOCATION_POLL_INTERVAL_MS);
+    const intervalId = setInterval(poll, DRIVER_POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(intervalId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId, canWatchDriverLocation]);
 
+  const car = ownLocation ?? (feed?.location ? { lat: feed.location.lat, lng: feed.location.lng } : null);
   return (
-    <RouteMap
-      origin={origin}
-      destination={destination}
-      meetingPoint={meetingPoint}
-      routeWaypoints={routeWaypoints}
-      driverLocation={driverLocation}
-      riderLocations={riderLocations}
-    />
+    <div className="space-y-2">
+      <RouteMap
+        origin={origin}
+        destination={destination}
+        meetingPoint={meetingPoint}
+        routeWaypoints={routeWaypoints}
+        driverLocation={car}
+        riderLocations={riderLocations}
+      />
+      {canWatchDriverLocation && feed && (
+        <p role="status" className="rsu-card py-2 text-sm font-semibold text-gray-900">
+          {riderTripLine(feed, now)}
+        </p>
+      )}
+    </div>
   );
 }
