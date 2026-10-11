@@ -685,10 +685,14 @@ plan `docs/superpowers/plans/2026-10-09-passenger-location.md`.
   `services/riderLocationService.js`.
 - `PATCH /api/matches/:id/location-sharing { on }` (passenger, approved only:
   403 / 409 `NOT_APPROVED`; off erases). `POST /api/trips/:id/rider-location
-  { lat, lng }` (409 `NOT_SHARING`, `NOT_IN_WINDOW` with `opensAt`,
-  `TRIP_STARTED`; 400 `INVALID_COORDINATES`). `GET /api/trips/:id/rider-locations`
-  (host only): approved riders with `sharing`, `location`, `metersToPickup`,
-  `atPickup`; once the run has started, only riders not yet picked up (live trip map). `GET /api/trips/:id` adds
+  { lat, lng }` (409 `NOT_SHARING`; 400 `INVALID_COORDINATES`). During a run a
+  sharing rider may post until picked up, then 409 `PICKED_UP`. Before the run
+  the window applies (409 `NOT_IN_WINDOW` with `opensAt`); once the day's run has
+  completed, 409 `TRIP_STARTED`. `GET /api/trips/:id/rider-locations` (host
+  only): approved riders with `sharing`, `pickedUp`, `location`,
+  `metersToPickup`, `atPickup`. During a run it lists every approved rider, with
+  a location only for those not yet picked up; it is empty once the day's run
+  has finished. `GET /api/trips/:id` adds
   `myLocationSharing`.
 - Erased at pickup and at run end (`finishRun`; live trip map), on switch off,
   on account deletion, and by the 5-minute cron (`clearStaleRiderLocations`:
