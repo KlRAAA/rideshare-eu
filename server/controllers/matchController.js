@@ -1,5 +1,5 @@
 const prisma = require('../config/db');
-const { setSharing } = require('../services/riderLocationService');
+const { setSharing, setPickedUp } = require('../services/riderLocationService');
 const { conflictWithHosted, conflictBody } = require('../services/scheduleConflicts');
 const { runPSGA, runShowAllFallback, computeRouteOverlapDetail, tripRunsOnSearchDate } = require('../services/psgaService');
 const { settleTrips, phDay } = require('../services/tripDayService');
@@ -332,6 +332,16 @@ async function setLocationSharing(req, res) {
   res.status(status).json(body);
 }
 
+// Live trip map: the driver marks a rider picked up, or undoes it.
+async function markPickedUp(req, res) {
+  const { status, body } = await setPickedUp(req.params.id, req.user.id, true);
+  res.status(status).json(body);
+}
+async function undoPickedUp(req, res) {
+  const { status, body } = await setPickedUp(req.params.id, req.user.id, false);
+  res.status(status).json(body);
+}
+
 async function updateStatus(req, res) {
   const { id } = req.params;
   const { status } = req.body; // 'APPROVED' | 'DECLINED'
@@ -512,4 +522,4 @@ async function routeOverlap(req, res) {
   });
 }
 
-module.exports = { search, showAll, create, updateStatus, routeOverlap, setLocationSharing };
+module.exports = { search, showAll, create, updateStatus, routeOverlap, setLocationSharing, markPickedUp, undoPickedUp };

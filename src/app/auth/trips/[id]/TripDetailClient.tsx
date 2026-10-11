@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaFlag, FaBan, FaPen } from 'react-icons/fa';
@@ -15,9 +15,6 @@ import CoRidersCard from '@/components/CoRidersCard';
 import ChatCard from '@/components/ChatCard';
 import ReportModal from '@/components/ReportModal';
 import { apiFetch, ApiError } from '@/lib/api';
-import { getCurrentCoords, isNearCampus } from '@/lib/geoProximity';
-import { LOCATION_POLL_INTERVAL_MS } from '@/lib/constants';
-import { fetchRoute } from '@/lib/directions';
 import TripRunPanel, { type CurrentRun, type NextDeparture } from '@/components/TripRunPanel';
 import RuleBadges from '@/components/RuleBadges';
 import TripDaysCard from '@/components/TripDaysCard';
@@ -26,6 +23,11 @@ import RidersNearbyCard from '@/components/RidersNearbyCard';
 import type { RiderLocation } from '@/lib/riderLocation';
 import { findAnotherRideHref, riderDayLine, type TripDay } from '@/lib/tripDays';
 import { whoCanJoinLabel } from '@/lib/riderRules';
+import NavBanner from '@/components/NavBanner';
+import NavigateMenu from '@/components/NavigateMenu';
+import { useDriverNavigation } from '@/lib/useDriverNavigation';
+import { distanceLabel } from '@/lib/navigation';
+import { clockLabel } from '@/lib/tripRun';
 
 interface Vehicle {
   make: string;
@@ -152,63 +154,43 @@ export default function TripDetailClient({
   const [liveEtaAt, setLiveEtaAt] = useState<string | null>(null);
   // What an approved rider (or one whose driver never came) hears about the next day.
   const [pageOpenedAt] = useState(() => new Date());
-  // Sub-project G: sharing riders' pins on the driver's map before pickup.
-  const [riderPins, setRiderPins] = useState<{ lat: number; lng: number; label: string }[]>([]);
-  const showRiderPins = useCallback((riders: RiderLocation[]) => {
-    setRiderPins(riders.flatMap((r) => (r.location ? [{ ...r.location, label: r.fullName }] : [])));
-  }, []);
+  // Sub-project G / live trip map: approved riders for the driver; pins for those not picked up.
+  const [riders, setRiders] = useState<RiderLocation[] | null>(null);
+  const showRiderPins = useCallback((list: RiderLocation[]) => setRiders(list), []);
+  const riderPins = useMemo(
+    () => (riders ?? []).flatMap((r) => (r.location && !r.pickedUp ? [{ ...r.location, label: r.fullName }] : [])),
+    [riders]
+  );
+  const [pickedUp, setPickedUp] = useState(false);
+  // An approved rider's own position while sharing: their map shows the car and themselves.
+  const [selfPosition, setSelfPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const selfPin = useMemo(() => (selfPosition ? [{ ...selfPosition, label: 'You' }] : undefined), [selfPosition]);
+  // Memoised: the GPS hook re-renders this page on every fix, and the map refetches/refits when these change identity.
+  const origin = useMemo(() => ({ lat: trip.originLat, lng: trip.originLng }), [trip.originLat, trip.originLng]);
+  const destination = useMemo(() => ({ lat: trip.destinationLat, lng: trip.destinationLng }), [trip.destinationLat, trip.destinationLng]);
+  const meetingPoint = useMemo(
+    () => (trip.meetingPointLat != null && trip.meetingPointLng != null ? { lat: trip.meetingPointLat, lng: trip.meetingPointLng } : null),
+    [trip.meetingPointLat, trip.meetingPointLng]
+  );
+  const pickupPoint = useMemo(() => meetingPoint ?? origin, [meetingPoint, origin]);
+  const approvedCount = trip.matches.filter((m) => m.status === 'APPROVED').length;
+  const someoneWaiting = riders === null ? approvedCount > 0 : riders.some((r) => !r.pickedUp);
   const departureForSharing = trip.nextDeparture?.departure ?? null;
   const dayLine =
     !isHost && myMatch && (myActiveMatch?.status === 'APPROVED' || trip.status === 'CANCELLED')
       ? riderDayLine({ ...trip, days: trip.days ?? [], cancelReason: trip.cancelReason ?? null }, pageOpenedAt)
       : null;
 
-  // The driver's phone while a run is ongoing (sub-project B): every ~30 s it
-  // sends its position, and every 4th tick (~2 min) the remaining drive time
-  // from Mapbox as the live ETA. Arriving near campus ends the run (the server
-  // only allows that once started). The screen is kept awake, because a web
-  // page can't send location from a locked phone. A failed tick is skipped.
-  const arrivedRef = useRef(false);
-  useEffect(() => {
-    if (!isHost || !runOngoing) return;
-    let cancelled = false;
-    let tick = 0;
-    let wakeLock: { release: () => Promise<void> } | null = null;
-    const nav = navigator as Navigator & { wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void> }> } };
-    nav.wakeLock?.request('screen').then((lock) => {
-      if (cancelled) lock.release().catch(() => {});
-      else wakeLock = lock;
-    }).catch(() => {});
-
-    const send = async () => {
-      const coords = await getCurrentCoords({ timeout: 10000, maximumAge: 15000 });
-      if (cancelled || !coords) return;
-      if (isNearCampus(coords) && !arrivedRef.current) {
-        arrivedRef.current = true;
-        apiFetch(`/api/trips/${trip.id}/arrived`, { method: 'POST', body: JSON.stringify({}) })
-          .then(() => router.refresh())
-          .catch(() => {});
-        return;
-      }
-      let etaSeconds: number | undefined;
-      if (tick++ % 4 === 0) {
-        const route = await fetchRoute(coords, { lat: trip.destinationLat, lng: trip.destinationLng });
-        if (route) etaSeconds = route.durationSeconds;
-      }
-      apiFetch(`/api/trips/${trip.id}/location`, {
-        method: 'POST',
-        body: JSON.stringify({ lat: coords.lat, lng: coords.lng, ...(etaSeconds != null && { etaSeconds }) }),
-      }).catch(() => {});
-    };
-    send();
-    const intervalId = setInterval(send, LOCATION_POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(intervalId);
-      wakeLock?.release().catch(() => {});
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip.id, isHost, runOngoing]);
+  // Live trip map: GPS, route, turn guidance and the 10 s position sends.
+  const nav = useDriverNavigation({
+    tripId: trip.id,
+    active: isHost && runOngoing,
+    pickup: someoneWaiting ? pickupPoint : null,
+    destination,
+    onArrived: () => router.refresh(),
+  });
+  const remainingMeters = nav.route?.distanceMeters ?? null;
+  const arriveAt = nav.route ? clockLabel(new Date(Date.now() + nav.route.durationSeconds * 1000)) : null;
 
   // Live location sharing — passenger side: whether this viewer may watch the
   // host's live position (confirmed seat, active trip). The actual ~30s poll
@@ -259,20 +241,47 @@ export default function TripDetailClient({
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div className="md:col-span-2 space-y-4">
+        {isHost && runOngoing && (
+          <div className="space-y-2">
+            <NavBanner next={nav.next} />
+            {nav.blocked && (
+              <p role="alert" className="text-sm text-red-600">Allow location for this site so the app can guide you and riders can see you.</p>
+            )}
+          </div>
+        )}
+
         <LiveRouteMap
           tripId={trip.id}
-          origin={{ lat: trip.originLat, lng: trip.originLng }}
-          destination={{ lat: trip.destinationLat, lng: trip.destinationLng }}
-          meetingPoint={
-            trip.meetingPointLat != null && trip.meetingPointLng != null
-              ? { lat: trip.meetingPointLat, lng: trip.meetingPointLng }
-              : null
-          }
-          routeWaypoints={trip.routeWaypoints}
+          origin={origin}
+          destination={destination}
+          meetingPoint={meetingPoint}
+          routeWaypoints={isHost && runOngoing && nav.route ? nav.route.line : trip.routeWaypoints}
           canWatchDriverLocation={canWatchDriverLocation}
-          riderLocations={isHost && !runOngoing ? riderPins : undefined}
+          riderLocations={isHost ? riderPins : selfPin}
+          ownLocation={isHost && runOngoing ? nav.position : undefined}
           onEta={setLiveEtaAt}
+          onPickedUp={setPickedUp}
         />
+
+        {isHost && runOngoing && (
+          <div className="rsu-card space-y-3">
+            {someoneWaiting ? (
+              <div className="text-sm">
+                <p className="font-semibold text-gray-900">
+                  {`Next: pick up at ${trip.meetingPointAddress ?? 'the start'}${
+                    nav.route?.pickupMeters != null ? ` · ${distanceLabel(nav.route.pickupMeters)}` : ''
+                  }${nav.route?.pickupSeconds != null ? ` · about ${Math.max(1, Math.round(nav.route.pickupSeconds / 60))} min` : ''}`}
+                </p>
+                {arriveAt && <p className="text-gray-600">Then campus · arrive about {arriveAt}</p>}
+              </div>
+            ) : (
+              <p className="text-sm font-semibold text-gray-900">
+                {`To campus${remainingMeters != null ? ` · ${distanceLabel(remainingMeters)}` : ''}${arriveAt ? ` · arrive about ${arriveAt}` : ''}`}
+              </p>
+            )}
+            <NavigateMenu to={destination} via={someoneWaiting ? pickupPoint : null} />
+          </div>
+        )}
 
         {tripIsActive && (isHost || myActiveMatch?.status === 'APPROVED') && (
           <TripRunPanel
@@ -284,16 +293,19 @@ export default function TripDetailClient({
           />
         )}
 
-        {isHost && tripIsActive && !runOngoing && (
-          <RidersNearbyCard tripId={trip.id} departure={departureForSharing} onRiders={showRiderPins} />
+        {isHost && tripIsActive && (
+          <RidersNearbyCard tripId={trip.id} departure={departureForSharing} runOngoing={runOngoing} onRiders={showRiderPins} />
         )}
 
-        {!isHost && tripIsActive && !runOngoing && myActiveMatch?.status === 'APPROVED' && (
+        {!isHost && tripIsActive && myActiveMatch?.status === 'APPROVED' && (
           <RiderLocationCard
             tripId={trip.id}
             matchId={myActiveMatch.id}
             initialOn={trip.myLocationSharing === true}
             departure={departureForSharing}
+            runOngoing={runOngoing}
+            pickedUp={pickedUp && runOngoing}
+            onPosition={setSelfPosition}
           />
         )}
 

@@ -1,5 +1,6 @@
 import { describe, test, expect } from '@jest/globals';
-import { riderStatusLine, sharingState, type RiderLocation } from '../riderLocation';
+import { riderStatusLine, riderTripLine, sharingState, type RiderLocation } from '../riderLocation';
+import { clockLabel } from '../tripRun';
 
 const NOW = new Date('2026-10-12T22:40:00Z');
 const rider = (over: Partial<RiderLocation>): RiderLocation => ({
@@ -32,4 +33,32 @@ describe('sharingState', () => {
     expect(sharingState(dep, new Date('2026-10-12T23:46:00Z')).state).toBe('closed');
     expect(sharingState(null, NOW).state).toBe('closed');
   });
+});
+
+describe('riderTripLine', () => {
+  const now = new Date('2026-10-12T07:00:00+08:00');
+  const at = (ms: number) => new Date(now.getTime() + ms).toISOString();
+  const here = { lat: 13.9, lng: 121.6 };
+
+  test('before pickup: minutes to the meeting point', () => {
+    const feed = { location: { ...here, updatedAt: at(-5000) }, etaAt: at(20 * 60000), pickupEtaAt: at(6 * 60000), pickedUp: false };
+    expect(riderTripLine(feed, now)).toBe('Driver is about 6 min from the meeting point');
+    expect(riderTripLine({ ...feed, pickupEtaAt: at(30000) }, now)).toBe('Driver is almost at the meeting point');
+  });
+
+  test('after pickup: arrival at campus', () => {
+    const feed = { location: { ...here, updatedAt: at(-5000) }, etaAt: at(20 * 60000), pickupEtaAt: at(6 * 60000), pickedUp: true };
+    expect(riderTripLine(feed, now)).toBe(`On the way · arrive about ${clockLabel(at(20 * 60000))}`);
+  });
+
+  test('paused or missing driver location', () => {
+    const feed = { location: { ...here, updatedAt: at(-2 * 60000) }, etaAt: null, pickupEtaAt: null, pickedUp: false };
+    expect(riderTripLine(feed, now)).toBe('Driver’s location paused · last seen 2 min ago');
+    expect(riderTripLine({ ...feed, location: null }, now)).toBe('Waiting for the driver’s location…');
+  });
+});
+
+test('a picked-up rider reads as picked up', () => {
+  const r = { matchId: 'm', passengerId: 'p', fullName: 'Maria Reyes', sharing: true, pickedUp: true, location: null, updatedAt: null, metersToPickup: null, atPickup: false };
+  expect(riderStatusLine(r, new Date())).toBe('Maria · picked up');
 });

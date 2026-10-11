@@ -41,7 +41,6 @@ async function startRun(tripId, userId, now = new Date()) {
     if (err.code === 'P2002' || err.code === 'P2025') return { status: 409, body: { error: 'ALREADY_STARTED' } };
     throw err;
   }
-  await clearTripRiderLocations(tripId); // riders' positions are for pickup only (sub-project G)
   const { destinationAddress } = decryptTripFields(trip);
   if (trip.matches.length > 0) {
     await prisma.notification.createMany({
@@ -68,6 +67,8 @@ async function finishRun(run, reason, now = new Date()) {
     where: { id: run.id, status: 'ONGOING' },
     data: { status: 'COMPLETED', endedAt: now, endReason: reason, riderCount: riders.length, fuelShareTotal },
   });
+  // Riders' positions are for pickup only: gone once the run ends (live trip map).
+  if (count > 0) await clearTripRiderLocations(run.tripId);
   if (count === 0 || !trip) return;
   if (trip.recurrenceType === 'ONE_TIME') await completeTrip(trip);
   else await completeRecurringOccurrence(trip, run.runDate);

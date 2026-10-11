@@ -90,17 +90,24 @@ describe('driver location during a run', () => {
   test('before the start, riders get no location', async () => {
     if (guard()) return;
     const body = await (await req('GET', `/api/trips/${trip.id}/location`, approvedPax.id)).json();
-    expect(body).toEqual({ location: null, etaAt: null });
+    expect(body).toEqual({ location: null, etaAt: null, pickupEtaAt: null, pickedUp: false });
   });
 
-  test('once started, the host writes position and ETA; approved riders read them', async () => {
+  test('once started, the host writes position and both ETAs; approved riders read them', async () => {
     if (guard()) return;
     expect((await req('POST', `/api/trips/${trip.id}/start`, host.id, {})).status).toBe(201);
-    const write = await req('POST', `/api/trips/${trip.id}/location`, host.id, { ...VALID_COORDS, etaSeconds: 600 });
+    const write = await req('POST', `/api/trips/${trip.id}/location`, host.id, { ...VALID_COORDS, etaSeconds: 600, pickupEtaSeconds: 300 });
     expect(write.status).toBe(200);
     const body = await (await req('GET', `/api/trips/${trip.id}/location`, approvedPax.id)).json();
     expect(body.location).toMatchObject(VALID_COORDS);
     expect(new Date(body.etaAt).getTime()).toBeGreaterThan(Date.now() + 500 * 1000);
+    expect(new Date(body.pickupEtaAt).getTime()).toBeGreaterThan(Date.now() + 200 * 1000);
+    expect(body.pickedUp).toBe(false);
+
+    const m = await prisma.match.findFirst({ where: { tripId: trip.id, passengerId: approvedPax.id } });
+    expect((await req('POST', `/api/matches/${m.id}/picked-up`, host.id, {})).status).toBe(200);
+    expect((await (await req('GET', `/api/trips/${trip.id}/location`, approvedPax.id)).json()).pickedUp).toBe(true);
+    expect((await (await req('GET', `/api/trips/${trip.id}/location`, host.id)).json()).pickedUp).toBe(false);
   });
 
   test.each([
@@ -121,14 +128,20 @@ describe('driver location during a run', () => {
     const badEta = await req('POST', `/api/trips/${trip.id}/location`, host.id, { ...VALID_COORDS, etaSeconds: -5 });
     expect(badEta.status).toBe(400);
     expect((await badEta.json()).error).toBe('INVALID_ETA');
+    const badPickupEta = await req('POST', `/api/trips/${trip.id}/location`, host.id, { ...VALID_COORDS, pickupEtaSeconds: -1 });
+    expect(badPickupEta.status).toBe(400);
+    expect((await badPickupEta.json()).error).toBe('INVALID_ETA');
   });
 
-  test('a position older than 90 seconds is not served', async () => {
+  test('a position up to 10 minutes old is served with its time; older is not', async () => {
     if (guard()) return;
-    await prisma.tripRun.updateMany({
-      where: { tripId: trip.id },
-      data: { lastLocationUpdatedAt: new Date(Date.now() - 5 * 60 * 1000) },
-    });
+    const setAge = (ms) =>
+      prisma.tripRun.updateMany({ where: { tripId: trip.id }, data: { lastLocationUpdatedAt: new Date(Date.now() - ms) } });
+    await setAge(5 * 60 * 1000);
+    const paused = (await (await req('GET', `/api/trips/${trip.id}/location`, approvedPax.id)).json()).location;
+    expect(paused).toMatchObject(VALID_COORDS);
+    expect(Date.now() - Date.parse(paused.updatedAt)).toBeGreaterThan(4 * 60 * 1000);
+    await setAge(11 * 60 * 1000);
     expect((await (await req('GET', `/api/trips/${trip.id}/location`, approvedPax.id)).json()).location).toBeNull();
   });
 

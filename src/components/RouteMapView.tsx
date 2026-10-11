@@ -65,6 +65,21 @@ function Pin({ icon, inverted = false }: { icon: React.ReactNode; inverted?: boo
   );
 }
 
+// The map follows the app's light/dark toggle (<html data-theme>), live.
+function useDarkTheme(): boolean {
+  // Read at once (this component is client-only): starting light and switching
+  // mid-load made mapbox-gl throw "Cannot read properties of undefined (reading 'get')".
+  const [dark, setDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark');
+  useEffect(() => {
+    const read = () => setDark(document.documentElement.getAttribute('data-theme') === 'dark');
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+  return dark;
+}
+
 export default function RouteMapView({
   origin,
   destination,
@@ -79,6 +94,7 @@ export default function RouteMapView({
   className = '',
 }: RouteMapProps) {
   const mapRef = useRef<MapRef>(null);
+  const dark = useDarkTheme();
   const [fetchedRoute, setFetchedRoute] = useState<LatLng[] | null>(null);
   const [fullScreen, setFullScreen] = useState(false);
   const editable = Boolean(onOriginChange || onMeetingPointChange);
@@ -246,9 +262,10 @@ export default function RouteMapView({
         aria-label={fullScreen ? 'Map, full screen' : undefined}
       >
         <Map
+          key={dark ? 'dark' : 'light'} // a theme change remounts the map instead of racing setStyle
           ref={mapRef}
           mapboxAccessToken={TOKEN}
-          mapStyle="mapbox://styles/mapbox/light-v11"
+          mapStyle={dark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'}
           initialViewState={{ ...center, zoom: 12 }}
           onLoad={fitToBounds}
           attributionControl={false}
@@ -308,7 +325,7 @@ export default function RouteMapView({
           )}
           {driverLocation && (
             <Marker longitude={driverLocation.lng} latitude={driverLocation.lat} anchor="center">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center shadow-md ring-2 ring-white text-xs bg-blue-600 text-white">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center shadow-md ring-2 ring-white text-xs bg-[#800000] text-white">
                 <FaCar />
               </div>
             </Marker>
@@ -382,7 +399,7 @@ export default function RouteMapView({
           )}
           {driverLocation && (
             <span className="flex items-center gap-1.5">
-              <FaCar className="w-3 h-3 text-blue-600" /> Driver’s live location
+              <FaCar className="w-3 h-3 text-[#800000]" /> Driver’s live location
             </span>
           )}
           {riderLocations.length > 0 && (

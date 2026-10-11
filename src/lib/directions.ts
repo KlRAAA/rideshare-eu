@@ -1,6 +1,8 @@
 // Mapbox Directions API, client-side. The RouteMap component uses this to draw
 // the route line, and Post a Ride reuses the same result to persist
 // distance/duration on the trip (the server sanity-checks but doesn't re-fetch).
+import { parseNavRoute, type NavRoute } from '@/lib/navigation';
+
 export interface LatLng {
   lat: number;
   lng: number;
@@ -33,6 +35,21 @@ export async function fetchRoute(origin: LatLng, destination: LatLng): Promise<F
       distanceMeters: Math.round(route.distance),
       durationSeconds: Math.round(route.duration),
     };
+  } catch {
+    return null;
+  }
+}
+
+// The driver's live route (live trip map): traffic-aware, with turn steps,
+// through the pickup while someone still waits there.
+export async function fetchNavRoute(from: LatLng, pickup: LatLng | null, to: LatLng): Promise<NavRoute | null> {
+  if (!TOKEN) return null;
+  const coords = [from, ...(pickup ? [pickup] : []), to].map((p) => `${p.lng},${p.lat}`).join(';');
+  const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coords}?geometries=geojson&overview=full&steps=true&access_token=${TOKEN}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return parseNavRoute(await res.json(), Boolean(pickup));
   } catch {
     return null;
   }

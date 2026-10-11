@@ -100,7 +100,7 @@ const SCHEMAS = {
   'trip.riderLocation': LAT_LNG,
   'trip.daySkip': { reason: 'string' },
   'trip.dayUnskip': NONE,
-  'trip.location': { ...LAT_LNG, etaSeconds: 'number' },
+  'trip.location': { ...LAT_LNG, etaSeconds: 'number', pickupEtaSeconds: 'number' },
   'trip.message': MESSAGE,
 
   // Cars
@@ -135,6 +135,7 @@ const SCHEMAS = {
   'user.avatar': NONE,
   'admin.licenseApprove': NONE,
   'match.locationSharing': { on: 'boolean' },
+  'match.pickedUp': NONE,
   'admin.licenseReject': { reason: 'string', note: 'string' },
   'admin.licenseRevoke': { reason: 'string', note: 'string' },
   'admin.licenseSpotChecked': NONE,

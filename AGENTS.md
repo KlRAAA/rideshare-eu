@@ -685,12 +685,16 @@ plan `docs/superpowers/plans/2026-10-09-passenger-location.md`.
   `services/riderLocationService.js`.
 - `PATCH /api/matches/:id/location-sharing { on }` (passenger, approved only:
   403 / 409 `NOT_APPROVED`; off erases). `POST /api/trips/:id/rider-location
-  { lat, lng }` (409 `NOT_SHARING`, `NOT_IN_WINDOW` with `opensAt`,
-  `TRIP_STARTED`; 400 `INVALID_COORDINATES`). `GET /api/trips/:id/rider-locations`
-  (host only): approved riders with `sharing`, `location`, `metersToPickup`,
-  `atPickup`; empty once the day's run has started. `GET /api/trips/:id` adds
+  { lat, lng }` (409 `NOT_SHARING`; 400 `INVALID_COORDINATES`). During a run a
+  sharing rider may post until picked up, then 409 `PICKED_UP`. Before the run
+  the window applies (409 `NOT_IN_WINDOW` with `opensAt`); once the day's run has
+  completed, 409 `TRIP_STARTED`. `GET /api/trips/:id/rider-locations` (host
+  only): approved riders with `sharing`, `pickedUp`, `location`,
+  `metersToPickup`, `atPickup`. During a run it lists every approved rider, with
+  a location only for those not yet picked up; it is empty once the day's run
+  has finished. `GET /api/trips/:id` adds
   `myLocationSharing`.
-- Erased at Start Trip (`clearTripRiderLocations` in `startRun`), on switch off,
+- Erased at pickup and at run end (`finishRun`; live trip map), on switch off,
   on account deletion, and by the 5-minute cron (`clearStaleRiderLocations`:
   older than 30 min or not APPROVED). Never shown to admins or in data
   releases.
@@ -734,6 +738,24 @@ plan `docs/superpowers/plans/2026-10-09-passenger-location.md`.
   them) replace the stacked sentences on Find a Ride results and My Trips /
   My Rides; the Trip details card uses icon rows with the label as tooltip.
   Wording in `src/lib/tripFacts.ts`. Facts only: buttons keep their words.
+
+**Live trip map (done, designed in chat):** spec `docs/superpowers/specs/2026-10-11-live-trip-map-design.md`,
+plan `docs/superpowers/plans/2026-10-11-live-trip-map.md`.
+- Riders share after Start Trip until the driver taps **Picked up**
+  (`POST`/`DELETE /api/matches/:id/picked-up`, host, ongoing run; 409
+  `NO_ONGOING_RUN` / `NOT_APPROVED`). `Match.pickedUpAt` counts for a run when
+  it's after `run.startedAt` (`isPickedUp`). After pickup 409 `PICKED_UP`.
+- `POST /location` takes `pickupEtaSeconds` (`TripRun.pickupEtaAt`); `GET
+  /location` returns `pickupEtaAt`, `pickedUp` and points up to 10 min old
+  (riders see "paused" after 45 s).
+- Web: `useDriverNavigation` (watchPosition, Mapbox `driving-traffic` with
+  steps through the pickup, reroute > 50 m twice, every 2 min, sends every
+  10 s), `NavBanner`, `NavigateMenu` (Google Maps / Waze), pure logic in
+  `src/lib/navigation.ts`. The map uses `dark-v11` in dark mode.
+- A web page can't use GPS in the background: in Google Maps/Waze or with
+  the screen off, riders see the driver paused.
+- Postman: folder "23. Rider location" covers pickup.
+- Deploy the API (Railway) before the website: the old API rejects `pickupEtaSeconds`.
 
 ## Automatic DOE fuel prices (Oct 2026)
 
