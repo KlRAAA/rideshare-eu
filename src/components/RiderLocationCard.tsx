@@ -14,19 +14,21 @@ interface RiderLocationCardProps {
   initialOn: boolean;
   // The next departure that can still be started (B), or null.
   departure: string | null;
+  runOngoing: boolean;
+  pickedUp: boolean;
 }
 
 const TICK_MS = 30 * 1000;
 
 // The rider's "share my location with the driver" switch (sub-project G).
 // While on and inside the window, this page sends the position every 30 s.
-export default function RiderLocationCard({ tripId, matchId, initialOn, departure }: RiderLocationCardProps) {
+export default function RiderLocationCard({ tripId, matchId, initialOn, departure, runOngoing, pickedUp }: RiderLocationCardProps) {
   const [on, setOn] = useState(initialOn);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [blocked, setBlocked] = useState(false);
   const share = sharingState(departure, now);
-  const open = share.state === 'open';
+  const open = !pickedUp && (runOngoing || share.state === 'open');
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), TICK_MS);
@@ -68,7 +70,8 @@ export default function RiderLocationCard({ tripId, matchId, initialOn, departur
   }
 
   let status = 'Off. Your driver can’t see where you are.';
-  if (on && open) status = blocked ? 'Allow location for this site so your driver can see you.' : 'Sharing with your driver now. Keep this page open.';
+  if (pickedUp) status = 'You’re in the car. Sharing has stopped for this trip.';
+  else if (on && open) status = blocked ? 'Allow location for this site so your driver can see you.' : 'Sharing with your driver now. Keep this page open.';
   else if (on && share.state === 'before') status = `Starts at ${clockLabel(share.opensAt)}. Keep this page open then.`;
   else if (on) status = 'On for your next pickup.';
 
@@ -77,7 +80,7 @@ export default function RiderLocationCard({ tripId, matchId, initialOn, departur
       <label className="flex items-center justify-between gap-3">
         <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
           <FaLocationArrow className="h-3.5 w-3.5 text-[color:var(--rsu-color-primary)]" aria-hidden />
-          Share my location with the driver before pickup
+          Share my location with the driver until pickup
         </span>
         <input
           type="checkbox"
@@ -92,8 +95,8 @@ export default function RiderLocationCard({ tripId, matchId, initialOn, departur
         {status}
       </p>
       <p className="text-xs text-gray-500">
-        Only your driver sees it, from 15 minutes before departure until the trip starts. Only your latest position is kept,
-        and it’s erased when the trip starts.
+        Only your driver sees it, from 15 minutes before departure until they mark you picked up. Only your latest position is
+        kept, and it’s erased at pickup or when the trip ends.
       </p>
     </section>
   );
