@@ -96,7 +96,8 @@ All under the existing authentication; every write runs `strictBody`.
   steps and each leg's duration (`pickupEtaSeconds` = first leg when the pickup
   is still ahead; `etaSeconds` = total).
 - Refetch: off route (more than 50 m from the line for two fixes in a row, at
-  most once per 15 s), every 2 minutes, and after Picked up / Undo.
+  most once per 15 s), every 2 minutes, and when the pickup stop appears or
+  drops out (the last waiting rider picked up, or an Undo).
 - `src/lib/navigation.ts` (pure): nearest point on the route, the next
   maneuver ahead and the distance to it, off-route check, maneuver → arrow
   icon, Google Maps link (`maps/dir/?api=1&destination=…&waypoints=…&travelmode=driving`)
@@ -150,5 +151,5 @@ All under the existing authentication; every write runs `strictBody`.
 
 - `npx prisma db push` adds the two optional columns (Railway's pre-deploy does
   this; no data loss).
-- Postman: folder "25. Live trip map" (picked-up, undo, location fields).
+- Postman: folder "23. Rider location" is updated: its after-start requests now check sharing until pickup, Picked up, `PICKED_UP` and `pickedUp`.
 - `AGENTS.md`: a section for this feature; update G's "erased at Start Trip".
