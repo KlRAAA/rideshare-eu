@@ -1,4 +1,4 @@
-// Riders share their location with the trip's driver before pickup (sub-project G).
+// Riders share their location with the trip's driver until pickup (sub-project G, live trip map).
 const prisma = require('../config/db');
 const { decryptUserFields } = require('./encryptionService');
 const { phDateOnly } = require('./recurrenceMath');
@@ -69,14 +69,22 @@ async function saveRiderLocation(tripId, userId, { lat, lng }, now = new Date())
   if (!point) return fail(400, { error: 'INVALID_COORDINATES' });
   const trip = await prisma.trip.findUnique({
     where: { id: tripId },
-    include: { matches: { where: { passengerId: userId, status: 'APPROVED' }, select: { id: true, sharesLocation: true } } },
+    include: {
+      matches: { where: { passengerId: userId, status: 'APPROVED' }, select: { id: true, sharesLocation: true, pickedUpAt: true } },
+    },
   });
   if (!trip) return fail(404, { error: 'TRIP_NOT_FOUND' });
   const [match] = trip.matches;
   if (!match) return fail(403, { error: 'NOT_AUTHORIZED' });
   if (!match.sharesLocation) return fail(409, { error: 'NOT_SHARING' });
-  const current = await currentDeparture(trip, now);
-  if (current.error) return current.error;
+  // Live trip map: during the run a rider shares until the driver picks them up.
+  const run = await ongoingRunOf(tripId);
+  if (run) {
+    if (isPickedUp(match.pickedUpAt, run)) return fail(409, { error: 'PICKED_UP' });
+  } else {
+    const current = await currentDeparture(trip, now);
+    if (current.error) return current.error;
+  }
   await prisma.match.update({ where: { id: match.id }, data: { riderLat: point.lat, riderLng: point.lng, riderLocatedAt: now } });
   return { status: 200, body: { ok: true } };
 }
@@ -89,17 +97,22 @@ async function riderLocationsFor(tripId, userId, now = new Date()) {
   });
   if (!trip) return fail(404, { error: 'TRIP_NOT_FOUND' });
   if (trip.hostId !== userId) return fail(403, { error: 'NOT_AUTHORIZED' });
-  const current = await currentDeparture(trip, now);
-  if (current.error?.body.error === 'TRIP_STARTED') return { status: 200, body: { riders: [] } };
+  const run = await ongoingRunOf(tripId);
+  if (!run) {
+    const current = await currentDeparture(trip, now);
+    if (current.error?.body.error === 'TRIP_STARTED') return { status: 200, body: { riders: [] } };
+  }
 
   const riders = trip.matches.map((m) => {
-    const fresh = m.riderLat != null && m.riderLocatedAt && now - m.riderLocatedAt <= STALE_MS;
+    const pickedUp = isPickedUp(m.pickedUpAt, run);
+    const fresh = !pickedUp && m.riderLat != null && m.riderLocatedAt && now - m.riderLocatedAt <= STALE_MS;
     const location = fresh ? { lat: m.riderLat, lng: m.riderLng } : null;
     return {
       matchId: m.id,
       passengerId: m.passengerId,
       fullName: decryptUserFields(m.passenger).fullName,
       sharing: m.sharesLocation,
+      pickedUp,
       location,
       updatedAt: fresh ? m.riderLocatedAt : null,
       ...(location ? pickupStatus(location, trip) : { metersToPickup: null, atPickup: false }),

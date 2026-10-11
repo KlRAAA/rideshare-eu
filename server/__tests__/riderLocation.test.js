@@ -117,7 +117,7 @@ test('only the driver reads positions, with distance to the meeting point', asyn
   expect(stale.location).toBeNull();
 });
 
-test('positions are erased: switch off, Start Trip, the cleanup job and account deletion', async () => {
+test('positions are erased: switch off, trip end, the cleanup job and account deletion', async () => {
   if (guard()) return;
   const point = (id) => prisma.match.findUnique({ where: { id }, select: { riderLat: true, riderLocatedAt: true } });
 
@@ -130,8 +130,10 @@ test('positions are erased: switch off, Start Trip, the cleanup job and account 
   await share(s, s.rider.id, s.match.id);
   await post(s, s.rider.id, NEAR);
   expect((await req('POST', `/api/trips/${s.trip.id}/start`, s.host.id, {})).status).toBe(201);
+  expect((await point(s.match.id)).riderLat).not.toBeNull(); // kept for pickup after the start
+  expect((await req('POST', `/api/trips/${s.trip.id}/end`, s.host.id, {})).status).toBe(200);
   expect((await point(s.match.id)).riderLat).toBeNull();
-  await err(await post(s, s.rider.id, NEAR), 409, 'TRIP_STARTED');
+  expect((await post(s, s.rider.id, NEAR)).status).toBe(403); // the ride is completed, no longer APPROVED
   expect((await (await read(s, s.host.id)).json()).riders).toEqual([]);
 
   const j = await seed();
@@ -175,4 +177,20 @@ test('the driver marks a rider picked up during the trip, and can undo it', asyn
   expect(undo.status).toBe(200);
   expect(await undo.json()).toEqual({ pickedUp: false });
   expect((await prisma.match.findUnique({ where: { id: s.match.id } })).pickedUpAt).toBeNull();
+});
+
+test('after Start Trip riders keep sharing until the driver picks them up', async () => {
+  if (guard()) return;
+  const s = await seed();
+  await share(s, s.rider.id, s.match.id);
+  expect((await req('POST', `/api/trips/${s.trip.id}/start`, s.host.id, {})).status).toBe(201);
+  expect((await post(s, s.rider.id, FAR)).status).toBe(200);
+  let riders = (await (await read(s, s.host.id)).json()).riders;
+  expect(riders.find((r) => r.passengerId === s.rider.id)).toMatchObject({ pickedUp: false, sharing: true, location: FAR });
+
+  expect((await req('POST', `/api/matches/${s.match.id}/picked-up`, s.host.id, {})).status).toBe(200);
+  await err(await post(s, s.rider.id, NEAR), 409, 'PICKED_UP');
+  riders = (await (await read(s, s.host.id)).json()).riders;
+  expect(riders.find((r) => r.passengerId === s.rider.id)).toMatchObject({ pickedUp: true, location: null });
+  expect(riders.find((r) => r.passengerId === s.quiet.id)).toMatchObject({ pickedUp: false, sharing: false });
 });
