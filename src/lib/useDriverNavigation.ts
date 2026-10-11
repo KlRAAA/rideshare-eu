@@ -48,13 +48,26 @@ export function useDriverNavigation({ tripId, active, pickup, destination, onArr
   // GPS and the screen wake lock.
   useEffect(() => {
     if (!active || !('geolocation' in navigator)) return;
-    let wakeLock: { release: () => Promise<void> } | null = null;
+    type Lock = { released?: boolean; release: () => Promise<void> };
+    let wakeLock: Lock | null = null;
+    let requesting = false;
     let cancelled = false;
-    const nav = navigator as Navigator & { wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void> }> } };
-    nav.wakeLock?.request('screen').then((lock) => {
-      if (cancelled) lock.release().catch(() => {});
-      else wakeLock = lock;
-    }).catch(() => {});
+    const nav = navigator as Navigator & { wakeLock?: { request: (type: 'screen') => Promise<Lock> } };
+    const lockScreen = () => {
+      if (!nav.wakeLock || requesting || (wakeLock && !wakeLock.released)) return;
+      requesting = true;
+      nav.wakeLock.request('screen').then((lock) => {
+        if (cancelled) lock.release().catch(() => {});
+        else wakeLock = lock;
+      }).catch(() => {}).finally(() => { requesting = false; });
+    };
+    lockScreen();
+    // The browser drops the lock while the page is hidden (e.g. the driver
+    // opened Google Maps from Navigate); take it again on the way back.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') lockScreen();
+    };
+    document.addEventListener('visibilitychange', onVisible);
     const id = navigator.geolocation.watchPosition(
       (p) => {
         const here = { lat: p.coords.latitude, lng: p.coords.longitude };
@@ -67,6 +80,7 @@ export function useDriverNavigation({ tripId, active, pickup, destination, onArr
     );
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
       navigator.geolocation.clearWatch(id);
       wakeLock?.release().catch(() => {});
     };

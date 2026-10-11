@@ -12,6 +12,7 @@ const MAPBOX = {
       legs: [
         {
           duration: 120,
+          distance: 1080,
           steps: [
             { name: 'Quezon Ave', maneuver: { type: 'depart', location: [121.6, 13.9], instruction: 'Head east on Quezon Ave' } },
             { name: '', maneuver: { type: 'arrive', location: [121.61, 13.9], instruction: 'You have arrived at your 1st destination' } },
@@ -19,6 +20,7 @@ const MAPBOX = {
         },
         {
           duration: 180,
+          distance: 1105,
           steps: [
             { name: 'Rizal St', maneuver: { type: 'turn', modifier: 'left', location: [121.61, 13.9], instruction: 'Turn left onto Rizal St' } },
             { name: '', maneuver: { type: 'arrive', location: [121.61, 13.91], instruction: 'You have arrived at your destination' } },
@@ -39,8 +41,8 @@ test('parses the line, the steps (without departures) and both durations', () =>
   ]);
   expect(route.steps.map((s) => s.type)).toEqual(['arrive', 'turn', 'arrive']);
   expect(route.steps[1]).toMatchObject({ modifier: 'left', name: 'Rizal St', instruction: 'Turn left onto Rizal St' });
-  expect(route).toMatchObject({ durationSeconds: 300, distanceMeters: 2185, pickupSeconds: 120 });
-  expect(parseNavRoute(MAPBOX, false)!.pickupSeconds).toBeNull();
+  expect(route).toMatchObject({ durationSeconds: 300, distanceMeters: 2185, pickupSeconds: 120, pickupMeters: 1080 });
+  expect(parseNavRoute(MAPBOX, false)).toMatchObject({ pickupSeconds: null, pickupMeters: null });
   expect(parseNavRoute({ routes: [] }, false)).toBeNull();
   expect(parseNavRoute(null, false)).toBeNull();
 });

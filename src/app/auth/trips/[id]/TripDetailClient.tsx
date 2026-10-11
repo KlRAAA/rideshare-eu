@@ -162,6 +162,9 @@ export default function TripDetailClient({
     [riders]
   );
   const [pickedUp, setPickedUp] = useState(false);
+  // An approved rider's own position while sharing: their map shows the car and themselves.
+  const [selfPosition, setSelfPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const selfPin = useMemo(() => (selfPosition ? [{ ...selfPosition, label: 'You' }] : undefined), [selfPosition]);
   // Memoised: the GPS hook re-renders this page on every fix, and the map refetches/refits when these change identity.
   const origin = useMemo(() => ({ lat: trip.originLat, lng: trip.originLng }), [trip.originLat, trip.originLng]);
   const destination = useMemo(() => ({ lat: trip.destinationLat, lng: trip.destinationLng }), [trip.destinationLat, trip.destinationLng]);
@@ -187,6 +190,7 @@ export default function TripDetailClient({
     onArrived: () => router.refresh(),
   });
   const remainingMeters = nav.route?.distanceMeters ?? null;
+  const arriveAt = nav.route ? clockLabel(new Date(Date.now() + nav.route.durationSeconds * 1000)) : null;
 
   // Live location sharing — passenger side: whether this viewer may watch the
   // host's live position (confirmed seat, active trip). The actual ~30s poll
@@ -253,7 +257,7 @@ export default function TripDetailClient({
           meetingPoint={meetingPoint}
           routeWaypoints={isHost && runOngoing && nav.route ? nav.route.line : trip.routeWaypoints}
           canWatchDriverLocation={canWatchDriverLocation}
-          riderLocations={isHost ? riderPins : undefined}
+          riderLocations={isHost ? riderPins : selfPin}
           ownLocation={isHost && runOngoing ? nav.position : undefined}
           onEta={setLiveEtaAt}
           onPickedUp={setPickedUp}
@@ -261,15 +265,20 @@ export default function TripDetailClient({
 
         {isHost && runOngoing && (
           <div className="rsu-card space-y-3">
-            <p className="text-sm font-semibold text-gray-900">
-              {someoneWaiting
-                ? `Next: pick up at ${trip.meetingPointAddress ?? 'the start'}${
-                    nav.route?.pickupSeconds != null ? ` · about ${Math.max(1, Math.round(nav.route.pickupSeconds / 60))} min` : ''
-                  }`
-                : `To campus${remainingMeters != null ? ` · ${distanceLabel(remainingMeters)}` : ''}${
-                    nav.route ? ` · arrive about ${clockLabel(new Date(Date.now() + nav.route.durationSeconds * 1000))}` : ''
-                  }`}
-            </p>
+            {someoneWaiting ? (
+              <div className="text-sm">
+                <p className="font-semibold text-gray-900">
+                  {`Next: pick up at ${trip.meetingPointAddress ?? 'the start'}${
+                    nav.route?.pickupMeters != null ? ` · ${distanceLabel(nav.route.pickupMeters)}` : ''
+                  }${nav.route?.pickupSeconds != null ? ` · about ${Math.max(1, Math.round(nav.route.pickupSeconds / 60))} min` : ''}`}
+                </p>
+                {arriveAt && <p className="text-gray-600">Then campus · arrive about {arriveAt}</p>}
+              </div>
+            ) : (
+              <p className="text-sm font-semibold text-gray-900">
+                {`To campus${remainingMeters != null ? ` · ${distanceLabel(remainingMeters)}` : ''}${arriveAt ? ` · arrive about ${arriveAt}` : ''}`}
+              </p>
+            )}
             <NavigateMenu to={destination} via={someoneWaiting ? pickupPoint : null} />
           </div>
         )}
@@ -295,7 +304,8 @@ export default function TripDetailClient({
             initialOn={trip.myLocationSharing === true}
             departure={departureForSharing}
             runOngoing={runOngoing}
-            pickedUp={pickedUp}
+            pickedUp={pickedUp && runOngoing}
+            onPosition={setSelfPosition}
           />
         )}
 

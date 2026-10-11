@@ -67,7 +67,9 @@ function Pin({ icon, inverted = false }: { icon: React.ReactNode; inverted?: boo
 
 // The map follows the app's light/dark toggle (<html data-theme>), live.
 function useDarkTheme(): boolean {
-  const [dark, setDark] = useState(false);
+  // Read at once (this component is client-only): starting light and switching
+  // mid-load made mapbox-gl throw "Cannot read properties of undefined (reading 'get')".
+  const [dark, setDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark');
   useEffect(() => {
     const read = () => setDark(document.documentElement.getAttribute('data-theme') === 'dark');
     read();
@@ -260,6 +262,7 @@ export default function RouteMapView({
         aria-label={fullScreen ? 'Map, full screen' : undefined}
       >
         <Map
+          key={dark ? 'dark' : 'light'} // a theme change remounts the map instead of racing setStyle
           ref={mapRef}
           mapboxAccessToken={TOKEN}
           mapStyle={dark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'}

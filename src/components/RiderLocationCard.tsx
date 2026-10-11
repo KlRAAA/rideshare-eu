@@ -16,13 +16,15 @@ interface RiderLocationCardProps {
   departure: string | null;
   runOngoing: boolean;
   pickedUp: boolean;
+  // Each position sent, and null when sharing stops: the rider's own "You" pin.
+  onPosition?: (p: { lat: number; lng: number } | null) => void;
 }
 
 const TICK_MS = 30 * 1000;
 
 // The rider's "share my location with the driver" switch (sub-project G).
 // While on and inside the window, this page sends the position every 30 s.
-export default function RiderLocationCard({ tripId, matchId, initialOn, departure, runOngoing, pickedUp }: RiderLocationCardProps) {
+export default function RiderLocationCard({ tripId, matchId, initialOn, departure, runOngoing, pickedUp, onPosition }: RiderLocationCardProps) {
   const [on, setOn] = useState(initialOn);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -43,6 +45,7 @@ export default function RiderLocationCard({ tripId, matchId, initialOn, departur
       if (cancelled) return;
       setBlocked(!coords);
       if (!coords) return;
+      onPosition?.(coords);
       apiFetch(`/api/trips/${tripId}/rider-location`, { method: 'POST', body: JSON.stringify(coords) }).catch(() => {});
     };
     void send();
@@ -50,8 +53,9 @@ export default function RiderLocationCard({ tripId, matchId, initialOn, departur
     return () => {
       cancelled = true;
       clearInterval(id);
+      onPosition?.(null);
     };
-  }, [on, open, tripId]);
+  }, [on, open, tripId, onPosition]);
 
   async function toggle(next: boolean) {
     setBusy(true);

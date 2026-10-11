@@ -17,6 +17,7 @@ export interface NavRoute {
   durationSeconds: number;
   distanceMeters: number;
   pickupSeconds: number | null; // first leg, when the pickup is still ahead
+  pickupMeters: number | null; // same leg's distance
 }
 
 export type Arrow =
@@ -44,7 +45,7 @@ interface MapboxStep {
 
 export function parseNavRoute(data: unknown, hasPickup: boolean): NavRoute | null {
   const route = (data as { routes?: Array<Record<string, unknown>> } | null)?.routes?.[0] as
-    | { distance: number; duration: number; geometry?: { coordinates?: [number, number][] }; legs?: { duration: number; steps: MapboxStep[] }[] }
+    | { distance: number; duration: number; geometry?: { coordinates?: [number, number][] }; legs?: { duration: number; distance?: number; steps: MapboxStep[] }[] }
     | undefined;
   const coords = route?.geometry?.coordinates;
   if (!route || !coords || coords.length < 2) return null;
@@ -65,6 +66,7 @@ export function parseNavRoute(data: unknown, hasPickup: boolean): NavRoute | nul
     durationSeconds: Math.round(route.duration),
     distanceMeters: Math.round(route.distance),
     pickupSeconds: hasPickup && legs[0] ? Math.round(legs[0].duration) : null,
+    pickupMeters: hasPickup && legs[0]?.distance != null ? Math.round(legs[0].distance) : null,
   };
 }
 
