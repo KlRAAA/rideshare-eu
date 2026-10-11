@@ -37,8 +37,11 @@ export default function RidersNearbyCard({ tripId, departure, runOngoing, onRide
     if (!open) return;
     void load();
     const id = setInterval(load, LOCATION_POLL_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [open, load]);
+    return () => {
+      clearInterval(id);
+      onRiders([]); // the run ended or the window closed: the map drops the pins
+    };
+  }, [open, load, onRiders]);
 
   async function setPickedUp(matchId: string, pickedUp: boolean) {
     setBusy(matchId);
@@ -68,21 +71,25 @@ export default function RidersNearbyCard({ tripId, departure, runOngoing, onRide
         {runOngoing ? 'Riders to pick up' : 'Riders before pickup'}
       </h2>
       <ul className="space-y-2 text-sm text-gray-800">
-        {riders.map((r) => (
-          <li key={r.matchId} className="flex items-center justify-between gap-3">
-            <span className={r.atPickup && !r.pickedUp ? 'font-semibold text-gray-900' : undefined}>{riderStatusLine(r, now)}</span>
-            {runOngoing && (
-              <button
-                type="button"
-                disabled={busy === r.matchId}
-                onClick={() => setPickedUp(r.matchId, !r.pickedUp)}
-                className={`${r.pickedUp ? 'rsu-btn-secondary' : 'rsu-btn-primary'} shrink-0 px-3 py-1.5 text-xs disabled:opacity-60`}
-              >
-                {r.pickedUp ? 'Undo' : 'Picked up'}
-              </button>
-            )}
-          </li>
-        ))}
+        {riders.map((r) => {
+          const firstName = r.fullName.split(' ')[0];
+          return (
+            <li key={r.matchId} className="flex items-center justify-between gap-3">
+              <span className={r.atPickup && !r.pickedUp ? 'font-semibold text-gray-900' : undefined}>{riderStatusLine(r, now)}</span>
+              {runOngoing && (
+                <button
+                  type="button"
+                  disabled={busy === r.matchId}
+                  onClick={() => setPickedUp(r.matchId, !r.pickedUp)}
+                  aria-label={r.pickedUp ? `Undo pickup for ${firstName}` : `Mark ${firstName} picked up`}
+                  className={`${r.pickedUp ? 'rsu-btn-secondary' : 'rsu-btn-primary'} shrink-0 px-3 py-1.5 text-xs disabled:opacity-60`}
+                >
+                  {r.pickedUp ? 'Undo' : 'Picked up'}
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ul>
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
       <p className="text-xs text-gray-500">

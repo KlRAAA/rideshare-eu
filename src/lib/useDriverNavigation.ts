@@ -32,13 +32,16 @@ export function useDriverNavigation({ tripId, active, pickup, destination, onArr
   const offCount = useRef(0);
   const arrived = useRef(false);
   const along = useRef(0);
+  const routeRequest = useRef(0);
   const pickupKey = pickup ? `${pickup.lat},${pickup.lng}` : '';
 
   const reroute = async () => {
     if (!pos.current) return;
     lastFetch.current = Date.now();
+    const request = ++routeRequest.current;
     const next = await fetchNavRoute(pos.current, pickup, destination);
-    if (!next) return;
+    // A slower, older request must not replace a newer route.
+    if (!next || request !== routeRequest.current) return;
     routeRef.current = { route: next, at: Date.now() };
     along.current = 0;
     offCount.current = 0;
@@ -75,7 +78,10 @@ export function useDriverNavigation({ tripId, active, pickup, destination, onArr
         setBlocked(false);
         setPosition(here);
       },
-      () => setBlocked(true),
+      // Only a refusal needs "Allow location"; timeouts and lost signal retry.
+      (e) => {
+        if (e.code === e.PERMISSION_DENIED) setBlocked(true);
+      },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
     );
     return () => {
@@ -107,9 +113,11 @@ export function useDriverNavigation({ tripId, active, pickup, destination, onArr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, pickupKey]);
 
-  // Position and ETAs to the server every 10 s; near campus ends the run.
+  // Position and ETAs to the server on the first fix, then every 10 s; near
+  // campus ends the run. Keyed on hasFix so the first send restarts the timer.
+  const hasFix = position !== null;
   useEffect(() => {
-    if (!active) return;
+    if (!active || !hasFix) return;
     const send = () => {
       const here = pos.current;
       if (!here) return;
@@ -129,10 +137,11 @@ export function useDriverNavigation({ tripId, active, pickup, destination, onArr
       };
       apiFetch(`/api/trips/${tripId}/location`, { method: 'POST', body: JSON.stringify(body) }).catch(() => {});
     };
+    send();
     const id = setInterval(send, SEND_MS);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, tripId]);
+  }, [active, tripId, hasFix]);
 
   // fromAlong keeps the match on the pass the car is on when a route doubles back.
   const next = useMemo(() => {

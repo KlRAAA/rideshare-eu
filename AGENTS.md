@@ -755,6 +755,7 @@ plan `docs/superpowers/plans/2026-10-11-live-trip-map.md`.
 - A web page can't use GPS in the background: in Google Maps/Waze or with
   the screen off, riders see the driver paused.
 - Postman: folder "23. Rider location" covers pickup.
+- Deploy the API (Railway) before the website: the old API rejects `pickupEtaSeconds`.
 
 ## Automatic DOE fuel prices (Oct 2026)
 
