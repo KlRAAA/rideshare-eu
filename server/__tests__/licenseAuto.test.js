@@ -122,6 +122,20 @@ test('admins spot-check recent automatic approvals, revoke one, and old photos a
   expect((await json('GET', '/api/users/me/license', driver.id).then((r) => r.json())).canPost).toBe(false);
   expect((await json('POST', `/api/admin/licenses/${row.id}/revoke`, admin.id, { reason: 'UNREADABLE' })).status).toBe(409);
 
+  const checked = await upload((await makeUser(bag, { fullName: 'Juan Dela Cruz', licensed: false })).id);
+  expect((await json('POST', `/api/admin/licenses/${checked.id}/spot-checked`, driver.id)).status).toBe(403);
+  expect((await json('POST', `/api/admin/licenses/${checked.id}/spot-checked`, admin.id)).status).toBe(200);
+  expect(await prisma.driverLicense.findUnique({ where: { id: checked.id } })).toMatchObject({
+    status: 'APPROVED',
+    photoFile: null,
+    numberEnc: null,
+    photoKeepUntil: null,
+  });
+  expect(fs.existsSync(path.join(LICENSE_DIR, checked.photoFile))).toBe(false);
+  const afterCheck = await (await json('GET', '/api/admin/licenses/recent-auto', admin.id)).json();
+  expect(afterCheck.licenses.some((l) => l.id === checked.id)).toBe(false);
+  expect((await json('POST', `/api/admin/licenses/${checked.id}/spot-checked`, admin.id)).status).toBe(409);
+
   const kept = await upload((await makeUser(bag, { fullName: 'Juan Dela Cruz', licensed: false })).id);
   await prisma.driverLicense.update({ where: { id: kept.id }, data: { photoKeepUntil: new Date(Date.now() - 1000) } });
   await purgeSpotCheckPhotos();

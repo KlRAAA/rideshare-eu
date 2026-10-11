@@ -1,4 +1,4 @@
-const { pendingLicenses, licensePhoto, decideLicense, recentAutoApproved, revokeLicense } = require('../../services/licenseService');
+const { pendingLicenses, licensePhoto, decideLicense, recentAutoApproved, revokeLicense, markSpotChecked } = require('../../services/licenseService');
 
 // Driver's license review (sub-project E).
 async function list(req, res) {
@@ -37,4 +37,9 @@ async function revoke(req, res) {
   res.status(status).json(body);
 }
 
-module.exports = { list, photo, approve, reject, recentAuto, revoke };
+async function spotChecked(req, res) {
+  const { status, body } = await markSpotChecked(req.params.id, req.user.id);
+  res.status(status).json(body);
+}
+
+module.exports = { list, photo, approve, reject, recentAuto, revoke, spotChecked };

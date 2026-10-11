@@ -137,6 +137,7 @@ const ATTEMPTS = [
   ['reject A’s license', 'POST', () => `/api/admin/licenses/${a.license.id}/reject`, { reason: 'UNREADABLE' }],
   ['revoke A’s license', 'POST', () => `/api/admin/licenses/${a.license.id}/revoke`, { reason: 'UNREADABLE' }],
   ['list automatic approvals', 'GET', () => '/api/admin/licenses/recent-auto'],
+  ['mark A’s license spot-checked', 'POST', () => `/api/admin/licenses/${a.license.id}/spot-checked`],
 ];
 
 describe('user B cannot read, change or delete user A’s records', () => {

@@ -615,8 +615,12 @@ plan `docs/superpowers/plans/2026-10-09-driver-license.md`.
 - Admin: `GET /api/admin/licenses/recent-auto` (spot-check list with photos),
   `POST /api/admin/licenses/:id/revoke { reason, note }` (APPROVED only, 409
   `NOT_APPROVED`; erases photo and number, notifies, `LICENSE_REVOKED`); the
-  admin user page shows the newest license with Revoke. It checks consistency,
-  not authenticity: there's no free LTO service to confirm a license is real.
+  admin user page shows the newest license with Revoke.
+  `POST /api/admin/licenses/:id/spot-checked` ("Looks right") erases the photo
+  and number at once, so it leaves the list for every admin (409
+  `ALREADY_CHECKED`). The admin page lists licenses (queue and spot-checks) by
+  name only; the photo loads after "Review"/"Check" and closes when the tab is
+  hidden. It checks consistency, not authenticity: there's no free LTO service to confirm a license is real.
 - Name rule (`licenseChecks.js`): every account name part of 2+ letters
   (initials skipped) must be on the photo; one OCR slip from 4 letters, two
   from 8; surnames joined or split either way ("DELACRUZ"/"DELA CRUZ"). A
@@ -652,7 +656,9 @@ plan `docs/superpowers/plans/2026-10-09-loud-notifications.md`.
   within 1 km (`services/arrivalRules.js`) of the meeting point, else the
   origin; approved riders; once per trip and run day (`occurrenceDate`).
 - Web: `NotificationFeed` (in the `/auth` layout and `HelpShell`) polls every
-  20 s and on focus, feeds `useLiveUnread()` to `Header`/`BottomNav`, and for
+  5 s, on focus and on the window event `ALERTS_CHANGED` (fired by the Alerts
+  page after marking read); when anything new arrives it calls
+  `router.refresh()` so server-rendered pages update without a reload. It feeds `useLiveUnread()` to `Header`/`BottomNav`, and for
   loud types shows a pop-up, plays a Web Audio chime (after the first tap) and
   vibrates (Android). No chat pop-up on that trip's own page. "Sounds and
   vibration" is per device (`localStorage` `rsu.sound`).

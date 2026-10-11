@@ -378,6 +378,21 @@ async function revokeLicense(id, adminId, { reason, note }, now = new Date()) {
   return { status: 200, body: { status: 'REJECTED' } };
 }
 
+// An admin looked at an automatic approval and it's fine: delete the photo and
+// full number now instead of after 7 days, so no admin sees it again.
+async function markSpotChecked(id, adminId) {
+  const row = await prisma.driverLicense.findUnique({ where: { id }, select: { userId: true, photoFile: true } });
+  if (!row) return bad(404, { error: 'LICENSE_NOT_FOUND' });
+  if (row.userId === adminId) return bad(403, { error: 'CANNOT_TARGET_SELF' });
+  const { count } = await prisma.driverLicense.updateMany({
+    where: { id, status: 'APPROVED', autoApproved: true, photoFile: { not: null } },
+    data: { photoFile: null, numberEnc: null, photoKeepUntil: null },
+  });
+  if (count === 0) return bad(409, { error: 'ALREADY_CHECKED' });
+  removeLicenseFile(row.photoFile);
+  return { status: 200, body: { checked: true } };
+}
+
 // Daily: spot-check photos older than 7 days are deleted, with the full number.
 async function purgeSpotCheckPhotos(now = new Date()) {
   const rows = await prisma.driverLicense.findMany({
@@ -400,6 +415,7 @@ module.exports = {
   checkUncheckedLicenses,
   recentAutoApproved,
   revokeLicense,
+  markSpotChecked,
   purgeSpotCheckPhotos,
   sendLicenseExpiryReminders,
   notifyLicenseRequired,

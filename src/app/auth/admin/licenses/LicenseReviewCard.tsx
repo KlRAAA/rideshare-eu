@@ -6,6 +6,7 @@ import Select from '@/components/Select';
 import { API_BASE, apiFetch, ApiError } from '@/lib/api';
 import { formatDateTime } from '@/lib/admin';
 import LicenseChecks from './LicenseChecks';
+import { ClosedLicense, useReveal } from './Reveal';
 import { LICENSE_TYPE_OPTIONS, REJECT_REASON_OPTIONS, longDate, type LicenseType, type RejectReason } from '@/lib/license';
 
 export interface PendingLicense {
@@ -28,6 +29,7 @@ const ERRORS: Record<string, string> = {
 
 export default function LicenseReviewCard({ license }: { license: PendingLicense }) {
   const router = useRouter();
+  const [open, setOpen] = useReveal();
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState<RejectReason>('UNREADABLE');
   const [note, setNote] = useState('');
@@ -48,6 +50,16 @@ export default function LicenseReviewCard({ license }: { license: PendingLicense
     }
   }
 
+  if (!open) {
+    return (
+      <ClosedLicense
+        name={license.user.fullName}
+        meta={`Sent ${formatDateTime(license.submittedAt)}`}
+        action="Review"
+        onOpen={() => setOpen(true)}
+      />
+    );
+  }
   return (
     <article className="rsu-card grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       {/* Served only to admins, only while under review, never cached. */}
@@ -117,6 +129,9 @@ export default function LicenseReviewCard({ license }: { license: PendingLicense
             </button>
             <button type="button" disabled={busy} onClick={() => setRejecting(true)} className="rsu-btn-danger px-4 py-2 text-sm">
               Reject…
+            </button>
+            <button type="button" onClick={() => setOpen(false)} className="rsu-btn-secondary px-4 py-2 text-sm">
+              Hide
             </button>
           </div>
         )}
