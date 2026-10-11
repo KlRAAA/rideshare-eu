@@ -8,6 +8,9 @@ import { apiFetch } from '@/lib/api';
 import ModeSwitchButton from '@/components/ModeSwitchButton';
 import { formatDateTimeAgo } from '@/lib/format';
 import { notificationHref } from '@/lib/notificationLink';
+import { ALERTS_CHANGED } from '@/components/NotificationFeed';
+
+const alertsChanged = () => window.dispatchEvent(new Event(ALERTS_CHANGED));
 
 export interface NotificationItem {
   id: string;
@@ -92,6 +95,15 @@ export default function NotificationsClient({
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => setIsMounted(true), []);
 
+  // NotificationFeed refreshes the page when something new arrives: add those on top.
+  useEffect(() => {
+    setNotifications((prev) => {
+      const known = new Set(prev.map((n) => n.id));
+      const fresh = initialNotifications.filter((n) => !known.has(n.id));
+      return fresh.length ? [...fresh, ...prev] : prev;
+    });
+  }, [initialNotifications]);
+
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   function markReadLocally(id: string) {
@@ -103,7 +115,9 @@ export default function NotificationsClient({
   function handleOpen(n: NotificationItem) {
     if (!n.isRead) {
       markReadLocally(n.id);
-      apiFetch(`/api/alerts/${n.id}/read`, { method: 'PATCH' }).catch(() => {});
+      apiFetch(`/api/alerts/${n.id}/read`, { method: 'PATCH' })
+        .then(alertsChanged)
+        .catch(() => {});
     }
   }
 
@@ -115,6 +129,7 @@ export default function NotificationsClient({
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } finally {
       setMarkingAll(false);
+      alertsChanged();
     }
   }
 

@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { FaBell, FaTimes } from 'react-icons/fa';
 import { apiFetch } from '@/lib/api';
 import { notificationHref } from '@/lib/notificationLink';
@@ -22,7 +22,9 @@ interface FeedResponse {
   cursor: string;
 }
 
-const POLL_MS = 20 * 1000;
+const POLL_MS = 5 * 1000;
+// Dispatched on window after the user reads notifications, so the badge updates at once.
+export const ALERTS_CHANGED = 'rsu:alerts-changed';
 const TOAST_MS = 7 * 1000;
 const VIBRATION = [200, 100, 200];
 
@@ -52,6 +54,7 @@ function chime(ctx: AudioContext) {
 export default function NotificationFeed({ children }: { children: React.ReactNode }) {
   const mode = useMode();
   const pathname = usePathname();
+  const router = useRouter();
   const [unread, setUnread] = useState<number | null>(null);
   const [toast, setToast] = useState<FeedNotification | null>(null);
   const cursor = useRef<string | null>(null);
@@ -93,12 +96,14 @@ export default function NotificationFeed({ children }: { children: React.ReactNo
       const first = cursor.current === null;
       cursor.current = data.cursor;
       if (first) return; // the first poll only sets the starting point
+      // Something changed for this user: re-render the page's server data (no reload).
+      if (data.notifications.length) router.refresh();
       const loud = data.notifications.filter((n) => shouldPopUp(n, pathRef.current));
       if (loud.length) announce(loud[loud.length - 1]);
     } catch {
       /* offline or signed out: try again on the next tick */
     }
-  }, [mode, announce]);
+  }, [mode, announce, router]);
 
   useEffect(() => {
     cursor.current = null; // a mode switch starts a fresh feed
@@ -107,10 +112,13 @@ export default function NotificationFeed({ children }: { children: React.ReactNo
       if (document.visibilityState === 'visible') void poll();
     }, POLL_MS);
     const onVisible = () => document.visibilityState === 'visible' && void poll();
+    const onChanged = () => void poll();
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener(ALERTS_CHANGED, onChanged);
     return () => {
       clearInterval(id);
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener(ALERTS_CHANGED, onChanged);
     };
   }, [poll]);
 
