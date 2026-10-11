@@ -365,11 +365,12 @@ model Match {
   createdAt         DateTime    @default(now())
   respondedAt       DateTime?
   // Sub-project G: the rider's switch and latest position, shown only to the
-  // trip's driver before pickup; erased at Start Trip.
+  // trip's driver until pickup (live trip map: erased at pickup or run end).
   sharesLocation    Boolean     @default(false)
   riderLat          Float?
   riderLng          Float?
   riderLocatedAt    DateTime?
+  pickedUpAt        DateTime? // the driver tapped "Picked up"; counts for the run it falls in
 
   ratings Rating[]
   reports Report[]
@@ -665,6 +666,7 @@ model TripRun {
   lastKnownLng          Float?
   lastLocationUpdatedAt DateTime?
   etaAt                 DateTime?
+  pickupEtaAt           DateTime? // expected arrival at the meeting point (live trip map)
   createdAt             DateTime      @default(now())
 
   @@unique([tripId, runDate])

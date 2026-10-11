@@ -23,4 +23,10 @@ function pickupStatus(point, trip) {
   return { metersToPickup, atPickup: metersToPickup <= AT_PICKUP_M };
 }
 
-module.exports = { sharingWindow, inWindow, pickupStatus, SHARE_BEFORE_MS, STALE_MS, AT_PICKUP_M };
+// Live trip map: a rider is picked up for a run when the driver tapped
+// "Picked up" after that run started, so a recurring trip starts fresh each day.
+function isPickedUp(pickedUpAt, run) {
+  return Boolean(pickedUpAt && run?.startedAt && pickedUpAt >= run.startedAt);
+}
+
+module.exports = { sharingWindow, inWindow, pickupStatus, isPickedUp, SHARE_BEFORE_MS, STALE_MS, AT_PICKUP_M };
