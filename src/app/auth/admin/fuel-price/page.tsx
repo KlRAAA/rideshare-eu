@@ -72,11 +72,11 @@ export default async function AdminFuelPricePage() {
           <ul className="divide-y divide-gray-100">
             {history.map((h) => (
               <li key={h.id} className="py-2 flex justify-between gap-3 text-sm">
-                <span className="flex items-center gap-2 min-w-0">
+                <span className="flex items-center gap-2 shrink-0">
                   <span className="text-xs font-semibold text-gray-600 w-16 shrink-0">{FUEL_TYPE_SHORT_LABELS[h.fuelType]}</span>
                   <span className="tabular-nums font-semibold text-gray-900">₱{h.pricePerLiter.toFixed(2)}</span>
                 </span>
-                <span className="text-xs text-gray-500 text-right">
+                <span className="text-xs text-gray-500 text-right min-w-0">
                   {h.setBy?.fullName ?? 'DOE update'}
                   {h.doe?.period ? ` · DOE ${h.doe.period}` : ''} · {formatDateTime(h.createdAt)}
                 </span>

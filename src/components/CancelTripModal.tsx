@@ -73,7 +73,7 @@ export default function CancelTripModal({ tripId, userId, role, activePassengers
 
         {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
 
-        <div className="flex flex-row items-center justify-end gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <button type="button" onClick={onClose} className="rsu-btn-secondary px-4 py-2.5 whitespace-nowrap">
             {isHost ? 'Keep Trip' : 'Keep My Spot'}
           </button>

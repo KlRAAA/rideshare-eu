@@ -47,7 +47,7 @@ export default function ConfirmStructuralEditModal({
           </div>
         )}
 
-        <div className="flex flex-row items-center justify-end gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <button type="button" onClick={onClose} className="rsu-btn-secondary px-4 py-2.5 whitespace-nowrap">
             Keep Editing
           </button>
