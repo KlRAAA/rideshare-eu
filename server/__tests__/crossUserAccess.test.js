@@ -126,6 +126,8 @@ const ATTEMPTS = [
   // Join request (B is neither the passenger nor the host)
   ['approve A’s join request', 'PATCH', () => `/api/matches/${a.match.id}`, { status: 'APPROVED' }],
   ['switch location sharing on A’s join request', 'PATCH', () => `/api/matches/${a.match.id}/location-sharing`, { on: true }],
+  ['mark A picked up', 'POST', () => `/api/matches/${a.match.id}/picked-up`],
+  ['undo A picked up', 'DELETE', () => `/api/matches/${a.match.id}/picked-up`],
   ['rate on A’s join request', 'POST', () => `/api/matches/${a.match.id}/ratings`, () => ({ rateeId: userA.id, score: 1 })],
   // Notification and warning
   ['mark A’s notification read', 'PATCH', () => `/api/alerts/${a.notification.id}/read`],

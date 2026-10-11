@@ -3,7 +3,7 @@ const prisma = require('../config/db');
 const { decryptUserFields } = require('./encryptionService');
 const { phDateOnly } = require('./recurrenceMath');
 const { nextDeparture } = require('./tripRunRules');
-const { sharingWindow, inWindow, pickupStatus, STALE_MS } = require('./riderLocationRules');
+const { sharingWindow, inWindow, pickupStatus, isPickedUp, STALE_MS } = require('./riderLocationRules');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CLEARED = { riderLat: null, riderLng: null, riderLocatedAt: null };
@@ -15,6 +15,12 @@ function validPoint(lat, lng) {
   const point = { lat: Number(lat), lng: Number(lng) };
   const ok = Number.isFinite(point.lat) && Number.isFinite(point.lng) && Math.abs(point.lat) <= 90 && Math.abs(point.lng) <= 180;
   return ok ? point : null;
+}
+
+// The run on the road now, if any. Read here rather than from tripRunService,
+// which requires this module (a circular import).
+function ongoingRunOf(tripId) {
+  return prisma.tripRun.findFirst({ where: { tripId, status: 'ONGOING' }, select: { startedAt: true } });
 }
 
 // The departure riders are sharing for now, or why there isn't one.
@@ -41,6 +47,21 @@ async function setSharing(matchId, userId, on) {
   const sharesLocation = on === true;
   await prisma.match.update({ where: { id: matchId }, data: { sharesLocation, ...(!sharesLocation && CLEARED) } });
   return { status: 200, body: { sharesLocation } };
+}
+
+// Live trip map: the driver taps "Picked up" (or Undo) for a rider while the
+// trip runs. Pickup erases the rider's position at once.
+async function setPickedUp(matchId, userId, pickedUp, now = new Date()) {
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: { tripId: true, status: true, trip: { select: { hostId: true } } },
+  });
+  if (!match) return fail(404, { error: 'MATCH_NOT_FOUND' });
+  if (match.trip.hostId !== userId) return fail(403, { error: 'NOT_AUTHORIZED' });
+  if (match.status !== 'APPROVED') return fail(409, { error: 'NOT_APPROVED' });
+  if (!(await ongoingRunOf(match.tripId))) return fail(409, { error: 'NO_ONGOING_RUN' });
+  await prisma.match.update({ where: { id: matchId }, data: pickedUp ? { pickedUpAt: now, ...CLEARED } : { pickedUpAt: null } });
+  return { status: 200, body: { pickedUp } };
 }
 
 async function saveRiderLocation(tripId, userId, { lat, lng }, now = new Date()) {
@@ -103,4 +124,4 @@ function clearStaleRiderLocations(now = new Date()) {
   });
 }
 
-module.exports = { setSharing, saveRiderLocation, riderLocationsFor, clearTripRiderLocations, clearStaleRiderLocations, CLEARED };
+module.exports = { setSharing, setPickedUp, saveRiderLocation, riderLocationsFor, clearTripRiderLocations, clearStaleRiderLocations, CLEARED };

@@ -135,6 +135,7 @@ const SCHEMAS = {
   'user.avatar': NONE,
   'admin.licenseApprove': NONE,
   'match.locationSharing': { on: 'boolean' },
+  'match.pickedUp': NONE,
   'admin.licenseReject': { reason: 'string', note: 'string' },
   'admin.licenseRevoke': { reason: 'string', note: 'string' },
   'admin.licenseSpotChecked': NONE,

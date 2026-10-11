@@ -151,3 +151,28 @@ test('positions are erased: switch off, Start Trip, the cleanup job and account 
   await deleteAccount(d.rider.id);
   expect((await point(d.match.id)).riderLat).toBeNull();
 });
+
+const pickUp = (matchId, userId, method = 'POST') => req(method, `/api/matches/${matchId}/picked-up`, userId, {});
+
+test('the driver marks a rider picked up during the trip, and can undo it', async () => {
+  if (guard()) return;
+  const s = await seed();
+  await err(await pickUp(s.match.id, s.host.id), 409, 'NO_ONGOING_RUN');
+  expect((await req('POST', `/api/trips/${s.trip.id}/start`, s.host.id, {})).status).toBe(201);
+  expect((await pickUp(s.match.id, s.rider.id)).status).toBe(403);
+  await err(await pickUp(s.pendingMatch.id, s.host.id), 409, 'NOT_APPROVED');
+  expect((await pickUp('no-such-match', s.host.id)).status).toBe(404);
+
+  await prisma.match.update({ where: { id: s.match.id }, data: { riderLat: NEAR.lat, riderLng: NEAR.lng, riderLocatedAt: new Date() } });
+  const res = await pickUp(s.match.id, s.host.id);
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual({ pickedUp: true });
+  const row = await prisma.match.findUnique({ where: { id: s.match.id } });
+  expect(row.pickedUpAt).toBeInstanceOf(Date);
+  expect(row.riderLat).toBeNull();
+
+  const undo = await pickUp(s.match.id, s.host.id, 'DELETE');
+  expect(undo.status).toBe(200);
+  expect(await undo.json()).toEqual({ pickedUp: false });
+  expect((await prisma.match.findUnique({ where: { id: s.match.id } })).pickedUpAt).toBeNull();
+});
