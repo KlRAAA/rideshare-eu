@@ -3,9 +3,13 @@ const { ongoingRun, startRun, endRun } = require('../services/tripRunService');
 const { confirmDay, skipDay, unskipDay } = require('../services/tripDayService');
 const { isNearPickup } = require('../services/arrivalRules');
 const { saveRiderLocation, riderLocationsFor } = require('../services/riderLocationService');
+const { isPickedUp } = require('../services/riderLocationRules');
 
-const STALE_LOCATION_MS = 90 * 1000; // ~3 missed 30 s ticks
 const MAX_ETA_SECONDS = 6 * 60 * 60;
+// Older points are still served with their time, so riders see "paused"
+// (the driver's phone stops in the background); after this they're dropped.
+const PAUSED_LIMIT_MS = 10 * 60 * 1000;
+const badEta = (v) => v != null && !(Number.isFinite(v) && v >= 0 && v <= MAX_ETA_SECONDS);
 
 async function updateLocation(req, res) {
   const trip = await prisma.trip.findUnique({ where: { id: req.params.id }, select: { hostId: true } });
@@ -14,7 +18,7 @@ async function updateLocation(req, res) {
   const run = await ongoingRun(req.params.id);
   if (!run) return res.status(409).json({ error: 'NO_ONGOING_RUN' });
 
-  const { lat, lng, etaSeconds } = req.body;
+  const { lat, lng, etaSeconds, pickupEtaSeconds } = req.body;
   // Number(null) is 0, so missing values are checked first.
   if (lat == null || lng == null) return res.status(400).json({ error: 'INVALID_COORDINATES' });
   const latNum = Number(lat);
@@ -22,9 +26,7 @@ async function updateLocation(req, res) {
   if (!Number.isFinite(latNum) || !Number.isFinite(lngNum) || Math.abs(latNum) > 90 || Math.abs(lngNum) > 180) {
     return res.status(400).json({ error: 'INVALID_COORDINATES' });
   }
-  if (etaSeconds != null && !(Number.isFinite(etaSeconds) && etaSeconds >= 0 && etaSeconds <= MAX_ETA_SECONDS)) {
-    return res.status(400).json({ error: 'INVALID_ETA' });
-  }
+  if (badEta(etaSeconds) || badEta(pickupEtaSeconds)) return res.status(400).json({ error: 'INVALID_ETA' });
   const now = new Date();
   await prisma.tripRun.update({
     where: { id: run.id },
@@ -33,6 +35,7 @@ async function updateLocation(req, res) {
       lastKnownLng: lngNum,
       lastLocationUpdatedAt: now,
       ...(etaSeconds != null && { etaAt: new Date(now.getTime() + etaSeconds * 1000) }),
+      ...(pickupEtaSeconds != null && { pickupEtaAt: new Date(now.getTime() + pickupEtaSeconds * 1000) }),
     },
   });
   try {
@@ -80,16 +83,19 @@ function canViewLocation(trip, userId) {
 async function getLocation(req, res) {
   const trip = await prisma.trip.findUnique({
     where: { id: req.params.id },
-    select: { hostId: true, status: true, matches: { select: { passengerId: true, status: true } } },
+    select: { hostId: true, status: true, matches: { select: { passengerId: true, status: true, pickedUpAt: true } } },
   });
   if (!trip) return res.status(404).json({ error: 'TRIP_NOT_FOUND' });
   if (!canViewLocation(trip, req.user.id)) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
   const run = await ongoingRun(req.params.id);
-  if (!run) return res.json({ location: null, etaAt: null });
-  const fresh = run.lastLocationUpdatedAt && Date.now() - run.lastLocationUpdatedAt.getTime() <= STALE_LOCATION_MS;
+  if (!run) return res.json({ location: null, etaAt: null, pickupEtaAt: null, pickedUp: false });
+  const recent = run.lastLocationUpdatedAt && Date.now() - run.lastLocationUpdatedAt.getTime() <= PAUSED_LIMIT_MS;
+  const mine = trip.matches.find((m) => m.passengerId === req.user.id && m.status === 'APPROVED');
   res.json({
-    location: fresh ? { lat: run.lastKnownLat, lng: run.lastKnownLng, updatedAt: run.lastLocationUpdatedAt } : null,
+    location: recent ? { lat: run.lastKnownLat, lng: run.lastKnownLng, updatedAt: run.lastLocationUpdatedAt } : null,
     etaAt: run.etaAt,
+    pickupEtaAt: run.pickupEtaAt,
+    pickedUp: isPickedUp(mine?.pickedUpAt, run),
   });
 }
 

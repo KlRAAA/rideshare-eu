@@ -100,7 +100,7 @@ const SCHEMAS = {
   'trip.riderLocation': LAT_LNG,
   'trip.daySkip': { reason: 'string' },
   'trip.dayUnskip': NONE,
-  'trip.location': { ...LAT_LNG, etaSeconds: 'number' },
+  'trip.location': { ...LAT_LNG, etaSeconds: 'number', pickupEtaSeconds: 'number' },
   'trip.message': MESSAGE,
 
   // Cars
