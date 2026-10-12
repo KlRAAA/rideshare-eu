@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Map, { Marker, Source, Layer, type MapRef } from 'react-map-gl/mapbox';
 import type { Feature, FeatureCollection } from 'geojson';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { FaHome, FaUniversity, FaMapMarkerAlt, FaCar, FaExpand, FaTimes } from 'react-icons/fa';
+import { FaHome, FaUniversity, FaMapMarkerAlt, FaCar, FaCrosshairs, FaExpand, FaTimes } from 'react-icons/fa';
 import { MSEUF_LUCENA } from '@/lib/constants';
 import { fetchRoute, hasMapboxToken, type LatLng } from '@/lib/directions';
 import { inLuzon, OUTSIDE_LUZON_MESSAGE } from '@/lib/serviceArea';
@@ -219,10 +219,30 @@ export default function RouteMapView({
   const fitToBounds = () => {
     if (bounds) mapRef.current?.fitBounds(bounds, { padding: 36, duration: 0, maxZoom: 15 });
   };
+  // Once the user pans or zooms, a moving car or rider pin no longer refits
+  // the map; "Recenter" (or a change to the route or a fixed pin) does.
+  const [userMoved, setUserMoved] = useState(false);
+  const userMovedRef = useRef(false);
+  const markUserMoved = (moved: boolean) => {
+    userMovedRef.current = moved;
+    setUserMoved(moved);
+  };
+  const recenter = () => {
+    markUserMoved(false);
+    fitToBounds();
+  };
+  // Not the route line: the driver's live route is refetched from the car every
+  // 2 minutes, which would undo the user's zoom; it follows these pins anyway.
+  const fixedKey = JSON.stringify([origin, dest, meetingPoint, overlap?.fraction]);
+  const fixedKeyRef = useRef(fixedKey);
   // Refit only when something falls outside the current view, so dragging a
   // pin (and the route redrawn after it) doesn't keep zooming the map out
   // while the user is fine-tuning a spot.
   useEffect(() => {
+    const fixedChanged = fixedKey !== fixedKeyRef.current;
+    fixedKeyRef.current = fixedKey;
+    if (fixedChanged) markUserMoved(false);
+    else if (userMovedRef.current) return;
     const view = mapRef.current?.getBounds();
     if (view && allPoints.every((p) => view.contains([p.lng, p.lat]))) return;
     fitToBounds();
@@ -260,6 +280,8 @@ export default function RouteMapView({
         role={fullScreen ? 'dialog' : undefined}
         aria-modal={fullScreen || undefined}
         aria-label={fullScreen ? 'Map, full screen' : undefined}
+        onWheel={() => markUserMoved(true)}
+        onTouchStart={(e) => e.touches.length > 1 && markUserMoved(true)}
       >
         <Map
           key={dark ? 'dark' : 'light'} // a theme change remounts the map instead of racing setStyle
@@ -267,7 +289,11 @@ export default function RouteMapView({
           mapboxAccessToken={TOKEN}
           mapStyle={dark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11'}
           initialViewState={{ ...center, zoom: 12 }}
-          onLoad={fitToBounds}
+          onLoad={recenter}
+          // Gestures only: a pan, a double-tap zoom (wheel and pinch: on the wrapper).
+          // react-map-gl's move events carry no originalEvent to tell them apart.
+          onDragStart={() => markUserMoved(true)}
+          onDblClick={() => markUserMoved(true)}
           attributionControl={false}
           cursor={canTapToPlaceMeeting ? 'crosshair' : undefined}
           onClick={
@@ -359,6 +385,18 @@ export default function RouteMapView({
             </>
           )}
         </button>
+
+        {userMoved && (
+          <button
+            type="button"
+            onClick={recenter}
+            aria-label="Recenter the map on the whole trip"
+            className="absolute left-2 flex items-center gap-1.5 rounded-full bg-white/95 text-[#1f2937] shadow-md px-3 py-1.5 text-xs font-semibold hover:bg-[#ffffff]"
+            style={{ top: fullScreen ? 'calc(env(safe-area-inset-top, 0px) + 12px)' : '8px' }}
+          >
+            <FaCrosshairs className="w-3 h-3" aria-hidden /> Recenter
+          </button>
+        )}
 
         {editable && fullScreen && (
           <p
