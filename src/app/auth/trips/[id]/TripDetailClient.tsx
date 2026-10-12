@@ -190,7 +190,7 @@ export default function TripDetailClient({
     onArrived: () => router.refresh(),
   });
   const remainingMeters = nav.route?.distanceMeters ?? null;
-  const arriveAt = nav.route ? clockLabel(new Date(Date.now() + nav.route.durationSeconds * 1000)) : null;
+  const arriveAt = nav.etaAt ? clockLabel(nav.etaAt) : null;
 
   // Live location sharing — passenger side: whether this viewer may watch the
   // host's live position (confirmed seat, active trip). The actual ~30s poll
@@ -289,7 +289,7 @@ export default function TripDetailClient({
             isHost={isHost}
             currentRun={trip.currentRun}
             nextDeparture={trip.nextDeparture}
-            liveEtaAt={liveEtaAt}
+            liveEtaAt={isHost ? nav.etaAt : liveEtaAt}
           />
         )}
 

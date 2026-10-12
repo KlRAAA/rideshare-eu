@@ -25,6 +25,8 @@ interface Options {
 export function useDriverNavigation({ tripId, active, pickup, destination, onArrived }: Options) {
   const [position, setPosition] = useState<LatLng | null>(null);
   const [route, setRoute] = useState<NavRoute | null>(null);
+  // Arrival at campus as of the latest route; one value for every screen.
+  const [etaAt, setEtaAt] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
   const pos = useRef<LatLng | null>(null);
   const routeRef = useRef<{ route: NavRoute; at: number } | null>(null);
@@ -46,6 +48,7 @@ export function useDriverNavigation({ tripId, active, pickup, destination, onArr
     along.current = 0;
     offCount.current = 0;
     setRoute(next);
+    setEtaAt(new Date(Date.now() + next.durationSeconds * 1000).toISOString());
   };
 
   // GPS and the screen wake lock.
@@ -96,6 +99,7 @@ export function useDriverNavigation({ tripId, active, pickup, destination, onArr
       arrived.current = false;
       setPosition(null);
       setRoute(null);
+      setEtaAt(null);
     };
   }, [active]);
 
@@ -157,5 +161,5 @@ export function useDriverNavigation({ tripId, active, pickup, destination, onArr
     if (found) along.current = found.along;
     return found;
   }, [route, position]);
-  return { position, route, next, blocked };
+  return { position, route, next, blocked, etaAt };
 }
