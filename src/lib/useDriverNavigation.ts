@@ -89,6 +89,13 @@ export function useDriverNavigation({ tripId, active, pickup, destination, onArr
       document.removeEventListener('visibilitychange', onVisible);
       navigator.geolocation.clearWatch(id);
       wakeLock?.release().catch(() => {});
+      // The run is over: a page left open until the next run must start from a
+      // fresh fix, not send yesterday's last position or skip the campus check.
+      pos.current = null;
+      routeRef.current = null;
+      arrived.current = false;
+      setPosition(null);
+      setRoute(null);
     };
   }, [active]);
 
