@@ -92,9 +92,8 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
       <Header active="trips" />
       <main className="app-desktop w-full pt-2 md:pt-4">
         <BackButton fallback={`/auth/trips/${id}`} className="mb-3" />
-        <div className="mb-6">
+        <div className="mx-auto mb-4 max-w-2xl">
           <h1 className="text-2xl font-bold text-gray-900">Edit Trip</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Update your posted trip</p>
         </div>
         <PostTripForm hostId={user.id} editTrip={editTrip} canHostWomenPlus={isWomenPlusEligible(user.gender)} />
       </main>

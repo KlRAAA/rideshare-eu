@@ -39,9 +39,8 @@ export default async function PostTripPage() {
       <Header active="post" />
       <main className="app-desktop w-full pt-2 md:pt-4">
         <BackButton fallback="/auth/dashboard" className="mb-3" />
-        <div className="mb-6">
+        <div className="mx-auto mb-4 max-w-2xl">
           <h1 className="text-2xl font-bold text-gray-900">Post a Trip</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Share your ride with the university community</p>
         </div>
         {user?.activeMode !== 'DRIVER' ? (
           <WrongModeNotice need="DRIVER" />

@@ -19,7 +19,7 @@ export default function MatchWhy({ match, departureTime, searchTime, flexWindowM
         {timeGapLabel(searchTime, departureTime)}
       </p>
       <details>
-        <summary className="cursor-pointer font-semibold text-emerald-600">
+        <summary className="cursor-pointer font-semibold text-[color:var(--rsu-color-primary)]">
           {matchPercent(match)}% match · How is this worked out?
         </summary>
         <dl className="mt-2 space-y-1.5 rounded-lg bg-gray-50 p-2.5">

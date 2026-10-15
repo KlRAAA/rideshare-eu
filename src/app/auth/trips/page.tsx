@@ -23,22 +23,12 @@ export default async function MyTripsPage() {
     <div className="min-h-screen bg-gray-50 pb-24">
       <Header active="trips" />
       <main className="app-desktop w-full pt-2 md:pt-4">
-        <div className="mb-6">
+        <div className="mb-4">
           <h1 className="text-2xl font-bold text-gray-900">{isDriver ? 'My Trips' : 'My Rides'}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {isDriver ? 'Trips you’re driving, past and cancelled' : 'Rides you asked to join, past and cancelled'}
-          </p>
         </div>
 
         {user ? (
-          <TripsListClient
-            hosted={hosted}
-            joined={joined}
-            currentUserId={user.id}
-            currentUserName={user.fullName}
-            currentUserRole={user.role}
-            currentUserAvatarUrl={user.avatarUrl}
-          />
+          <TripsListClient hosted={hosted} joined={joined} currentUserId={user.id} />
         ) : (
           <p className="text-sm text-gray-500">Sign in to view your trips.</p>
         )}

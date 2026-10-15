@@ -99,7 +99,7 @@ export default function VehicleSection({ value, onChange, onSaveNewCarChange }: 
   if (choosing) {
     return (
       <fieldset className="space-y-2">
-        <legend className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Choose a car</legend>
+        <legend className="mb-1 block text-sm font-medium text-gray-700">Choose a car</legend>
         {cars.map((car) => (
           <button
             key={car.id}
@@ -128,7 +128,7 @@ export default function VehicleSection({ value, onChange, onSaveNewCarChange }: 
   if (selected) {
     return (
       <div>
-        <p className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Your car</p>
+        <p className="mb-1 block text-sm font-medium text-gray-700">Your car</p>
         <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl">
           <span className="text-sm text-gray-900 min-w-0">{vehicleSummary(selected)}</span>
           <button
@@ -139,7 +139,6 @@ export default function VehicleSection({ value, onChange, onSaveNewCarChange }: 
             Change
           </button>
         </div>
-        <p className="text-[11px] text-gray-400 mt-1">Manage your cars from your profile.</p>
       </div>
     );
   }

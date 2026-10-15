@@ -1,17 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FaBan } from 'react-icons/fa';
-import TripFacts from '@/components/TripFacts';
-import Card from '@/components/Card';
-import Badge from '@/components/Badge';
 import RatingModal from '@/components/RatingModal';
-import CancelTripModal from '@/components/CancelTripModal';
-import Avatar from '@/components/Avatar';
-import { formatDate, formatTime, recurrenceLabel, roleLabel } from '@/lib/format';
-import { tripStatusBadge, matchStatusBadge } from '@/lib/statusBadge';
+import TripRow, { TRIP_LIST } from '@/components/TripRow';
+import { formatTime } from '@/lib/format';
+import { matchStatusBadge } from '@/lib/statusBadge';
+import { seatsLeft, tripRoute, tripWhen } from '@/lib/tripLine';
 
 interface Vehicle {
   make: string;
@@ -79,54 +74,96 @@ interface TripsListClientProps {
   hosted: HostedTrip[];
   joined: JoinedTrip[];
   currentUserId: string;
-  currentUserName: string;
-  currentUserRole: string;
-  currentUserAvatarUrl: string | null;
 }
 
-export default function TripsListClient({
-  hosted,
-  joined,
-  currentUserId,
-  currentUserName,
-  currentUserRole,
-  currentUserAvatarUrl,
-}: TripsListClientProps) {
+type Rating = { matchId: string; rateeId: string; rateeName: string; occurrenceDate?: string | null };
+type RowStatus = React.ComponentProps<typeof TripRow>['status'];
+
+const firstName = (name: string) => name.split(' ')[0];
+
+// Only what the tab doesn't already say: in progress, full, waiting, declined.
+function hostedStatus(trip: HostedTrip): RowStatus {
+  if (trip.inProgress) return { label: 'In progress', tone: 'info' };
+  if (trip.status === 'FULL') return { label: 'Full', tone: 'neutral' };
+  return null;
+}
+
+function joinedStatus(trip: JoinedTrip): RowStatus {
+  if (trip.inProgress) return { label: 'In progress', tone: 'info' };
+  if (trip.matchStatus === 'PENDING') return { label: 'Waiting for driver', tone: 'warning' };
+  if (trip.matchStatus === 'DECLINED') return matchStatusBadge('DECLINED');
+  return null;
+}
+
+function RateButton({ r, done, onRate }: { r: Rating; done?: boolean; onRate: (r: Rating) => void }) {
+  return (
+    <button
+      type="button"
+      disabled={done}
+      onClick={() => onRate(r)}
+      className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline disabled:font-normal disabled:text-gray-500 disabled:no-underline"
+    >
+      {done ? `Rated ${firstName(r.rateeName)}` : `Rate ${firstName(r.rateeName)}`}
+    </button>
+  );
+}
+
+// One list per tab, a row per trip. Cancel lives on the trip page (with its
+// reason and warnings), not in the list.
+export default function TripsListClient({ hosted, joined, currentUserId }: TripsListClientProps) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('upcoming');
-  const [rating, setRating] = useState<{ matchId: string; rateeId: string; rateeName: string; occurrenceDate?: string | null } | null>(
-    null
-  );
+  const [rating, setRating] = useState<Rating | null>(null);
   // Matches rated in this session, before router.refresh() brings back the
   // server's `ratedByMe`. `hasRated` prefers the server flag when present.
   const [ratedMatchIds, setRatedMatchIds] = useState<Set<string>>(new Set());
-  const [cancelTarget, setCancelTarget] = useState<{ tripId: string; role: 'host' | 'passenger' } | null>(null);
-
   const hasRated = (matchId: string, serverFlag?: boolean) => Boolean(serverFlag) || ratedMatchIds.has(matchId);
 
-  const hostedByTab = { upcoming: 0, past: 0, cancelled: 0 };
-  hosted.forEach((t) => hostedByTab[bucketHosted(t)]++);
-  const joinedByTab = { upcoming: 0, past: 0, cancelled: 0 };
-  joined.forEach((t) => joinedByTab[bucketJoined(t)]++);
-
-  const counts: Record<Tab, number> = {
-    upcoming: hostedByTab.upcoming + joinedByTab.upcoming,
-    past: hostedByTab.past + joinedByTab.past,
-    cancelled: hostedByTab.cancelled + joinedByTab.cancelled,
-  };
+  const counts: Record<Tab, number> = { upcoming: 0, past: 0, cancelled: 0 };
+  hosted.forEach((t) => counts[bucketHosted(t)]++);
+  joined.forEach((t) => counts[bucketJoined(t)]++);
 
   const visibleHosted = hosted.filter((t) => bucketHosted(t) === tab);
   const visibleJoined = joined.filter((t) => bucketJoined(t) === tab);
   const isEmpty = visibleHosted.length === 0 && visibleJoined.length === 0;
 
+  // Who to rate under a trip you drove. A one-time trip rates its COMPLETED
+  // riders; a repeating trip rates its last driven day (unratedOccurrenceDate).
+  function hostedRatings(trip: HostedTrip) {
+    const oneTime = trip.recurrenceType === 'ONE_TIME';
+    return trip.matches.flatMap((m) => {
+      const r = { matchId: m.id, rateeId: m.passengerId, rateeName: m.passenger.fullName };
+      if (oneTime && tab === 'past' && m.status === 'COMPLETED') {
+        return [<RateButton key={m.id} r={r} done={hasRated(m.id, m.ratedByMe)} onRate={setRating} />];
+      }
+      if (!oneTime && m.unratedOccurrenceDate && !ratedMatchIds.has(m.id)) {
+        return [<RateButton key={m.id} r={{ ...r, occurrenceDate: m.unratedOccurrenceDate }} onRate={setRating} />];
+      }
+      return [];
+    });
+  }
+
+  function joinedRating(trip: JoinedTrip) {
+    const r = { matchId: trip.matchId, rateeId: trip.host.id, rateeName: trip.host.fullName };
+    if (trip.recurrenceType === 'ONE_TIME' && tab === 'past') {
+      return <RateButton r={r} done={hasRated(trip.matchId, trip.ratedByMe)} onRate={setRating} />;
+    }
+    if (tab === 'upcoming' && trip.unratedOccurrenceDate && !ratedMatchIds.has(trip.matchId)) {
+      return <RateButton r={{ ...r, occurrenceDate: trip.unratedOccurrenceDate }} onRate={setRating} />;
+    }
+    return null;
+  }
+
   return (
-    <div>
-      <div className="flex bg-gray-200/70 p-1 rounded-xl mb-6 max-w-md">
+    <div className="max-w-2xl">
+      <div className="mb-4 flex max-w-md rounded-xl bg-gray-200/70 p-1">
         {(['upcoming', 'past', 'cancelled'] as Tab[]).map((t) => (
           <button
             key={t}
+            type="button"
             onClick={() => setTab(t)}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all capitalize ${
+            aria-pressed={tab === t}
+            className={`flex-1 rounded-lg py-2 text-xs font-semibold capitalize transition-all ${
               tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
             }`}
           >
@@ -136,203 +173,37 @@ export default function TripsListClient({
       </div>
 
       {isEmpty ? (
-        <Card>
-          <p className="text-sm text-gray-400 text-center py-8">No trips in this category</p>
-        </Card>
+        <p className="rounded-2xl border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">Nothing here yet.</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ul className={TRIP_LIST}>
           {visibleHosted.map((trip) => {
-            const status = tripStatusBadge(trip.status, trip.inProgress);
+            const ratings = hostedRatings(trip);
             return (
-              <Card key={`host-${trip.id}`}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Avatar name={currentUserName} src={currentUserAvatarUrl} sizeClass="w-8 h-8" textClass="text-xs" />
-                    <div>
-                      <p className="text-sm font-bold text-gray-900">{currentUserName}</p>
-                      <Badge tone="neutral">{roleLabel(currentUserRole)}</Badge>
-                    </div>
-                  </div>
-                  <Badge tone={status.tone}>{status.label}</Badge>
-                </div>
-
-                <p className="text-sm font-semibold text-gray-900">
-                  {trip.originAddress} <span className="text-gray-400 font-normal">to</span> {trip.destinationAddress}
-                </p>
-                <div className="mt-2" suppressHydrationWarning>
-                  <TripFacts
-                    time={formatTime(trip.departureTime)}
-                    date={formatDate(trip.departureTime)}
-                    repeats={trip.recurrenceType === 'ONE_TIME' ? undefined : recurrenceLabel(trip.recurrenceType)}
-                    seats={{ total: trip.totalSeats, filled: trip.filledSeats }}
-                    fuelShare={trip.fuelSharePerSeat}
-                    vehicle={trip.vehicle}
-                  />
-                </div>
-
-                <div className="flex gap-2 mt-4">
-                  <Link href={`/auth/trips/${trip.id}`} className="rsu-btn-secondary flex-1">
-                    View Details
-                  </Link>
-                  {tab === 'upcoming' && (
-                    <button
-                      type="button"
-                      onClick={() => setCancelTarget({ tripId: trip.id, role: 'host' })}
-                      className="rsu-btn-danger flex-1"
-                    >
-                      <FaBan className="w-3.5 h-3.5" />
-                      Cancel
-                    </button>
-                  )}
-                </div>
-
-                {tab === 'past' &&
-                  (() => {
-                    const ratable = trip.matches.filter((m) => m.status === 'COMPLETED');
-                    if (ratable.length === 0) return null;
-                    return (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-xs font-semibold text-gray-500 mb-2">Rate your passengers</p>
-                        <div className="space-y-2">
-                          {ratable.map((m) => {
-                            const rated = hasRated(m.id, m.ratedByMe);
-                            return (
-                              <div key={m.id} className="flex items-center justify-between">
-                                <Link href={`/auth/users/${m.passengerId}`} className="text-xs text-gray-700 hover:underline truncate">
-                                  {m.passenger.fullName}
-                                </Link>
-                                <button
-                                  type="button"
-                                  disabled={rated}
-                                  onClick={() =>
-                                    setRating({ matchId: m.id, rateeId: m.passengerId, rateeName: m.passenger.fullName })
-                                  }
-                                  className="text-xs font-semibold text-[color:var(--rsu-color-primary)] hover:underline disabled:opacity-50 disabled:no-underline"
-                                >
-                                  {rated ? 'Rated' : 'Rate'}
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                {tab === 'upcoming' &&
-                  (() => {
-                    // Recurring trips only: an APPROVED match never moves to the
-                    // "past" tab (the trip stays OPEN/FULL forever), so a completed
-                    // ride's rating prompt has to surface here instead.
-                    const ratable = trip.matches.filter((m) => m.unratedOccurrenceDate && !ratedMatchIds.has(m.id));
-                    if (ratable.length === 0) return null;
-                    return (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-xs font-semibold text-gray-500 mb-2">Rate your passengers for the last ride</p>
-                        <div className="space-y-2">
-                          {ratable.map((m) => (
-                            <div key={m.id} className="flex items-center justify-between">
-                              <Link href={`/auth/users/${m.passengerId}`} className="text-xs text-gray-700 hover:underline truncate">
-                                {m.passenger.fullName}
-                              </Link>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setRating({
-                                    matchId: m.id,
-                                    rateeId: m.passengerId,
-                                    rateeName: m.passenger.fullName,
-                                    occurrenceDate: m.unratedOccurrenceDate,
-                                  })
-                                }
-                                className="text-xs font-semibold text-[color:var(--rsu-color-primary)] hover:underline"
-                              >
-                                Rate
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
-              </Card>
+              <TripRow
+                key={`host-${trip.id}`}
+                href={`/auth/trips/${trip.id}`}
+                time={formatTime(trip.departureTime)}
+                title={tripRoute(trip)}
+                detail={tab === 'upcoming' ? `${tripWhen(trip)} · ${seatsLeft(trip)}` : tripWhen(trip)}
+                status={hostedStatus(trip)}
+              >
+                {ratings.length > 0 ? ratings : null}
+              </TripRow>
             );
           })}
-
-          {visibleJoined.map((trip) => {
-            const status = trip.inProgress ? tripStatusBadge(trip.status, true) : matchStatusBadge(trip.matchStatus);
-            const alreadyRated = hasRated(trip.matchId, trip.ratedByMe);
-            return (
-              <Card key={`join-${trip.matchId}`}>
-                <div className="flex items-center justify-between mb-3">
-                  <Link href={`/auth/users/${trip.host.id}`} className="flex items-center gap-2 min-w-0 hover:underline">
-                    <Avatar name={trip.host.fullName} src={trip.host.avatarUrl} sizeClass="w-8 h-8" textClass="text-xs" />
-                    <div>
-                      <p className="text-sm font-bold text-gray-900">{trip.host.fullName}</p>
-                      <Badge tone="neutral">{roleLabel(trip.host.role)}</Badge>
-                    </div>
-                  </Link>
-                  <Badge tone={status.tone}>{status.label}</Badge>
-                </div>
-
-                <p className="text-sm font-semibold text-gray-900">
-                  {trip.originAddress} <span className="text-gray-400 font-normal">to</span> {trip.destinationAddress}
-                </p>
-                <div className="mt-2" suppressHydrationWarning>
-                  <TripFacts
-                    time={formatTime(trip.departureTime)}
-                    date={formatDate(trip.departureTime)}
-                    repeats={trip.recurrenceType === 'ONE_TIME' ? undefined : recurrenceLabel(trip.recurrenceType)}
-                    fuelShare={trip.fuelShareAmount}
-                    vehicle={trip.vehicle}
-                  />
-                </div>
-
-                <div className="flex gap-2 mt-4">
-                  <Link href={`/auth/trips/${trip.id}`} className="rsu-btn-secondary flex-1">
-                    View Details
-                  </Link>
-                  {tab === 'past' && (
-                    <button
-                      type="button"
-                      disabled={alreadyRated}
-                      onClick={() => setRating({ matchId: trip.matchId, rateeId: trip.host.id, rateeName: trip.host.fullName })}
-                      className="rsu-btn-primary flex-1 disabled:opacity-50"
-                    >
-                      {alreadyRated ? 'Rated' : 'Rate'}
-                    </button>
-                  )}
-                  {tab === 'upcoming' && trip.unratedOccurrenceDate && !ratedMatchIds.has(trip.matchId) && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setRating({
-                          matchId: trip.matchId,
-                          rateeId: trip.host.id,
-                          rateeName: trip.host.fullName,
-                          occurrenceDate: trip.unratedOccurrenceDate,
-                        })
-                      }
-                      className="rsu-btn-primary flex-1"
-                    >
-                      Rate
-                    </button>
-                  )}
-                  {tab === 'upcoming' && (
-                    <button
-                      type="button"
-                      onClick={() => setCancelTarget({ tripId: trip.id, role: 'passenger' })}
-                      className="rsu-btn-danger flex-1"
-                    >
-                      <FaBan className="w-3.5 h-3.5" />
-                      Cancel
-                    </button>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+          {visibleJoined.map((trip) => (
+            <TripRow
+              key={`join-${trip.matchId}`}
+              href={`/auth/trips/${trip.id}`}
+              time={formatTime(trip.departureTime)}
+              title={tripRoute(trip)}
+              detail={`${tripWhen(trip)} · ${firstName(trip.host.fullName)} drives`}
+              status={joinedStatus(trip)}
+            >
+              {joinedRating(trip)}
+            </TripRow>
+          ))}
+        </ul>
       )}
 
       {rating && (
@@ -347,19 +218,6 @@ export default function TripsListClient({
             setRatedMatchIds((prev) => new Set(prev).add(rating.matchId));
             setRating(null);
             router.refresh(); // pull the ratee's updated trust score + ratedByMe flags
-          }}
-        />
-      )}
-
-      {cancelTarget && (
-        <CancelTripModal
-          tripId={cancelTarget.tripId}
-          userId={currentUserId}
-          role={cancelTarget.role}
-          onClose={() => setCancelTarget(null)}
-          onCancelled={() => {
-            setCancelTarget(null);
-            router.refresh();
           }}
         />
       )}

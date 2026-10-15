@@ -4,7 +4,7 @@ import Select from '@/components/Select';
 import { FUEL_TYPES, FUEL_TYPE_LABELS, isFuelType } from '@/lib/fuelTypes';
 import { MIN_FUEL_EFFICIENCY_KM_L, MAX_FUEL_EFFICIENCY_KM_L, type VehicleFieldValues } from '@/lib/vehicles';
 
-const LABEL = 'block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1';
+const LABEL = 'mb-1 block text-sm font-medium text-gray-700';
 const INPUT = 'w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]';
 
 interface VehicleFieldsProps {
@@ -21,7 +21,7 @@ export default function VehicleFields({ value, onChange, idPrefix }: VehicleFiel
     <div className="space-y-3">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div>
-          <label htmlFor={`${idPrefix}-make`} className={LABEL}>Vehicle Make</label>
+          <label htmlFor={`${idPrefix}-make`} className={LABEL}>Make</label>
           <input id={`${idPrefix}-make`} type="text" maxLength={40} placeholder="Toyota" value={value.make} onChange={set('make')} className={INPUT} />
         </div>
         <div>
@@ -33,7 +33,7 @@ export default function VehicleFields({ value, onChange, idPrefix }: VehicleFiel
           <input id={`${idPrefix}-color`} type="text" maxLength={30} placeholder="White" value={value.color} onChange={set('color')} className={INPUT} />
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-plate`} className={LABEL}>Plate Number</label>
+          <label htmlFor={`${idPrefix}-plate`} className={LABEL}>Plate number</label>
           <input id={`${idPrefix}-plate`} type="text" maxLength={15} placeholder="ABC 1234" value={value.plate} onChange={set('plate')} className={INPUT} />
         </div>
       </div>
@@ -42,7 +42,7 @@ export default function VehicleFields({ value, onChange, idPrefix }: VehicleFiel
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <div>
-        <label htmlFor={`${idPrefix}-fuel-type`} className={LABEL}>Fuel Type</label>
+        <label htmlFor={`${idPrefix}-fuel-type`} className={LABEL}>Fuel type</label>
         <Select
           id={`${idPrefix}-fuel-type`}
           value={value.fuelType}
@@ -56,7 +56,7 @@ export default function VehicleFields({ value, onChange, idPrefix }: VehicleFiel
         <p className="text-[11px] text-gray-400 mt-1">Sets which official fuel price applies.</p>
       </div>
       <div>
-        <label htmlFor={`${idPrefix}-efficiency`} className={LABEL}>Fuel Efficiency (km/L)</label>
+        <label htmlFor={`${idPrefix}-efficiency`} className={LABEL}>Fuel efficiency (km/L)</label>
         <input
           id={`${idPrefix}-efficiency`}
           type="number"

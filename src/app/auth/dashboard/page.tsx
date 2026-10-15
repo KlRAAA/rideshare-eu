@@ -12,8 +12,12 @@ import AnnouncementBanner from '@/components/AnnouncementBanner';
 import WarningBanner from '@/components/WarningBanner';
 import { getCurrentUser } from '@/lib/session';
 import { apiFetch } from '@/lib/api-server';
-import { formatDate, formatTime, formatDateTimeAgo, recurrenceLabel } from '@/lib/format';
-import { placeName, shortPlace } from '@/lib/places';
+import { formatTime, formatDateTimeAgo } from '@/lib/format';
+import { shortPlace } from '@/lib/places';
+import { seatsLeft, tripRoute, tripWhen } from '@/lib/tripLine';
+import { dayLabel, type TripDay } from '@/lib/tripDays';
+import TripRow, { TRIP_LIST } from '@/components/TripRow';
+import ConfirmDayButton from '@/components/ConfirmDayButton';
 
 interface Vehicle {
   make: string;
@@ -45,7 +49,6 @@ interface Notification {
 
 type Upcoming = Trip & { role: 'Host' | 'Passenger' };
 
-const LIST = 'divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white';
 const SECTION_TITLE = 'text-base font-semibold text-gray-900';
 
 function tripStatus(trip: Upcoming): { label: string; tone: 'success' | 'warning' | 'info' | 'neutral' } | null {
@@ -56,54 +59,39 @@ function tripStatus(trip: Upcoming): { label: string; tone: 'success' | 'warning
   return trip.status === 'FULL' ? { label: 'Full', tone: 'neutral' } : null;
 }
 
-const route = (trip: Trip) => `${placeName(trip.originAddress)} → ${placeName(trip.destinationAddress)}`;
-// A repeating trip's first date may be past, so it shows how it repeats instead.
-const when = (trip: Trip) => {
-  if (trip.recurrenceType === 'ONE_TIME') return formatDate(trip.departureTime);
-  const label = recurrenceLabel(trip.recurrenceType);
-  return label.charAt(0).toUpperCase() + label.slice(1);
-};
-
-// The first upcoming trip, set like a timetable entry: the time first.
-function NextRide({ trip }: { trip: Upcoming }) {
-  const status = tripStatus(trip);
+// The first upcoming trip, set like a timetable entry: the time first. For a
+// driver it names the next trip day and, while riders wait to hear, offers Confirm.
+function NextRide({ trip, day }: { trip: Upcoming; day: TripDay | null }) {
+  const askConfirm = day !== null && day.status === null && hasRiders(trip);
+  const status = day && !trip.inProgress ? dayStatus(day, askConfirm) : tripStatus(trip);
   return (
-    <Link href={`/auth/trips/${trip.id}`} className="rsu-card block hover:border-gray-300">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-3xl font-bold tabular-nums text-gray-900" suppressHydrationWarning>
-          {formatTime(trip.departureTime)}
+    <div className="rsu-card flex flex-col gap-3">
+      <Link href={`/auth/trips/${trip.id}`} className="block">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-3xl font-bold tabular-nums text-gray-900" suppressHydrationWarning>
+            {formatTime(day?.departure ?? trip.departureTime)}
+          </p>
+          {status && <Badge tone={status.tone}>{status.label}</Badge>}
+        </div>
+        <p className="mt-0.5 text-sm text-gray-500" suppressHydrationWarning>
+          {day && trip.recurrenceType !== 'ONE_TIME' ? `${dayLabel(day.date)} · ${tripWhen(trip)}` : tripWhen(trip)}
         </p>
-        {status && <Badge tone={status.tone}>{status.label}</Badge>}
-      </div>
-      <p className="mt-0.5 text-sm text-gray-500" suppressHydrationWarning>
-        {when(trip)}
-      </p>
-      <p className="mt-3 font-semibold text-gray-900">{route(trip)}</p>
-      <p className="mt-0.5 text-sm text-gray-500">
-        {trip.vehicle.make} {trip.vehicle.model} · {trip.totalSeats - trip.filledSeats} of {trip.totalSeats} seats left
-      </p>
-    </Link>
+        <p className="mt-3 font-semibold text-gray-900">{tripRoute(trip)}</p>
+        <p className="mt-0.5 text-sm text-gray-500">
+          {trip.vehicle.make} {trip.vehicle.model} · {seatsLeft(trip)}
+        </p>
+      </Link>
+      {askConfirm && <ConfirmDayButton tripId={trip.id} date={day.date} />}
+    </div>
   );
 }
 
-function TripRow({ trip }: { trip: Upcoming }) {
-  const status = tripStatus(trip);
-  return (
-    <li>
-      <Link href={`/auth/trips/${trip.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
-        <span className="w-[4.5rem] shrink-0 font-semibold tabular-nums text-gray-900" suppressHydrationWarning>
-          {formatTime(trip.departureTime)}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-gray-900">{route(trip)}</span>
-          <span className="block text-xs text-gray-500" suppressHydrationWarning>
-            {when(trip)}
-          </span>
-        </span>
-        {status && <Badge tone={status.tone}>{status.label}</Badge>}
-      </Link>
-    </li>
-  );
+const hasRiders = (trip: Trip) => (trip.matches ?? []).some((m) => m.status === 'APPROVED' || m.status === 'PENDING');
+
+function dayStatus(day: TripDay, askConfirm: boolean): { label: string; tone: 'success' | 'warning' | 'info' | 'neutral' } | null {
+  if (day.status === 'CONFIRMED') return { label: 'Confirmed', tone: 'success' };
+  if (day.status === 'SKIPPED') return { label: 'Skipped', tone: 'neutral' };
+  return askConfirm ? { label: 'Not confirmed', tone: 'warning' } : null;
 }
 
 export default async function DashboardPage() {
@@ -116,6 +104,7 @@ export default async function DashboardPage() {
   let unreadCount = 0;
   let waiting: { count: number; tripId: string | null } = { count: 0, tripId: null };
   let month: DriverSummary['totals'] | null = null;
+  let nextDay: TripDay | null = null;
 
   if (user) {
     const [{ hosted, joined }, { notifications }] = await Promise.all([
@@ -139,6 +128,12 @@ export default async function DashboardPage() {
     // Sub-project H: this month's driving, in Driver mode.
     if (isDriver) month = (await apiFetch<DriverSummary>('/api/driver/summary?period=month')).totals;
     alerts = notifications.slice(0, 3);
+    // The driver's next trip day (confirmed or not) lives on the trip itself.
+    const first = upcoming[0];
+    if (isDriver && first && !first.inProgress) {
+      const { trip } = await apiFetch<{ trip: { days?: TripDay[] } }>(`/api/trips/${first.id}`);
+      nextDay = trip.days?.[0] ?? null;
+    }
   }
 
   const [next, ...later] = upcoming;
@@ -185,7 +180,7 @@ export default async function DashboardPage() {
             </div>
 
             {next ? (
-              <NextRide trip={next} />
+              <NextRide trip={next} day={nextDay} />
             ) : (
               <div className="rsu-card flex flex-col items-start gap-3">
                 <p className="text-gray-700">{isDriver ? 'You haven’t posted a trip yet.' : 'No rides yet.'}</p>
@@ -200,9 +195,16 @@ export default async function DashboardPage() {
             )}
 
             {later.length > 0 && (
-              <ul className={LIST}>
+              <ul className={TRIP_LIST}>
                 {later.map((trip) => (
-                  <TripRow key={`${trip.role}-${trip.id}`} trip={trip} />
+                  <TripRow
+                    key={`${trip.role}-${trip.id}`}
+                    href={`/auth/trips/${trip.id}`}
+                    time={formatTime(trip.departureTime)}
+                    title={tripRoute(trip)}
+                    detail={tripWhen(trip)}
+                    status={tripStatus(trip)}
+                  />
                 ))}
               </ul>
             )}
@@ -228,7 +230,7 @@ export default async function DashboardPage() {
             {alerts.length === 0 ? (
               <p className="px-1 text-sm text-gray-500">Nothing new.</p>
             ) : (
-              <ul className={LIST}>
+              <ul className={TRIP_LIST}>
                 {alerts.map((alert) => (
                   <li key={alert.id} className="flex gap-3 px-4 py-3">
                     <span

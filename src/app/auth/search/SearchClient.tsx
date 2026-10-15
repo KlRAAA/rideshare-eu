@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import {
   FaSearch,
   FaSlidersH,
-  FaMapMarkerAlt,
   FaUserPlus,
 } from 'react-icons/fa';
 import Card from '@/components/Card';
@@ -18,8 +17,8 @@ import TimePicker from '@/components/TimePicker';
 import RequestToJoinModal from '@/components/RequestToJoinModal';
 import Skeleton from '@/components/Skeleton';
 import { apiFetch } from '@/lib/api';
-import { formatDate, formatTime, roleLabel, phTimeToUtcMinutes, getPhTodayDateString, getPhNowTimeString } from '@/lib/format';
-import { tripStatusBadge } from '@/lib/statusBadge';
+import { formatTime, phTimeToUtcMinutes, getPhTodayDateString, getPhNowTimeString } from '@/lib/format';
+import { tripRoute, tripWhen } from '@/lib/tripLine';
 import { useCurrentLocationAddress } from '@/lib/useCurrentLocationAddress';
 import { useGeocodedAddress } from '@/lib/useGeocodedAddress';
 import AddressInput from '@/components/AddressInput';
@@ -50,6 +49,7 @@ interface Trip {
   originAddress: string;
   destinationAddress: string;
   departureTime: string;
+  recurrenceType: string;
   totalSeats: number;
   filledSeats: number;
   vehicle: Vehicle;
@@ -148,9 +148,11 @@ interface SearchClientProps {
   // Women+ trips are for women and non-binary riders; the filter shows only for them.
   canUseWomenPlus: boolean;
   profilePreference: GenderPreference;
+  // Trips the rider already asked to join (PENDING) or rides on (APPROVED).
+  myRides: Record<string, string>;
 }
 
-export default function SearchClient({ passengerId, initial, canUseWomenPlus, profilePreference }: SearchClientProps) {
+export default function SearchClient({ passengerId, initial, canUseWomenPlus, profilePreference, myRides }: SearchClientProps) {
   const router = useRouter();
 
   const [origin, setOrigin] = useState(initial.origin);
@@ -645,62 +647,57 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
         )}
 
         {!loading && sortedMatches.map((match) => {
-          const status = tripStatusBadge(match.trip.status);
-          const alreadyRequested = joinedTripIds.has(match.tripId);
+          const onRide = myRides[match.tripId] === 'APPROVED';
+          const alreadyRequested = joinedTripIds.has(match.tripId) || myRides[match.tripId] === 'PENDING';
           const rideFull =
             match.trip.status === 'FULL' || match.trip.filledSeats >= match.trip.totalSeats;
           return (
             <Card key={match.tripId}>
-              <div className="flex justify-between items-start mb-3">
-                <Link href={`/auth/users/${match.trip.host.id}`} className="flex items-center gap-3 min-w-0 hover:underline">
-                  <Avatar name={match.trip.host.fullName} src={match.trip.host.avatarUrl} sizeClass="w-10 h-10" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bold text-gray-900">{match.trip.host.fullName}</h4>
-                      <Badge tone="neutral">{roleLabel(match.trip.host.role)}</Badge>
-                    </div>
-                  </div>
-                </Link>
-                <Badge tone={status.tone}>{status.label}</Badge>
+              {/* Time first, like a timetable; the driver and the facts follow. */}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-2xl font-bold tabular-nums text-gray-900" suppressHydrationWarning>
+                    {formatTime(match.trip.departureTime)}
+                  </p>
+                  <p className="text-sm text-gray-500" suppressHydrationWarning>
+                    {tripWhen(match.trip)}
+                  </p>
+                </div>
+                {onRide && <Badge tone="primary">You’re on this ride</Badge>}
               </div>
-              <RuleBadges trip={match.trip} className="mb-2" />
+              <p className="mt-3 font-semibold text-gray-900">{tripRoute(match.trip)}</p>
+              <Link href={`/auth/users/${match.trip.host.id}`} className="mt-1 inline-flex items-center gap-2 text-sm text-gray-600 hover:underline">
+                <Avatar name={match.trip.host.fullName} src={match.trip.host.avatarUrl} sizeClass="w-6 h-6" textClass="text-[10px]" />
+                {match.trip.host.fullName}
+              </Link>
+              <TripFacts
+                className="mt-2"
+                seats={{ total: match.trip.totalSeats, filled: match.trip.filledSeats }}
+                fuelShare={match.fuelShare}
+                vehicle={match.trip.vehicle}
+              />
+              <RuleBadges trip={match.trip} className="mt-2" />
               {searchGeo && (
-                <MatchWhy match={match} departureTime={match.trip.departureTime} searchTime={searchGeo.time} flexWindowMinutes={searchGeo.flexWindow} />
+                <div className="mt-3">
+                  <MatchWhy match={match} departureTime={match.trip.departureTime} searchTime={searchGeo.time} flexWindowMinutes={searchGeo.flexWindow} />
+                </div>
               )}
 
-              <div className="text-xs text-gray-600 space-y-1.5">
-                <p className="flex items-start gap-2">
-                  <FaMapMarkerAlt className="w-3 h-3 mt-0.5 text-gray-400 shrink-0" />
-                  <span>
-                    <span className="font-semibold text-gray-800">{match.trip.originAddress}</span>
-                    <br />
-                    <span className="text-gray-400">to {match.trip.destinationAddress}</span>
-                  </span>
-                </p>
-                <div suppressHydrationWarning>
-                  <TripFacts
-                    time={formatTime(match.trip.departureTime)}
-                    date={formatDate(match.trip.departureTime)}
-                    seats={{ total: match.trip.totalSeats, filled: match.trip.filledSeats }}
-                    fuelShare={match.fuelShare}
-                    vehicle={match.trip.vehicle}
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-2 mt-4">
-                <Link href={detailsHref(match)} className="rsu-btn-secondary flex-1">
-                  View Details
+              <div className="mt-3 flex gap-2">
+                <Link href={onRide ? `/auth/trips/${match.tripId}` : detailsHref(match)} className="rsu-btn-secondary flex-1">
+                  {onRide ? 'Open trip' : 'View details'}
                 </Link>
-                <button
-                  type="button"
-                  disabled={alreadyRequested || rideFull}
-                  onClick={() => setRequestTarget(match)}
-                  className="rsu-btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  <FaUserPlus className="w-3.5 h-3.5" />
-                  {alreadyRequested ? 'Requested' : rideFull ? 'Ride Full' : 'Request to Join'}
-                </button>
+                {!onRide && (
+                  <button
+                    type="button"
+                    disabled={alreadyRequested || rideFull}
+                    onClick={() => setRequestTarget(match)}
+                    className="rsu-btn-primary flex flex-1 items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <FaUserPlus className="h-3.5 w-3.5" aria-hidden />
+                    {alreadyRequested ? 'Requested' : rideFull ? 'Ride full' : 'Request to join'}
+                  </button>
+                )}
               </div>
             </Card>
           );

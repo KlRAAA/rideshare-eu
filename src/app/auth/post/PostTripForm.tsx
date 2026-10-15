@@ -58,11 +58,18 @@ function samePoint(a: Coords | null, b: Coords | null): boolean {
 }
 
 const RECURRENCE_OPTIONS: { value: Recurrence; label: string; hint: string }[] = [
-  { value: 'ONE_TIME', label: 'One-time', hint: 'Just this single trip, no repeat' },
-  { value: 'DAILY', label: 'Daily', hint: 'Every day including weekends' },
-  { value: 'WEEKDAYS', label: 'Weekdays only', hint: 'Monday to Friday, repeating each week' },
-  { value: 'CUSTOM', label: 'Custom days', hint: 'You choose which days of the week' },
+  { value: 'ONE_TIME', label: 'Once', hint: 'Just this day.' },
+  { value: 'DAILY', label: 'Daily', hint: 'Every day, weekends too.' },
+  { value: 'WEEKDAYS', label: 'Weekdays', hint: 'Monday to Friday, every week.' },
+  { value: 'CUSTOM', label: 'Custom', hint: 'The days you pick, every week.' },
 ];
+
+// Sentence-case labels and one field style for the whole form.
+const LABEL = 'mb-1 block text-sm font-medium text-gray-700';
+const FIELD = 'w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]';
+const NOTE = 'mt-1 text-xs text-gray-500';
+const SECTION = 'rsu-card flex flex-col gap-4';
+const SECTION_TITLE = 'text-base font-semibold text-gray-900';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -540,302 +547,89 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
     }
   );
 
+  const repeat = RECURRENCE_OPTIONS.find((o) => o.value === recurrence) ?? RECURRENCE_OPTIONS[0];
+
   return (
     <form
       onSubmit={handleSubmit}
       onInputCapture={draft.markDirty}
       onClickCapture={draft.markDirty}
-      className="grid grid-cols-1 md:grid-cols-3 gap-6"
+      className="mx-auto flex max-w-2xl flex-col gap-4"
     >
-      <div className="md:col-span-2 space-y-4">
-        {draft.restored && <DraftRestoredBar onDiscard={draft.discard} />}
-        <div className="rsu-card space-y-4">
-          <div>
-            <h2 className="text-sm font-bold text-gray-900">Trip Details</h2>
-            <p className="text-xs text-gray-500">Basic information about your trip</p>
-          </div>
+      {draft.restored && <DraftRestoredBar onDiscard={draft.discard} />}
 
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label htmlFor="trip-origin" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">Origin</label>
-              <button
-                type="button"
-                onClick={useMyCurrentLocation}
-                disabled={locatingOrigin}
-                className="text-xs font-semibold text-[color:var(--rsu-color-primary)] hover:underline disabled:opacity-50"
-              >
-                {locatingOrigin ? 'Locating...' : 'Use my current location'}
-              </button>
-            </div>
-            <AddressInput
-              id="trip-origin"
-              busy={resolvingOrigin}
-              required
-              placeholder="e.g., Lucban, Tayabas, Candelaria"
-              value={origin}
-              onChange={(text) => {
-                setOrigin(text);
-                setOriginPin(null);
-              }}
-              onSelect={(place) => {
-                setOrigin(place.label);
-                setOriginPin({ lat: place.lat, lng: place.lng });
-              }}
-              onCommit={setOriginLookup}
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
-            />
-            {originLocationError && <p className="text-xs text-red-600 mt-1">{originLocationError}</p>}
-            {originPin && (
-              <p className="text-[11px] text-gray-500 mt-1">
-                Using the exact spot on the map.{' '}
-                <button type="button" onClick={() => setOriginPin(null)} className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline">
-                  Use the address instead
-                </button>
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="trip-destination" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-              Destination
+      {/* Route first, with the map and meeting point right under it, so a
+          phone shows the meeting point before Publish (critique, Oct 2026). */}
+      <section className={SECTION}>
+        <h2 className={SECTION_TITLE}>Route</h2>
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <label htmlFor="trip-origin" className="block text-sm font-medium text-gray-700">
+              From
             </label>
-            <AddressInput
-              id="trip-destination"
-              busy={resolvingDestination}
-              required
-              placeholder="e.g., Enverga University, Lucena"
-              value={destination}
-              onChange={(text) => {
-                setDestination(text);
-                setDestinationPin(null);
-              }}
-              onSelect={(place) => {
-                setDestination(place.label);
-                setDestinationPin({ lat: place.lat, lng: place.lng });
-              }}
-              onCommit={setDestinationLookup}
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
-            />
+            <button
+              type="button"
+              onClick={useMyCurrentLocation}
+              disabled={locatingOrigin}
+              className="text-sm font-semibold text-[color:var(--rsu-color-primary)] hover:underline disabled:opacity-50"
+            >
+              {locatingOrigin ? 'Locating…' : 'Use my location'}
+            </button>
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Date</label>
-              <DatePicker
-                min={getPhTodayDateString()}
-                value={date}
-                onChange={setDate}
-                className="px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)] focus:border-[color:var(--rsu-color-primary)]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Departure Time</label>
-              <TimePicker
-                min={date === getPhTodayDateString() ? getPhNowTimeString() : undefined}
-                value={time}
-                onChange={setTime}
-                className="px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)] focus:border-[color:var(--rsu-color-primary)]"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Recurrence</label>
-            <div className="grid grid-cols-2 gap-2">
-              {RECURRENCE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setRecurrence(opt.value)}
-                  className={`text-left p-3 rounded-xl border text-xs ${
-                    recurrence === opt.value
-                      ? 'border-[color:var(--rsu-color-primary)] bg-[color:var(--rsu-color-primary)]/5'
-                      : 'border-gray-200'
-                  }`}
-                >
-                  <p className="font-semibold text-gray-900">{opt.label}</p>
-                  <p className="text-gray-500 mt-0.5">{opt.hint}</p>
-                </button>
-              ))}
-            </div>
-            {recurrence === 'CUSTOM' && (
-              <div className="flex gap-1.5 mt-3">
-                {DAY_LABELS.map((label, i) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => toggleCustomDay(i)}
-                    className={`w-9 h-9 rounded-full text-xs font-semibold border ${
-                      customDays.includes(i)
-                        ? 'bg-[color:var(--rsu-color-primary)] text-white border-[color:var(--rsu-color-primary)]'
-                        : 'border-gray-200 text-gray-600'
-                    }`}
-                  >
-                    {label.charAt(0)}
-                  </button>
-                ))}
-              </div>
-            )}
-            <p className="text-[11px] text-gray-400 mt-2">
-              Passengers who match your trip will be joined for all selected days automatically.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Available Seats</label>
-              <Listbox<number>
-                value={seats}
-                onChange={setSeats}
-                options={seatOptions}
-                ariaLabel="Available seats"
-                className="pl-3 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm"
-              />
-              {editTrip && editTrip.filledSeats > 0 && (
-                <p className="text-[11px] text-gray-400 mt-1">
-                  Can’t go below {editTrip.filledSeats} — that many seats are filled. Decline a passenger first.
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                Voluntary Fuel Share
-              </label>
-              <div className="px-3 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-700">
-                {fuelSharePreview != null ? `${fuelShareLocked ? '' : '≈ '}₱${fuelSharePreview.toFixed(2)}` : '—'}
-              </div>
-              <p className="text-[11px] text-gray-400 mt-1">
-                {fuelShareLocked
-                  ? 'Locked — passengers have matched. Editing the vehicle or seats won’t change this.'
-                  : 'Per seat — set from route, mileage & fuel price. Fixed once you post.'}
-              </p>
-            </div>
-          </div>
-
-          {!isEdit && (
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                Current Fuel Price (₱/liter)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min={MIN_FUEL_PRICE_PER_LITER}
-                max={MAX_FUEL_PRICE_PER_LITER}
-                placeholder={`e.g., ${FUEL_PRICE_PER_LITER}`}
-                value={fuelPricePerLiter}
-                onChange={(e) => setFuelPricePerLiter(e.target.value)}
-                className="rsu-input-no-spinner w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
-              />
-              <p className="text-[11px] text-gray-400 mt-1">
-                {officialFuelPrice != null
-                  ? `Official ${FUEL_TYPE_SHORT_LABELS[carFuelType]} price ₱${officialFuelPrice.toFixed(2)}/L. You can enter less, not more.`
-                  : "Today's pump price — used to compute the fuel share above. No live price feed, so enter it yourself."}
-              </p>
-              {fuelPriceError && <p className="text-xs text-red-600 mt-1">{fuelPriceError}</p>}
-            </div>
-          )}
-
-          {isEdit ? (
-            <VehicleFields value={vehicle} onChange={setVehicle} idPrefix="edit-vehicle" />
-          ) : (
-            <VehicleSection value={vehicle} onChange={setVehicle} onSaveNewCarChange={setSaveNewCar} />
-          )}
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Driver Notes</label>
-            <textarea
-              rows={3}
-              placeholder="e.g., Please bring exact cash or GCash."
-              value={driverNotes}
-              onChange={(e) => setDriverNotes(e.target.value)}
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none"
-            />
-            <p className="text-[11px] text-gray-400 mt-1">Optional — share anything passengers should know before joining</p>
-          </div>
-        </div>
-
-        <div className="rsu-card space-y-4">
-          <div>
-            <h2 className="text-sm font-bold text-gray-900">Preferences</h2>
-            <p className="text-xs text-gray-500">Choose who can join your trip</p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-              Who Can Join
-            </label>
-            <Listbox<GenderPreference>
-              value={genderPreference}
-              onChange={setGenderPreference}
-              options={whoCanJoinOptions}
-              ariaLabel="Who can join"
-              disabled={whoCanJoinLocked}
-              className="pl-3 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm"
-            />
-            {whoCanJoinLocked && (
-              <p className="text-[11px] text-gray-400 mt-1">Locked because riders are already approved.</p>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-800">Flexible Departure Time</p>
-              <p className="text-xs text-gray-500">Allow ±15 minutes from scheduled time</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={flexibleDeparture}
-              onChange={(e) => setFlexibleDeparture(e.target.checked)}
-              className="w-5 h-5 accent-[color:var(--rsu-color-primary)]"
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-800">Familiar Riders Only</p>
-              <p className="text-xs text-gray-500">Only accept riders you've traveled with before</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={familiarRidersOnly}
-              onChange={(e) => setFamiliarRidersOnly(e.target.checked)}
-              className="w-5 h-5 accent-[color:var(--rsu-color-primary)]"
-            />
-          </div>
-        </div>
-
-        {error && <p className="text-xs text-red-600">{error}</p>}
-
-        <div className="flex gap-3">
-          <button
-            type="submit"
-            disabled={isSubmitting || Boolean(fuelPriceError)}
-            className="rsu-btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-60"
-          >
-            {isSubmitting && <FaSpinner className="w-4 h-4 animate-spin" />}
-            {isSubmitting ? (isEdit ? 'Saving...' : 'Posting...') : isEdit ? 'Save Changes' : 'Publish Trip'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              draft.clear();
-              router.push(isEdit && editTrip ? `/auth/trips/${editTrip.id}` : '/auth/dashboard');
+          <AddressInput
+            id="trip-origin"
+            busy={resolvingOrigin}
+            required
+            placeholder="e.g., Lucban, Tayabas, Candelaria"
+            value={origin}
+            onChange={(text) => {
+              setOrigin(text);
+              setOriginPin(null);
             }}
-            className="rsu-btn-secondary flex-1"
-          >
-            Cancel
-          </button>
+            onSelect={(place) => {
+              setOrigin(place.label);
+              setOriginPin({ lat: place.lat, lng: place.lng });
+            }}
+            onCommit={setOriginLookup}
+            className={FIELD}
+          />
+          {originLocationError && <p className="mt-1 text-xs text-red-600">{originLocationError}</p>}
+          {originPin && (
+            <p className={NOTE}>
+              Using the exact spot on the map.{' '}
+              <button type="button" onClick={() => setOriginPin(null)} className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline">
+                Use the address instead
+              </button>
+            </p>
+          )}
         </div>
-      </div>
 
-      <div className="md:sticky md:top-20 h-fit space-y-4">
-        <div className="rsu-card">
-          <h2 className="text-sm font-bold text-gray-900">Set Meeting Point</h2>
-          <p className="text-xs text-gray-500 mb-3">Choose where passengers will meet you</p>
+        <div>
+          <label htmlFor="trip-destination" className={LABEL}>
+            To
+          </label>
+          <AddressInput
+            id="trip-destination"
+            busy={resolvingDestination}
+            required
+            placeholder="e.g., Enverga University, Lucena"
+            value={destination}
+            onChange={(text) => {
+              setDestination(text);
+              setDestinationPin(null);
+            }}
+            onSelect={(place) => {
+              setDestination(place.label);
+              setDestinationPin({ lat: place.lat, lng: place.lng });
+            }}
+            onCommit={setDestinationLookup}
+            className={FIELD}
+          />
+        </div>
 
-          {originCoords && destinationCoords ? (
-            <>
+        {originCoords && destinationCoords && (
+          <>
+            <div>
               <RouteMap
                 origin={originCoords}
                 destination={destinationCoords}
@@ -851,53 +645,249 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
                 }}
               />
               {route && (
-                <p className="mt-2 text-xs text-gray-500">
+                <p className={NOTE}>
                   {(route.distanceMeters / 1000).toFixed(1)} km · about {Math.round(route.durationSeconds / 60)} min drive
                 </p>
               )}
-              <div className="mt-3">
-                <label htmlFor="trip-meeting-point" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Meeting Point (optional)
-                </label>
-                <AddressInput
-                  id="trip-meeting-point"
-                  busy={resolvingMeeting}
-                  placeholder="Defaults to your origin if left blank"
-                  value={meetingPointAddress}
-                  onChange={(text) => {
-                    setMeetingPointAddress(text);
-                    setMeetingPin(null);
-                  }}
-                  onSelect={(place) => {
-                    setMeetingPointAddress(place.label);
-                    setMeetingPin({ lat: place.lat, lng: place.lng });
-                  }}
-                  onCommit={setMeetingLookup}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]"
-                />
-                {meetingPin && (
-                  <p className="text-[11px] text-gray-500 mt-1">
-                    Pinned on the map.{' '}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMeetingPin(null);
-                        setMeetingPointAddress('');
-                      }}
-                      className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline"
-                    >
-                      Remove meeting point
-                    </button>
-                  </p>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="w-full h-48 rounded-2xl border border-gray-200 bg-gray-50 flex items-center justify-center text-center px-6">
-              <p className="text-xs text-gray-400">Enter origin and destination to view route and set meeting point</p>
+            </div>
+            <div>
+              <label htmlFor="trip-meeting-point" className={LABEL}>
+                Meeting point (optional)
+              </label>
+              <AddressInput
+                id="trip-meeting-point"
+                busy={resolvingMeeting}
+                placeholder="Where you start, if left blank"
+                value={meetingPointAddress}
+                onChange={(text) => {
+                  setMeetingPointAddress(text);
+                  setMeetingPin(null);
+                }}
+                onSelect={(place) => {
+                  setMeetingPointAddress(place.label);
+                  setMeetingPin({ lat: place.lat, lng: place.lng });
+                }}
+                onCommit={setMeetingLookup}
+                className={FIELD}
+              />
+              {meetingPin && (
+                <p className={NOTE}>
+                  Pinned on the map.{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMeetingPin(null);
+                      setMeetingPointAddress('');
+                    }}
+                    className="font-semibold text-[color:var(--rsu-color-primary)] hover:underline"
+                  >
+                    Remove meeting point
+                  </button>
+                </p>
+              )}
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className={SECTION}>
+        <h2 className={SECTION_TITLE}>When</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="trip-date" className={LABEL}>
+              {recurrence === 'ONE_TIME' ? 'Date' : 'Starting'}
+            </label>
+            <DatePicker id="trip-date" min={getPhTodayDateString()} value={date} onChange={setDate} className={FIELD} />
+          </div>
+          <div>
+            <span className={LABEL}>Leaves at</span>
+            <TimePicker
+              min={date === getPhTodayDateString() ? getPhNowTimeString() : undefined}
+              value={time}
+              onChange={setTime}
+              className={FIELD}
+            />
+          </div>
+        </div>
+
+        <div>
+          <span id="trip-repeat-label" className={LABEL}>
+            Repeats
+          </span>
+          <div role="radiogroup" aria-labelledby="trip-repeat-label" className="grid grid-cols-4 gap-1 rounded-xl bg-gray-100 p-1">
+            {RECURRENCE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                role="radio"
+                aria-checked={recurrence === opt.value}
+                onClick={() => setRecurrence(opt.value)}
+                className={`rounded-lg py-2 text-sm font-semibold transition-colors ${
+                  recurrence === opt.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <p className={NOTE}>{repeat.hint}</p>
+          {recurrence === 'CUSTOM' && (
+            <div className="mt-3 flex gap-1.5">
+              {DAY_LABELS.map((label, i) => (
+                <button
+                  key={label}
+                  type="button"
+                  aria-pressed={customDays.includes(i)}
+                  aria-label={label}
+                  onClick={() => toggleCustomDay(i)}
+                  className={`h-9 w-9 rounded-full border text-xs font-semibold ${
+                    customDays.includes(i)
+                      ? 'border-[color:var(--rsu-color-primary)] bg-[color:var(--rsu-color-primary)] text-white'
+                      : 'border-gray-200 text-gray-600'
+                  }`}
+                >
+                  {label.charAt(0)}
+                </button>
+              ))}
             </div>
           )}
         </div>
+      </section>
+
+      <section className={SECTION}>
+        <h2 className={SECTION_TITLE}>Car and seats</h2>
+        {isEdit ? (
+          <VehicleFields value={vehicle} onChange={setVehicle} idPrefix="edit-vehicle" />
+        ) : (
+          <VehicleSection value={vehicle} onChange={setVehicle} onSaveNewCarChange={setSaveNewCar} />
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <span className={LABEL}>Seats for riders</span>
+            <Listbox<number>
+              value={seats}
+              onChange={setSeats}
+              options={seatOptions}
+              ariaLabel="Seats for riders"
+              className="rounded-xl border border-gray-300 bg-gray-50 py-2.5 pl-3 pr-3 text-sm"
+            />
+            {editTrip && editTrip.filledSeats > 0 && (
+              <p className={NOTE}>At least {editTrip.filledSeats}: that many are taken.</p>
+            )}
+          </div>
+          {!isEdit && (
+            <div>
+              <label htmlFor="trip-fuel-price" className={LABEL}>
+                Fuel price (₱/L)
+              </label>
+              <input
+                id="trip-fuel-price"
+                type="number"
+                step="0.01"
+                min={MIN_FUEL_PRICE_PER_LITER}
+                max={MAX_FUEL_PRICE_PER_LITER}
+                placeholder={`e.g., ${FUEL_PRICE_PER_LITER}`}
+                value={fuelPricePerLiter}
+                onChange={(e) => setFuelPricePerLiter(e.target.value)}
+                className={`rsu-input-no-spinner ${FIELD}`}
+              />
+            </div>
+          )}
+        </div>
+        {!isEdit && (
+          <p className="-mt-2 text-xs text-gray-500">
+            {officialFuelPrice != null
+              ? `Official ${FUEL_TYPE_SHORT_LABELS[carFuelType]} price ₱${officialFuelPrice.toFixed(2)}/L. You can enter less, not more.`
+              : 'Today’s pump price. It sets the fuel share below.'}
+          </p>
+        )}
+        {fuelPriceError && <p className="-mt-2 text-xs text-red-600">{fuelPriceError}</p>}
+
+        <div className="flex items-baseline justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2.5">
+          <span className="text-sm text-gray-700">Fuel share per seat</span>
+          <span className="font-semibold tabular-nums text-gray-900">
+            {fuelSharePreview != null ? `${fuelShareLocked ? '' : '≈ '}₱${fuelSharePreview.toFixed(2)}` : '—'}
+          </span>
+        </div>
+        <p className="-mt-2 text-xs text-gray-500">
+          {fuelShareLocked ? 'Locked: riders have joined at this share.' : 'From your route, car and fuel price. Fixed once you post.'}
+        </p>
+      </section>
+
+      <section className={SECTION}>
+        <h2 className={SECTION_TITLE}>Who can join</h2>
+        <div>
+          <Listbox<GenderPreference>
+            value={genderPreference}
+            onChange={setGenderPreference}
+            options={whoCanJoinOptions}
+            ariaLabel="Who can join"
+            disabled={whoCanJoinLocked}
+            className="rounded-xl border border-gray-300 bg-gray-50 py-2.5 pl-3 pr-3 text-sm"
+          />
+          {whoCanJoinLocked && <p className={NOTE}>Locked because riders are already approved.</p>}
+        </div>
+
+        <label className="flex items-center justify-between gap-3">
+          <span className="text-sm text-gray-800">Flexible time (±15 min)</span>
+          <input
+            type="checkbox"
+            checked={flexibleDeparture}
+            onChange={(e) => setFlexibleDeparture(e.target.checked)}
+            className="h-5 w-5 accent-[color:var(--rsu-color-primary)]"
+          />
+        </label>
+        <label className="flex items-center justify-between gap-3">
+          <span className="text-sm text-gray-800">Only riders I’ve ridden with</span>
+          <input
+            type="checkbox"
+            checked={familiarRidersOnly}
+            onChange={(e) => setFamiliarRidersOnly(e.target.checked)}
+            className="h-5 w-5 accent-[color:var(--rsu-color-primary)]"
+          />
+        </label>
+
+        <div>
+          <label htmlFor="trip-notes" className={LABEL}>
+            Notes for riders (optional)
+          </label>
+          <textarea
+            id="trip-notes"
+            rows={3}
+            placeholder="e.g., Leaving from the church side of the plaza. No smoking."
+            value={driverNotes}
+            onChange={(e) => setDriverNotes(e.target.value)}
+            className={FIELD}
+          />
+        </div>
+      </section>
+
+      {error && (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      )}
+
+      <div className="flex gap-3">
+        <button
+          type="submit"
+          disabled={isSubmitting || Boolean(fuelPriceError)}
+          className="rsu-btn-primary flex flex-1 items-center justify-center gap-2 disabled:opacity-60"
+        >
+          {isSubmitting && <FaSpinner className="h-4 w-4 animate-spin" aria-hidden />}
+          {isSubmitting ? (isEdit ? 'Saving…' : 'Posting…') : isEdit ? 'Save changes' : 'Publish trip'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            draft.clear();
+            router.push(isEdit && editTrip ? `/auth/trips/${editTrip.id}` : '/auth/dashboard');
+          }}
+          className="rsu-btn-secondary flex-1"
+        >
+          Cancel
+        </button>
       </div>
 
       {confirmData && (

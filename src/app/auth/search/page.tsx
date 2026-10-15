@@ -58,15 +58,20 @@ export default async function SearchRidesPage({
       ? (await apiFetch<{ preference: { genderPreference: GenderPreference } }>(`/api/preferences/${user.id}`)).preference
           .genderPreference
       : 'ANY';
+  // Rides already asked for or joined, so results don't offer "Request to join" again.
+  const myRides: Record<string, string> = {};
+  if (user && user.activeMode !== 'DRIVER') {
+    const { joined } = await apiFetch<{ joined: { id: string; matchStatus: string }[] }>(`/api/trips/mine?userId=${user.id}`);
+    for (const t of joined) if (t.matchStatus === 'PENDING' || t.matchStatus === 'APPROVED') myRides[t.id] = t.matchStatus;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <Header active="search" />
       <main className="app-desktop w-full pt-2 md:pt-4">
         <BackButton fallback="/auth/dashboard" className="mb-3" />
-        <div className="mb-6">
+        <div className="mb-4">
           <h1 className="text-2xl font-bold text-gray-900">Find a Ride</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Search for available carpools that match your route</p>
         </div>
         {user?.activeMode === 'DRIVER' ? (
           <WrongModeNotice need="PASSENGER" />
@@ -76,6 +81,7 @@ export default async function SearchRidesPage({
             initial={parseInitial(sp, profilePreference)}
             canUseWomenPlus={canUseWomenPlus}
             profilePreference={profilePreference}
+            myRides={myRides}
           />
         ) : (
           <p className="text-sm text-gray-500">Sign in to search for rides.</p>
