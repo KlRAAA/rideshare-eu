@@ -829,3 +829,30 @@ No browser-drawn pop-ups: their look follows the phone, not the app's theme.
   (`conflictWithHosted`). Post a Trip shows "You're driving a trip right now"
   instead of the form. Tests that post several trips for one host use a
   different day each.
+
+## Calmer UI (Oct 2026)
+
+The adviser found the UI text-heavy and AI-looking. Critique and fixes used the
+Impeccable skill (installed locally in the git-ignored `.claude/skills/`, with
+`redesign-skill` and `taste-skill`; no Impeccable hooks or engine binary).
+Rules for app screens:
+- Lead with the one thing the screen is for. Home: "Hi, <first name>", the
+  mode switch, waiting riders (driver), the next ride as a timetable entry
+  (time first), then a divided list; no duplicate Find a Ride / Post a Trip
+  card (the bottom bar has it).
+- Lists are one bordered container with `divide-y` rows, never a card per
+  item, and never cards inside cards (`CoRidersCard`).
+- No subtitle that restates a heading; helper text only where it prevents a
+  mistake. Privacy notes stay visible in one line, details in a `Tip`.
+- Place names: `src/lib/places.ts` (`shortPlace` → "MSEUF" in any sentence,
+  `placeName` → first part of an address). Repeating trips show how they
+  repeat ("Weekdays"), not their first (possibly past) date.
+- Trip page: one centred column; no host card for your own trip; fuel share
+  and the flexible window are rows in `TripSummaryCard` (the old maroon
+  `FuelShareCard` claimed the share depends on occupancy; it doesn't);
+  `TripDaysCard` shows the next day, the rest under "All N days"; Edit and
+  Cancel side by side, "Mark as completed" as a text button.
+- The Home phone-notifications card appears only when there's something to
+  tap (not when the browser blocks notifications; Profile explains that).
+- `space-y-*` doesn't space an `h1` (Tailwind v4 puts the margin on the
+  child, and the base `h1` style wins); use `flex flex-col gap-*`.

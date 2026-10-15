@@ -27,7 +27,7 @@ export default function NavigateMenu({ to, via }: { to: LatLng; via: LatLng | nu
               Waze
             </a>
           </div>
-          <p className="text-xs text-gray-500">Riders see your car only while this page is open. Come back here after you turn.</p>
+          <p className="text-xs text-gray-500">Riders see your car only while this page is open.</p>
         </div>
       )}
     </div>

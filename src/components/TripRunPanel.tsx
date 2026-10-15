@@ -122,7 +122,7 @@ export default function TripRunPanel({ tripId, isHost, currentRun, nextDeparture
         <FaPlay className="w-3.5 h-3.5" aria-hidden />
         {busy ? 'Starting…' : 'Start Trip'}
       </button>
-      <p className="text-xs text-gray-500">Your approved riders are told, and they can follow your location until you end the trip.</p>
+      <p className="text-xs text-gray-500">Riders are told, and can follow your location until you end the trip.</p>
       {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
   );

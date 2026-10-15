@@ -1,103 +1,39 @@
 import React from 'react';
-import Link from 'next/link';
-import { FaCar, FaSearch } from 'react-icons/fa';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import Card from '@/components/Card';
 import Skeleton from '@/components/Skeleton';
 
-// DashboardPage is one async Server Component (data + JSX in a single
-// return), so nothing on the page can render until its fetches resolve --
-// including copy that never actually changes. Rather than skeleton the
-// whole page, this reproduces every piece that's genuinely static (the
-// "Post a Ride"/"Find a Ride" cards, section titles, "View All" links) as
-// real markup, and only skeletons what's actually derived from data: the
-// personalized greeting, the role badge, and the two trip/alert lists.
+// The dashboard's shape while its data loads: greeting, mode switch, the next
+// ride, and the alerts list (see page.tsx).
 export default function DashboardLoading() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-between pb-24">
       <Header active="dashboard" />
 
       <main className="app-desktop w-full p-0 pt-2 md:pt-4 space-y-6 flex-grow">
-        <section>
-          <div className="flex justify-between items-start">
-            <div>
-              <Skeleton shape="text" width={220} height={22} className="mb-2" />
-              <p className="text-base text-gray-500 mt-2">Manage your carpools and find ride opportunities</p>
-            </div>
-            <Skeleton shape="rect" width={64} height={22} radius="9999px" />
-          </div>
-
-          <div className="dashboard-top-grid mt-6">
-            <Card data-tour="post-ride" className="border-2 border-[color:var(--rsu-color-primary)/0.18]">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 shrink-0 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <FaCar className="w-5 h-5 text-[color:var(--rsu-color-primary)]" />
-                </div>
-                <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-gray-900 mb-1">Post a Trip</h2>
-                  <p className="text-sm text-gray-500">Share your vehicle and help others commute</p>
-                </div>
-              </div>
-              <Link href="/auth/post" className="rsu-btn-primary mt-4 w-full">
-                Create New Trip
-              </Link>
-            </Card>
-
-            <Card data-tour="find-ride">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 shrink-0 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <FaSearch className="w-5 h-5 text-gray-500" />
-                </div>
-                <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-gray-900 mb-1">Find a Ride</h2>
-                  <p className="text-sm text-gray-500">Search for available carpools to join</p>
-                </div>
-              </div>
-              <Link href="/auth/search" className="rsu-btn-primary mt-4 w-full">
-                Search Rides
-              </Link>
-            </Card>
-          </div>
+        <section className="space-y-4">
+          <Skeleton shape="text" width={160} height={30} />
+          <Skeleton shape="rect" width="100%" height={52} radius="9999px" className="max-w-sm" />
         </section>
 
-        <section className="dashboard-main-grid mt-6">
-          <div data-tour="upcoming-trips">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">Upcoming Trips</h3>
-              <Link href="/auth/trips" className="text-sm text-gray-600 hover:underline">
-                View All
-              </Link>
-            </div>
-
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Card key={i}>
-                  <div className="flex justify-between items-start mb-2">
-                    <Skeleton shape="rect" width={54} height={18} radius="9999px" />
-                    <Skeleton shape="text" width={50} height={10} />
-                  </div>
-                  <Skeleton shape="text" width="75%" height={13} className="mb-2" />
-                  <Skeleton shape="text" width="55%" height={11} />
-                </Card>
-              ))}
+        <section className="dashboard-main-grid">
+          <div className="space-y-3">
+            <Skeleton shape="text" width={120} height={18} />
+            <div className="rsu-card space-y-2">
+              <Skeleton shape="text" width={110} height={30} />
+              <Skeleton shape="text" width={150} height={14} />
+              <Skeleton shape="text" width="80%" height={16} className="mt-3" />
+              <Skeleton shape="text" width="55%" height={14} />
             </div>
           </div>
-
-          <aside>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">Recent Alerts</h3>
-              <Link href="/auth/notifications" className="text-sm text-gray-600 hover:underline">
-                View All
-              </Link>
-            </div>
-
-            <div className="space-y-3">
-              {Array.from({ length: 2 }).map((_, i) => (
-                <Card key={i}>
-                  <Skeleton shape="text" width="85%" height={12} className="mb-2" />
-                  <Skeleton shape="text" width={70} height={10} />
-                </Card>
+          <aside className="space-y-3">
+            <Skeleton shape="text" width={70} height={18} />
+            <div className="divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="space-y-1.5 px-4 py-3">
+                  <Skeleton shape="text" width="90%" height={14} />
+                  <Skeleton shape="text" width={70} height={12} />
+                </div>
               ))}
             </div>
           </aside>

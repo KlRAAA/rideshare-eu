@@ -47,7 +47,8 @@ export default function CoRidersCard({
           {matches.length} rider{matches.length === 1 ? '' : 's'} confirmed so far
         </p>
       ) : (
-        <ul className="space-y-2">
+        // Rows divided by a line, not boxed: no cards inside the card.
+        <ul className="-my-2 divide-y divide-gray-100">
           {matches.map((m) => {
             const mStatus = matchStatusBadge(m.status);
             const highlighted = m.id === highlightId;
@@ -56,10 +57,8 @@ export default function CoRidersCard({
               <li
                 key={m.id}
                 id={`request-${m.id}`}
-                className={`p-2 rounded-lg border space-y-1.5 ${
-                  highlighted
-                    ? 'bg-[color:var(--rsu-color-primary)]/5 border-[color:var(--rsu-color-primary)]/30 ring-2 ring-[color:var(--rsu-color-primary)]/40'
-                    : 'bg-gray-50 border-gray-100'
+                className={`space-y-1.5 py-2.5 ${
+                  highlighted ? '-mx-2 rounded-lg bg-[color:var(--rsu-color-primary)]/5 px-2 ring-2 ring-[color:var(--rsu-color-primary)]/40' : ''
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -68,7 +67,7 @@ export default function CoRidersCard({
                     className="flex items-center gap-3 min-w-0 hover:underline"
                   >
                     <Avatar name={m.passenger.fullName} src={m.passenger.avatarUrl} sizeClass="w-6 h-6" textClass="text-[10px]" />
-                    <span className="text-xs font-medium text-gray-800 truncate">{m.passenger.fullName}</span>
+                    <span className="text-sm font-medium text-gray-800 truncate">{m.passenger.fullName}</span>
                   </Link>
                   <Badge tone={mStatus.tone} className="shrink-0">
                     {mStatus.label}

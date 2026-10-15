@@ -4,13 +4,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaFlag, FaBan, FaPen } from 'react-icons/fa';
-import Card from '@/components/Card';
 import LiveRouteMap from '@/components/LiveRouteMap';
 import RatingModal from '@/components/RatingModal';
 import CancelTripModal from '@/components/CancelTripModal';
 import DriverIdentityCard from '@/components/DriverIdentityCard';
 import TripSummaryCard from '@/components/TripSummaryCard';
-import FuelShareCard from '@/components/FuelShareCard';
 import CoRidersCard from '@/components/CoRidersCard';
 import ChatCard from '@/components/ChatCard';
 import ReportModal from '@/components/ReportModal';
@@ -22,7 +20,6 @@ import RiderLocationCard from '@/components/RiderLocationCard';
 import RidersNearbyCard from '@/components/RidersNearbyCard';
 import type { RiderLocation } from '@/lib/riderLocation';
 import { findAnotherRideHref, riderDayLine, type TripDay } from '@/lib/tripDays';
-import { whoCanJoinLabel } from '@/lib/riderRules';
 import NavBanner from '@/components/NavBanner';
 import NavigateMenu from '@/components/NavigateMenu';
 import { useDriverNavigation } from '@/lib/useDriverNavigation';
@@ -239,8 +236,8 @@ export default function TripDetailClient({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div className="md:col-span-2 space-y-4">
+    <div className="mx-auto max-w-2xl">
+      <div className="space-y-4">
         {isHost && runOngoing && (
           <div className="space-y-2">
             <NavBanner next={nav.next} />
@@ -334,23 +331,19 @@ export default function TripDetailClient({
           </div>
         )}
 
-        <DriverIdentityCard
-          name={trip.host.fullName}
-          role={trip.host.role}
-          trustScore={trip.host.trustScore}
-          avatarUrl={trip.host.avatarUrl}
-          note={isHost ? "You're hosting this trip" : undefined}
-          href={`/auth/users/${trip.host.id}`}
-        />
+        {!isHost && (
+          <DriverIdentityCard
+            name={trip.host.fullName}
+            role={trip.host.role}
+            trustScore={trip.host.trustScore}
+            avatarUrl={trip.host.avatarUrl}
+            href={`/auth/users/${trip.host.id}`}
+          />
+        )}
 
         <RuleBadges trip={trip} />
 
-        <TripSummaryCard trip={trip} />
-
-        {(() => {
-          const share = myMatch?.fuelShareAmount ?? trip.fuelSharePerSeat;
-          return share != null ? <FuelShareCard amount={share} /> : null;
-        })()}
+        <TripSummaryCard trip={trip} fuelShare={myMatch?.fuelShareAmount ?? trip.fuelSharePerSeat} />
 
         {!isHost && myCompletedMatch && (
           <button
@@ -483,60 +476,42 @@ export default function TripDetailClient({
 
         {canUseChat && <ChatCard tripId={trip.id} currentUserId={currentUserId} />}
 
-        {isHost && tripIsActive && (
-          <Link
-            href={`/auth/trips/${trip.id}/edit`}
-            className="rsu-btn-secondary w-full flex items-center justify-center gap-2"
-          >
-            <FaPen className="w-3.5 h-3.5" />
-            Edit Trip
-          </Link>
-        )}
-
-        {isHost && tripIsActive && !runOngoing && (
-          <button type="button" onClick={markCompleted} disabled={completing} className="rsu-btn-secondary w-full disabled:opacity-60">
-            {completing ? 'Marking Completed...' : 'Mark Trip as Completed'}
-          </button>
-        )}
-
-        {canCancel && (
-          <button type="button" onClick={() => setShowCancelModal(true)} className="rsu-btn-danger w-full">
-            <FaBan className="w-3.5 h-3.5" />
-            {isHost ? 'Cancel Trip' : 'Cancel My Spot'}
-          </button>
-        )}
-      </div>
-
-      <div className="space-y-4">
-        <Card>
-          <h3 className="text-sm font-bold text-gray-900 mb-3">Preferences</h3>
-          <dl className="space-y-3 text-xs">
-            <div>
-              <dt className="text-gray-400">Who Can Join</dt>
-              <dd className="text-gray-800 font-medium">{whoCanJoinLabel(trip.genderPreference)}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-400">Departure Flexibility</dt>
-              <dd className="text-gray-800 font-medium">
-                {trip.flexibleDeparture ? `Flexible (±${trip.flexWindowMinutes} min)` : 'Not flexible'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-gray-400">Familiar Riders</dt>
-              <dd className="text-gray-800 font-medium">{trip.familiarRidersOnly ? 'Familiar riders only' : 'Open to all'}</dd>
-            </div>
-          </dl>
-        </Card>
-
-        {!isHost && myMatch && (
-          <button
-            type="button"
-            onClick={() => setReportTarget({ matchId: myMatch.id, name: trip.host.fullName })}
-            className="flex items-center gap-2 text-xs font-semibold text-red-600 hover:underline"
-          >
-            <FaFlag className="w-3 h-3" />
-            Report an issue
-          </button>
+        {/* The trip's actions, together and quiet: one row, not a stack of full-width buttons. */}
+        {((isHost && tripIsActive) || canCancel || (!isHost && myMatch)) && (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {isHost && tripIsActive && (
+              <Link href={`/auth/trips/${trip.id}/edit`} className="rsu-btn-secondary flex flex-1 items-center justify-center gap-2">
+                <FaPen className="h-3.5 w-3.5" aria-hidden />
+                Edit trip
+              </Link>
+            )}
+            {canCancel && (
+              <button type="button" onClick={() => setShowCancelModal(true)} className="rsu-btn-danger flex flex-1 items-center justify-center gap-2">
+                <FaBan className="h-3.5 w-3.5" aria-hidden />
+                {isHost ? 'Cancel trip' : 'Cancel my spot'}
+              </button>
+            )}
+            {isHost && tripIsActive && !runOngoing && (
+              <button
+                type="button"
+                onClick={markCompleted}
+                disabled={completing}
+                className="w-full py-1 text-center text-sm font-semibold text-gray-600 hover:underline disabled:opacity-60"
+              >
+                {completing ? 'Marking completed…' : 'Mark as completed'}
+              </button>
+            )}
+            {!isHost && myMatch && (
+              <button
+                type="button"
+                onClick={() => setReportTarget({ matchId: myMatch.id, name: trip.host.fullName })}
+                className="flex w-full items-center justify-center gap-2 py-1 text-sm font-semibold text-red-600 hover:underline"
+              >
+                <FaFlag className="h-3 w-3" aria-hidden />
+                Report an issue
+              </button>
+            )}
+          </div>
         )}
       </div>
 

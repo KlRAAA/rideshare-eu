@@ -9,7 +9,6 @@ import RouteMap, { type OverlapData, type LatLng } from '@/components/RouteMap';
 import { apiFetch } from '@/lib/api';
 import DriverIdentityCard from '@/components/DriverIdentityCard';
 import TripSummaryCard from '@/components/TripSummaryCard';
-import FuelShareCard from '@/components/FuelShareCard';
 import CoRidersCard from '@/components/CoRidersCard';
 import RequestToJoinModal from '@/components/RequestToJoinModal';
 import RuleBadges from '@/components/RuleBadges';
@@ -160,9 +159,7 @@ export default function RideDetailClient({
 
         <RuleBadges trip={trip} />
 
-        <TripSummaryCard trip={trip} />
-
-        {fuelShareAmount != null && <FuelShareCard amount={fuelShareAmount} />}
+        <TripSummaryCard trip={trip} fuelShare={fuelShareAmount} />
 
         <CoRidersCard
           matches={approvedRiders}

@@ -3,17 +3,17 @@ import PushCard from '@/components/PushCard';
 import ModeSegmented from '@/components/ModeSegmented';
 import { summaryLine, type DriverSummary } from '@/lib/driverSummary';
 import Link from 'next/link';
-import { FaCar, FaSearch, FaClock } from 'react-icons/fa';
+import { FaChevronRight } from 'react-icons/fa';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import OnboardingTour from '@/components/OnboardingTour';
 import AnnouncementBanner from '@/components/AnnouncementBanner';
 import WarningBanner from '@/components/WarningBanner';
 import { getCurrentUser } from '@/lib/session';
 import { apiFetch } from '@/lib/api-server';
-import { formatDate, formatTime, formatDateTimeAgo, recurrenceLabel, roleLabel } from '@/lib/format';
+import { formatDate, formatTime, formatDateTimeAgo, recurrenceLabel } from '@/lib/format';
+import { placeName, shortPlace } from '@/lib/places';
 
 interface Vehicle {
   make: string;
@@ -43,12 +43,75 @@ interface Notification {
   createdAt: string;
 }
 
+type Upcoming = Trip & { role: 'Host' | 'Passenger' };
+
+const LIST = 'divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white';
+const SECTION_TITLE = 'text-base font-semibold text-gray-900';
+
+function tripStatus(trip: Upcoming): { label: string; tone: 'success' | 'warning' | 'info' | 'neutral' } | null {
+  if (trip.inProgress) return { label: 'In progress', tone: 'info' };
+  if (trip.role === 'Passenger') {
+    return trip.matchStatus === 'APPROVED' ? { label: 'Confirmed', tone: 'success' } : { label: 'Waiting for driver', tone: 'warning' };
+  }
+  return trip.status === 'FULL' ? { label: 'Full', tone: 'neutral' } : null;
+}
+
+const route = (trip: Trip) => `${placeName(trip.originAddress)} → ${placeName(trip.destinationAddress)}`;
+// A repeating trip's first date may be past, so it shows how it repeats instead.
+const when = (trip: Trip) => {
+  if (trip.recurrenceType === 'ONE_TIME') return formatDate(trip.departureTime);
+  const label = recurrenceLabel(trip.recurrenceType);
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
+// The first upcoming trip, set like a timetable entry: the time first.
+function NextRide({ trip }: { trip: Upcoming }) {
+  const status = tripStatus(trip);
+  return (
+    <Link href={`/auth/trips/${trip.id}`} className="rsu-card block hover:border-gray-300">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-3xl font-bold tabular-nums text-gray-900" suppressHydrationWarning>
+          {formatTime(trip.departureTime)}
+        </p>
+        {status && <Badge tone={status.tone}>{status.label}</Badge>}
+      </div>
+      <p className="mt-0.5 text-sm text-gray-500" suppressHydrationWarning>
+        {when(trip)}
+      </p>
+      <p className="mt-3 font-semibold text-gray-900">{route(trip)}</p>
+      <p className="mt-0.5 text-sm text-gray-500">
+        {trip.vehicle.make} {trip.vehicle.model} · {trip.totalSeats - trip.filledSeats} of {trip.totalSeats} seats left
+      </p>
+    </Link>
+  );
+}
+
+function TripRow({ trip }: { trip: Upcoming }) {
+  const status = tripStatus(trip);
+  return (
+    <li>
+      <Link href={`/auth/trips/${trip.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
+        <span className="w-[4.5rem] shrink-0 font-semibold tabular-nums text-gray-900" suppressHydrationWarning>
+          {formatTime(trip.departureTime)}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-gray-900">{route(trip)}</span>
+          <span className="block text-xs text-gray-500" suppressHydrationWarning>
+            {when(trip)}
+          </span>
+        </span>
+        {status && <Badge tone={status.tone}>{status.label}</Badge>}
+      </Link>
+    </li>
+  );
+}
+
 export default async function DashboardPage() {
   const user = await getCurrentUser();
 
   // Each mode's home shows only its own trips and action (sub-project C).
   const isDriver = user?.activeMode === 'DRIVER';
-  let upcoming: (Trip & { role: 'Host' | 'Passenger' })[] = [];
+  let upcoming: Upcoming[] = [];
   let alerts: Notification[] = [];
   let unreadCount = 0;
   let waiting: { count: number; tripId: string | null } = { count: 0, tripId: null };
@@ -60,23 +123,26 @@ export default async function DashboardPage() {
       apiFetch<{ notifications: Notification[] }>(`/api/alerts?mode=${isDriver ? 'driver' : 'passenger'}`),
     ]);
     const activeHosted = hosted.filter((t) => t.status === 'OPEN' || t.status === 'FULL');
-    upcoming = isDriver
-      ? activeHosted.map((t) => ({ ...t, role: 'Host' as const }))
-      : joined
-          .filter((t) => t.matchStatus === 'PENDING' || t.matchStatus === 'APPROVED')
-          .map((t) => ({ ...t, role: 'Passenger' as const }));
+    upcoming = (
+      isDriver
+        ? activeHosted.map((t) => ({ ...t, role: 'Host' as const }))
+        : joined
+            .filter((t) => t.matchStatus === 'PENDING' || t.matchStatus === 'APPROVED')
+            .map((t) => ({ ...t, role: 'Passenger' as const }))
+    ).sort((a, b) => Number(b.inProgress ?? false) - Number(a.inProgress ?? false));
     const withRequests = activeHosted.filter((t) => t.matches?.some((m) => m.status === 'PENDING'));
     waiting = {
       count: withRequests.reduce((n, t) => n + (t.matches?.filter((m) => m.status === 'PENDING').length ?? 0), 0),
       tripId: withRequests[0]?.id ?? null,
     };
-    // The badge counts genuinely unread notifications; the Recent Alerts panel
-    // just shows the two most recent, read or not.
     unreadCount = notifications.filter((n) => !n.isRead).length;
     // Sub-project H: this month's driving, in Driver mode.
     if (isDriver) month = (await apiFetch<DriverSummary>('/api/driver/summary?period=month')).totals;
-    alerts = notifications.slice(0, 2);
+    alerts = notifications.slice(0, 3);
   }
+
+  const [next, ...later] = upcoming;
+  const firstName = user?.fullName.split(' ')[0] ?? 'there';
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-between pb-24">
@@ -91,145 +157,96 @@ export default async function DashboardPage() {
         <WarningBanner />
         <AnnouncementBanner />
         <PushCard placement="dashboard" />
-        <section>
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="font-extrabold text-gray-900 leading-tight">
-                Welcome back, {user?.fullName ?? 'Guest'}
-              </h1>
-              <p className="text-base text-gray-500 mt-2">
-                {isDriver ? 'Driver mode: post trips and look after your riders' : 'Passenger mode: find a ride to campus'}
-              </p>
-            </div>
-            {user && <Badge tone="neutral">{roleLabel(user.role)}</Badge>}
-          </div>
-          {user && <ModeSegmented className="mt-4 max-w-sm" />}
 
-          <div className="dashboard-top-grid mt-6">
-            {isDriver && (
-            <Card data-tour="post-ride" className="border-2 border-[color:var(--rsu-color-primary)/0.18]">
-              {/* Icon and text on one row; the button spans the card below them. */}
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 shrink-0 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <FaCar className="w-5 h-5 text-[color:var(--rsu-color-primary)]" />
-                </div>
-                <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-gray-900 mb-1">Post a Trip</h2>
-                  <p className="text-sm text-gray-500">Share your vehicle and help others commute</p>
-                </div>
+        <section className="flex flex-col gap-4">
+          <h1 className="font-extrabold text-gray-900 leading-tight">Hi, {firstName}</h1>
+          {user && <ModeSegmented className="max-w-sm" />}
+        </section>
+
+        {isDriver && waiting.count > 0 && waiting.tripId && (
+          <Link
+            href={`/auth/trips/${waiting.tripId}`}
+            className="flex items-center justify-between gap-3 rounded-2xl bg-[color:var(--rsu-color-primary)] px-4 py-3 font-semibold text-white"
+          >
+            {waiting.count} {waiting.count === 1 ? 'rider is' : 'riders are'} waiting for your answer
+            <FaChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          </Link>
+        )}
+
+        <section className="dashboard-main-grid">
+          <div data-tour="upcoming-trips" className="space-y-3">
+            <div className="flex items-baseline justify-between">
+              <h2 className={SECTION_TITLE}>{isDriver ? 'Your next trip' : 'Your next ride'}</h2>
+              {upcoming.length > 0 && (
+                <Link href="/auth/trips" className="text-sm text-gray-600 hover:underline">
+                  All {isDriver ? 'trips' : 'rides'}
+                </Link>
+              )}
+            </div>
+
+            {next ? (
+              <NextRide trip={next} />
+            ) : (
+              <div className="rsu-card flex flex-col items-start gap-3">
+                <p className="text-gray-700">{isDriver ? 'You haven’t posted a trip yet.' : 'No rides yet.'}</p>
+                <Link
+                  href={isDriver ? '/auth/post' : '/auth/search'}
+                  data-tour={isDriver ? 'post-ride' : 'find-ride'}
+                  className="rsu-btn-primary"
+                >
+                  {isDriver ? 'Post a trip' : 'Find a ride'}
+                </Link>
               </div>
-              <Link href="/auth/post" className="rsu-btn-primary mt-4 w-full">
-                Create New Trip
-              </Link>
-            </Card>
             )}
 
-            {isDriver && waiting.count > 0 && waiting.tripId && (
-              <Card>
-                <Link href={`/auth/trips/${waiting.tripId}`} className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold text-gray-900">
-                    {waiting.count} {waiting.count === 1 ? 'request' : 'requests'} waiting for your answer
-                  </span>
-                  <span className="text-sm text-[color:var(--rsu-color-primary)] font-semibold">Review</span>
-                </Link>
-              </Card>
+            {later.length > 0 && (
+              <ul className={LIST}>
+                {later.map((trip) => (
+                  <TripRow key={`${trip.role}-${trip.id}`} trip={trip} />
+                ))}
+              </ul>
             )}
 
             {isDriver && month && (
-              <Card>
-                <Link href="/auth/driver" className="flex items-center justify-between gap-3">
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-gray-900">This month: {summaryLine(month)}</span>
-                    <span className="block text-xs text-gray-500">Fuel share from riders, paid in person</span>
-                  </span>
-                  <span className="shrink-0 text-sm text-[color:var(--rsu-color-primary)] font-semibold">My driving</span>
+              <Link href="/auth/driver" className="flex items-center justify-between gap-3 px-1 text-sm text-gray-600 hover:text-gray-900">
+                <span>This month: {summaryLine(month)}</span>
+                <FaChevronRight className="h-3 w-3 shrink-0" aria-hidden />
+              </Link>
+            )}
+          </div>
+
+          <aside className="space-y-3">
+            <div className="flex items-baseline justify-between">
+              <h2 className={SECTION_TITLE}>Alerts</h2>
+              {alerts.length > 0 && (
+                <Link href="/auth/notifications" className="text-sm text-gray-600 hover:underline">
+                  All alerts
                 </Link>
-              </Card>
-            )}
-
-            {!isDriver && (
-            <Card data-tour="find-ride">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 shrink-0 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <FaSearch className="w-5 h-5 text-gray-500" />
-                </div>
-                <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-gray-900 mb-1">Find a Ride</h2>
-                  <p className="text-sm text-gray-500">Search for available carpools to join</p>
-                </div>
-              </div>
-              <Link href="/auth/search" className="rsu-btn-primary mt-4 w-full">
-                Search Rides
-              </Link>
-            </Card>
-            )}
-          </div>
-        </section>
-
-        <section className="dashboard-main-grid mt-6">
-          <div data-tour="upcoming-trips">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">{isDriver ? 'Trips You’re Driving' : 'Your Upcoming Rides'}</h3>
-              <Link href="/auth/trips" className="text-sm text-gray-600 hover:underline">
-                View All
-              </Link>
-            </div>
-
-            {upcoming.length === 0 ? (
-              <Card>
-                <div className="flex flex-col items-center py-8">
-                  <FaClock className="rsu-empty-icon mb-4" />
-                  <p className="text-gray-600 font-medium text-base">{isDriver ? 'No trips posted yet' : 'No upcoming rides'}</p>
-                  <p className="text-sm text-gray-400 mt-2">{isDriver ? 'Post a trip to offer your empty seats' : 'Find a ride to get started'}</p>
-                </div>
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                {upcoming.map((trip) => (
-                  <Card key={`${trip.role}-${trip.id}`}>
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="flex items-center gap-1.5">
-                        <Badge tone={trip.role === 'Host' ? 'primary' : 'success'}>{trip.role}</Badge>
-                        {trip.inProgress && <Badge tone="info">In progress</Badge>}
-                      </span>
-                      <span className="text-xs text-gray-400">{recurrenceLabel(trip.recurrenceType)}</span>
-                    </div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {trip.originAddress} → {trip.destinationAddress}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1" suppressHydrationWarning>
-                      {formatTime(trip.departureTime)} · {formatDate(trip.departureTime)} · {trip.vehicle.make}{' '}
-                      {trip.vehicle.model} ({trip.vehicle.color})
-                    </p>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <aside>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">Recent Alerts</h3>
-              <Link href="/auth/notifications" className="text-sm text-gray-600 hover:underline">
-                View All
-              </Link>
+              )}
             </div>
 
             {alerts.length === 0 ? (
-              <Card>
-                <p className="text-sm text-gray-400 text-center py-4">No notifications yet.</p>
-              </Card>
+              <p className="px-1 text-sm text-gray-500">Nothing new.</p>
             ) : (
-              <div className="space-y-3">
+              <ul className={LIST}>
                 {alerts.map((alert) => (
-                  <Card key={alert.id}>
-                    <p className="text-sm font-medium text-gray-800">{alert.message}</p>
-                    <p className="text-xs text-gray-400 mt-2" suppressHydrationWarning>
-                      {formatDateTimeAgo(alert.createdAt)}
-                    </p>
-                  </Card>
+                  <li key={alert.id} className="flex gap-3 px-4 py-3">
+                    <span
+                      aria-hidden
+                      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${alert.isRead ? 'bg-transparent' : 'bg-[color:var(--rsu-color-primary)]'}`}
+                    />
+                    <span className="min-w-0">
+                      <span className={`block text-sm ${alert.isRead ? 'text-gray-600' : 'font-medium text-gray-900'}`}>
+                        {!alert.isRead && <span className="sr-only">Unread: </span>}
+                        {shortPlace(alert.message)}
+                      </span>
+                      <span className="block text-xs text-gray-500" suppressHydrationWarning>
+                        {formatDateTimeAgo(alert.createdAt)}
+                      </span>
+                    </span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </aside>
         </section>

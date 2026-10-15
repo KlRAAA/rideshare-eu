@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { shortPlace } from '@/lib/places';
 import { FaUserPlus, FaCheckCircle, FaClock, FaStar, FaBan, FaPen, FaCommentDots, FaLifeRing, FaBullhorn, FaExclamationTriangle, FaBell, FaCar, FaQuestionCircle, FaUserClock, FaUserTimes, FaCalendarTimes, FaIdCard, FaMapMarkerAlt, FaGasPump } from 'react-icons/fa';
-import Card from '@/components/Card';
 import { apiFetch } from '@/lib/api';
 import ModeSwitchButton from '@/components/ModeSwitchButton';
 import { formatDateTimeAgo } from '@/lib/format';
@@ -148,23 +148,18 @@ export default function NotificationsClient({
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {unreadCount > 0 ? `You have ${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}` : 'You’re all caught up'}
-          </p>
-        </div>
+    <div className="max-w-2xl space-y-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h1 className="text-2xl font-bold text-gray-900">Alerts</h1>
         {unreadCount > 0 && (
-          <button type="button" onClick={markAllAsRead} disabled={markingAll} className="rsu-btn-secondary disabled:opacity-60">
-            {markingAll ? 'Marking...' : 'Mark all as read'}
+          <button type="button" onClick={markAllAsRead} disabled={markingAll} className="text-sm font-semibold text-[color:var(--rsu-color-primary)] hover:underline disabled:opacity-60">
+            {markingAll ? 'Marking…' : 'Mark all read'}
           </button>
         )}
       </div>
 
       {otherModeUnread > 0 && (
-        <div className="mb-4 max-w-2xl flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3">
           <p className="text-sm text-gray-700">
             {otherModeUnread} new in {mode === 'driver' ? 'Passenger' : 'Driver'} mode
           </p>
@@ -173,11 +168,10 @@ export default function NotificationsClient({
       )}
 
       {notifications.length === 0 ? (
-        <Card>
-          <p className="text-sm text-gray-400 text-center py-8">No notifications yet.</p>
-        </Card>
+        <p className="py-8 text-center text-sm text-gray-500">Nothing yet. Requests, trip updates and messages show up here.</p>
       ) : (
-        <div className="space-y-3 max-w-2xl">
+        // One list with dividers, not a card per alert (adviser feedback: calmer).
+        <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
           {notifications.map((n) => {
             // A type added on the server before this map would otherwise crash the page.
             const Icon = TYPE_ICON[n.type] ?? FaBell;
@@ -185,47 +179,44 @@ export default function NotificationsClient({
 
             const inner = (
               <>
-                <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                <span
+                  aria-hidden
+                  className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                     n.isRead ? 'bg-gray-100 text-gray-400' : 'bg-[color:var(--rsu-color-primary)]/10 text-[color:var(--rsu-color-primary)]'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm ${n.isRead ? 'text-gray-600' : 'text-gray-900 font-medium'}`}>{n.message}</p>
-                  <p className="text-xs text-gray-400 mt-1">{isMounted ? formatDateTimeAgo(n.createdAt) : ' '}</p>
-                </div>
-                {!n.isRead && <span className="w-2 h-2 rounded-full bg-blue-500 mt-2 shrink-0" aria-label="Unread" />}
+                  <Icon className="h-3.5 w-3.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className={`block text-sm ${n.isRead ? 'text-gray-600' : 'font-medium text-gray-900'}`}>
+                    {!n.isRead && <span className="sr-only">Unread: </span>}
+                    {shortPlace(n.message)}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-gray-500">{isMounted ? formatDateTimeAgo(n.createdAt) : ' '}</span>
+                </span>
+                {!n.isRead && <span aria-hidden className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[color:var(--rsu-color-primary)]" />}
               </>
             );
 
-            if (!href) {
-              return (
-                <Card key={n.id} className="flex items-start gap-3">
-                  {inner}
-                </Card>
-              );
-            }
-
             return (
-              <Link
-                key={n.id}
-                href={href}
-                onClick={() => handleOpen(n)}
-                className="rsu-card flex items-start gap-3 transition-colors hover:border-[color:var(--rsu-color-primary)]/30"
-              >
-                {inner}
-              </Link>
+              <li key={n.id}>
+                {href ? (
+                  <Link href={href} onClick={() => handleOpen(n)} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50">
+                    {inner}
+                  </Link>
+                ) : (
+                  <div className="flex items-start gap-3 px-4 py-3">{inner}</div>
+                )}
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
 
       {nextCursor && (
-        <div className="max-w-2xl mt-4 flex justify-center">
+        <div className="flex justify-center">
           <button type="button" onClick={loadMore} disabled={loadingMore} className="rsu-btn-secondary disabled:opacity-60">
-            {loadingMore ? 'Loading...' : 'Load more'}
+            {loadingMore ? 'Loading…' : 'Load more'}
           </button>
         </div>
       )}

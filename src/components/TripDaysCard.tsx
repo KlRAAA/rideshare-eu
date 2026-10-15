@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useAppDialog } from './AppDialog';
 import { useRouter } from 'next/navigation';
-import { FaCalendarCheck } from 'react-icons/fa';
 import Card from '@/components/Card';
 import { apiFetch, ApiError } from '@/lib/api';
 import { clockLabel } from '@/lib/tripRun';
@@ -60,49 +59,52 @@ export default function TripDaysCard({ tripId, recurring, days }: TripDaysCardPr
     }
   }
 
+  const row = (d: TripDay) => {
+    const busy = busyDate === d.date;
+    return (
+      <li key={d.date} className="flex items-center gap-3 py-2">
+        <span className="min-w-0 space-y-1">
+          <span className="block text-sm font-semibold text-gray-900">
+            {dayLabel(d.date)} · {clockLabel(d.departure)}
+          </span>
+          <span className={badgeClass(d.status)}>{dayStatusLabel(d.status)}</span>
+        </span>
+        <span className="ml-auto flex shrink-0 gap-2">
+          {d.status === null && (
+            <button type="button" disabled={busy} onClick={() => act(d.date, 'confirm')} className="rsu-btn-primary px-3 py-1 text-xs disabled:opacity-60">
+              Confirm
+            </button>
+          )}
+          {recurring && (d.status === null || d.status === 'CONFIRMED') && (
+            <button type="button" disabled={busy} onClick={() => act(d.date, 'skip')} className="rsu-btn-secondary px-3 py-1 text-xs disabled:opacity-60">
+              Skip
+            </button>
+          )}
+          {d.status === 'SKIPPED' && (
+            <button type="button" disabled={busy} onClick={() => act(d.date, 'unskip')} className="rsu-btn-secondary px-3 py-1 text-xs disabled:opacity-60">
+              Undo skip
+            </button>
+          )}
+        </span>
+      </li>
+    );
+  };
+  // The next day up front; the rest of the week one tap away (adviser feedback: shorter page).
+  const [next, ...rest] = days;
+
   return (
-    <Card className="space-y-3">
-      <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900">
-        <FaCalendarCheck className="w-4 h-4 text-blue-600" aria-hidden />
-        {recurring ? 'Next 7 days' : 'Your trip day'}
-      </h2>
-      <p className="text-xs text-gray-500">
-        {recurring
-          ? 'Confirm the days you’re driving. Skip a day you can’t make; your riders are told right away.'
-          : 'Confirm you’re driving so your riders know. If you can’t make it, cancel the trip.'}
-      </p>
-      <ul className="divide-y divide-gray-100">
-        {days.map((d) => {
-          const busy = busyDate === d.date;
-          return (
-            <li key={d.date} className="flex items-center gap-3 py-2">
-              <span className="min-w-0 space-y-1">
-                <span className="block text-sm font-semibold text-gray-900">
-                  {dayLabel(d.date)} · {clockLabel(d.departure)}
-                </span>
-                <span className={badgeClass(d.status)}>{dayStatusLabel(d.status)}</span>
-              </span>
-              <span className="ml-auto flex shrink-0 gap-2">
-                {d.status === null && (
-                  <button type="button" disabled={busy} onClick={() => act(d.date, 'confirm')} className="rsu-btn-primary px-3 py-1 text-xs disabled:opacity-60">
-                    Confirm
-                  </button>
-                )}
-                {recurring && (d.status === null || d.status === 'CONFIRMED') && (
-                  <button type="button" disabled={busy} onClick={() => act(d.date, 'skip')} className="rsu-btn-secondary px-3 py-1 text-xs disabled:opacity-60">
-                    Skip
-                  </button>
-                )}
-                {d.status === 'SKIPPED' && (
-                  <button type="button" disabled={busy} onClick={() => act(d.date, 'unskip')} className="rsu-btn-secondary px-3 py-1 text-xs disabled:opacity-60">
-                    Undo skip
-                  </button>
-                )}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
+    <Card className="space-y-2">
+      <h2 className="text-sm font-bold text-gray-900">{recurring ? 'Next trip day' : 'Your trip day'}</h2>
+      <ul className="divide-y divide-gray-100">{row(next)}</ul>
+      {rest.length > 0 && (
+        <details className="group">
+          <summary className="cursor-pointer text-sm font-semibold text-gray-600">
+            <span className="group-open:hidden">All {days.length} days</span>
+            <span className="hidden group-open:inline">Fewer days</span>
+          </summary>
+          <ul className="mt-1 divide-y divide-gray-100">{rest.map(row)}</ul>
+        </details>
+      )}
       {error && (
         <p role="alert" className="text-xs text-red-600">
           {error}

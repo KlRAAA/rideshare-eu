@@ -19,8 +19,8 @@ export default function TripDetailLoading() {
       <main className="app-desktop w-full pt-2 md:pt-4">
         <BackButton fallback="/auth/trips" className="mb-3" />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2 space-y-4">
+        <div className="mx-auto max-w-2xl">
+          <div className="space-y-4">
             {/* RouteMap's real container: h-56, rounded-2xl */}
             <Skeleton shape="rect" height={224} radius="1rem" />
 
@@ -50,9 +50,6 @@ export default function TripDetailLoading() {
                 ))}
               </div>
             </Card>
-
-            {/* FuelShareCard slot */}
-            <Skeleton shape="rect" height={90} radius="1rem" />
 
             {/* CoRidersCard: title + 2 rows, each a small avatar + name + status pill */}
             <Card>
@@ -84,25 +81,11 @@ export default function TripDetailLoading() {
             </Card>
 
             {/* Bottom action buttons — a host on an active trip sees all three
-                (Edit Trip / Mark Trip as Completed / Cancel Trip) */}
-            <Skeleton shape="rect" height={44} radius="var(--rsu-btn-radius)" />
-            <Skeleton shape="rect" height={44} radius="var(--rsu-btn-radius)" />
-            <Skeleton shape="rect" height={44} radius="var(--rsu-btn-radius)" />
-          </div>
-
-          <div className="space-y-4">
-            {/* Preferences card: title + 3 label/value pairs */}
-            <Card>
-              <Skeleton shape="text" width={90} height={13} className="mb-3" />
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="space-y-1.5">
-                    <Skeleton shape="text" width={110} height={10} />
-                    <Skeleton shape="text" width={70} height={12} />
-                  </div>
-                ))}
-              </div>
-            </Card>
+                (Edit trip / Cancel trip, side by side) */}
+            <div className="flex gap-2">
+              <Skeleton shape="rect" height={44} radius="var(--rsu-btn-radius)" />
+              <Skeleton shape="rect" height={44} radius="var(--rsu-btn-radius)" />
+            </div>
           </div>
         </div>
       </main>

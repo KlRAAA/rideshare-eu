@@ -43,7 +43,9 @@ export default function PushCard({ placement }: PushCardProps) {
   }, []);
 
   if (state === null) return null;
-  if (placement === 'dashboard' && (dismissed || state === 'on' || state === 'off-server' || state === 'unsupported')) return null;
+  // Home shows the card only when there's something to tap; a blocked browser's
+  // explanation lives in Profile (adviser feedback: less text on Home).
+  if (placement === 'dashboard' && (dismissed || state === 'on' || state === 'off-server' || state === 'unsupported' || state === 'blocked')) return null;
 
   async function toggle(on: boolean) {
     setBusy(true);

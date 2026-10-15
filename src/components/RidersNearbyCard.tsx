@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { FaUsers } from 'react-icons/fa';
+import { FaUsers, FaInfoCircle } from 'react-icons/fa';
+import Tip from './Tip';
 import { apiFetch } from '@/lib/api';
 import { LOCATION_POLL_INTERVAL_MS } from '@/lib/constants';
 import { riderStatusLine, sharingState, type RiderLocation } from '@/lib/riderLocation';
@@ -92,8 +93,12 @@ export default function RidersNearbyCard({ tripId, departure, runOngoing, onRide
         })}
       </ul>
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
-      <p className="text-xs text-gray-500">
-        Riders who turned sharing on appear on the map until you mark them picked up. Their positions are erased then, and when the trip ends.
+      <p className="flex items-center gap-1.5 text-xs text-gray-500">
+        Riders who share appear on the map until pickup.
+        <Tip label="Their positions are erased when you mark them picked up, and when the trip ends.">
+          <FaInfoCircle className="h-3 w-3" aria-hidden />
+          <span className="sr-only">How long it’s kept</span>
+        </Tip>
       </p>
     </section>
   );

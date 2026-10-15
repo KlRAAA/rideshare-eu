@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { FaLocationArrow } from 'react-icons/fa';
+import { FaLocationArrow, FaInfoCircle } from 'react-icons/fa';
+import Tip from './Tip';
 import { apiFetch } from '@/lib/api';
 import { getCurrentCoords } from '@/lib/geoProximity';
 import { LOCATION_POLL_INTERVAL_MS } from '@/lib/constants';
@@ -98,9 +99,12 @@ export default function RiderLocationCard({ tripId, matchId, initialOn, departur
       <p className="text-sm text-gray-600" role="status">
         {status}
       </p>
-      <p className="text-xs text-gray-500">
-        Only your driver sees it, from 15 minutes before departure until they mark you picked up. Only your latest position is
-        kept, and it’s erased at pickup or when the trip ends.
+      <p className="flex items-center gap-1.5 text-xs text-gray-500">
+        Only your driver sees it.
+        <Tip label="From 15 minutes before departure until your driver marks you picked up. Only your latest position is kept, and it’s erased at pickup or when the trip ends.">
+          <FaInfoCircle className="h-3 w-3" aria-hidden />
+          <span className="sr-only">How long it’s kept</span>
+        </Tip>
       </p>
     </section>
   );
