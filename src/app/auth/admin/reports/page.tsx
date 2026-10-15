@@ -27,6 +27,8 @@ export default async function AdminReportsPage({
           <Link
             key={s.value}
             href={`/auth/admin/reports?status=${s.value}`}
+            replace
+            scroll={false}
             role="tab"
             aria-selected={status === s.value}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${

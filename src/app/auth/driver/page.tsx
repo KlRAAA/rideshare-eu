@@ -43,6 +43,8 @@ export default async function DriverSummaryPage({ searchParams }: { searchParams
             <Link
               key={p.value}
               href={`/auth/driver?period=${p.value}`}
+              replace
+              scroll={false}
               aria-current={p.value === period ? 'page' : undefined}
               className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold ${
                 p.value === period ? 'bg-[color:var(--rsu-color-primary)] text-white' : 'bg-white text-gray-700 border border-gray-200'

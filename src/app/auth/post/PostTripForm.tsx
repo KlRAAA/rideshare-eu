@@ -423,7 +423,7 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
         });
         setConfirmData(null);
         draft.clear();
-        router.push(`/auth/trips/${editTrip.id}`);
+        router.replace(`/auth/trips/${editTrip.id}`); // Back skips the submitted form
         return;
       }
 
@@ -471,7 +471,7 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
       }
 
       draft.clear();
-      router.push('/auth/trips');
+      router.replace('/auth/trips'); // Back skips the submitted form
     } catch (err) {
       if (err instanceof ApiError && err.code === 'CONFIRMATION_REQUIRED') {
         setConfirmData({

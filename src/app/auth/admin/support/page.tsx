@@ -31,6 +31,8 @@ export default async function AdminSupportPage({ searchParams }: { searchParams:
           <Link
             key={s.value}
             href={`/auth/admin/support?status=${s.value}`}
+            replace
+            scroll={false}
             role="tab"
             aria-selected={status === s.value}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
