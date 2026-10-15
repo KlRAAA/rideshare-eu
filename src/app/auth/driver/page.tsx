@@ -6,6 +6,7 @@ import BackButton from '@/components/BackButton';
 import Card from '@/components/Card';
 import { apiFetch } from '@/lib/api-server';
 import { barHeights, peso, weekLabel, type DriverSummary } from '@/lib/driverSummary';
+import { shortPlace } from '@/lib/places';
 
 const PERIODS = [
   { value: 'week', label: 'This week' },
@@ -35,16 +36,15 @@ export default async function DriverSummaryPage({ searchParams }: { searchParams
         <BackButton fallback="/auth/dashboard" />
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My driving</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Your rides, the riders you carried and their fuel share</p>
         </div>
 
-        <nav aria-label="Period" className="flex gap-2">
+        <nav aria-label="Period" className="flex flex-wrap gap-2">
           {PERIODS.map((p) => (
             <Link
               key={p.value}
               href={`/auth/driver?period=${p.value}`}
               aria-current={p.value === period ? 'page' : undefined}
-              className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
+              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold ${
                 p.value === period ? 'bg-[color:var(--rsu-color-primary)] text-white' : 'bg-white text-gray-700 border border-gray-200'
               }`}
             >
@@ -53,14 +53,15 @@ export default async function DriverSummaryPage({ searchParams }: { searchParams
           ))}
         </nav>
 
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        {/* Label left, figure right: any amount fits, at any phone text size. */}
+        <dl className="divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
           {tiles.map((t) => (
-            <div key={t.label} className="rsu-card text-center">
-              <p className="text-xl sm:text-2xl font-extrabold text-gray-900 tabular-nums">{t.value}</p>
-              <p className="text-xs text-gray-500 mt-1">{t.label}</p>
+            <div key={t.label} className="flex items-baseline justify-between gap-3 px-4 py-3">
+              <dt className="text-sm text-gray-600">{t.label}</dt>
+              <dd className="text-xl font-bold tabular-nums text-gray-900">{t.value}</dd>
             </div>
           ))}
-        </div>
+        </dl>
 
         <Card className="space-y-3">
           <h2 className="text-sm font-bold text-gray-900">Rides per week</h2>
@@ -87,7 +88,7 @@ export default async function DriverSummaryPage({ searchParams }: { searchParams
                 <li key={`${r.tripId}-${r.date}`}>
                   <Link href={`/auth/trips/${r.tripId}`} className="flex items-center justify-between gap-3 py-2 hover:bg-gray-50">
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-gray-900">{r.destination}</span>
+                      <span className="block truncate text-sm font-semibold text-gray-900">{shortPlace(r.destination)}</span>
                       <span className="block text-xs text-gray-500">
                         {dateLabel(r.date)} · {r.riders} {r.riders === 1 ? 'rider' : 'riders'}
                         {r.estimated && ' (estimate)'}

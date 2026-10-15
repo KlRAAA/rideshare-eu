@@ -714,7 +714,8 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
           <span id="trip-repeat-label" className={LABEL}>
             Repeats
           </span>
-          <div role="radiogroup" aria-labelledby="trip-repeat-label" className="grid grid-cols-4 gap-1 rounded-xl bg-gray-100 p-1">
+          {/* Two by two on a phone, so "Weekdays" fits even with large phone text. */}
+          <div role="radiogroup" aria-labelledby="trip-repeat-label" className="grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1 sm:grid-cols-4">
             {RECURRENCE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
