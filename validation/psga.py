@@ -100,6 +100,37 @@ def route_overlap(passenger_origin, passenger_dest, host_origin, host_dest,
     return covered / len(passenger_pts)
 
 
+DIRECTION_SAMPLES = 20    # steps per route segment, as server/services/psgaService.js
+
+
+def position_on_route(point, origin, destination, samples=DIRECTION_SAMPLES):
+    """
+    Index (0..samples) of the point on the host's straight route nearest to
+    `point`: how far along the route it sits. Mirrors positionOnRoute in
+    server/services/psgaService.js (first nearest sample wins).
+    """
+    best_i, best_d = 0, float("inf")
+    for i in range(samples + 1):
+        t = i / samples
+        lat = origin[0] + (destination[0] - origin[0]) * t
+        lng = origin[1] + (destination[1] - origin[1]) * t
+        d = haversine_meters(point[0], point[1], lat, lng)
+        if d < best_d:
+            best_i, best_d = i, d
+    return best_i
+
+
+def goes_rider_way(passenger, trip):
+    """
+    The driver reaches the passenger's pickup before their drop-off. Route
+    overlap alone ignores direction (a trip driving the same road the other
+    way scored 100%); mirrors goesRiderWay in server/services/psgaService.js.
+    """
+    pickup = position_on_route(passenger["origin"], trip["origin"], trip["destination"])
+    dropoff = position_on_route(passenger["destination"], trip["origin"], trip["destination"])
+    return pickup < dropoff
+
+
 def schedule_alignment(time_diff_min, flex_window_min):
     if flex_window_min <= 0:
         return 1.0 if time_diff_min == 0 else 0.0
@@ -166,7 +197,7 @@ def passes_stage1(passenger, trip):
     )
     tdiff = time_diff_minutes(passenger["departureMinutes"], trip["departureMinutes"])
     flex = passenger.get("flexWindowMinutes", DEFAULT_FLEX_WINDOW)
-    return overlap >= MIN_OVERLAP and tdiff <= flex
+    return overlap >= MIN_OVERLAP and tdiff <= flex and goes_rider_way(passenger, trip)
 
 
 def run_psga(passenger, candidate_trips):

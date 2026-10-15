@@ -3540,6 +3540,17 @@
               "name": "Host posts a familiar-riders-only trip",
               "event": [
                 {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// Three hours after the host's Women+ trip: a host can't drive two trips at once.",
+                      "const d = new Date(pm.collectionVariables.get('departureTime'));",
+                      "pm.collectionVariables.set('familiarDepartureTime', new Date(d.getTime() + 3 * 3600 * 1000).toISOString());"
+                    ]
+                  }
+                },
+                {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
@@ -3571,7 +3582,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"originAddress\": \"Sariaya, Quezon\",\n  \"originLat\": 13.9629837,\n  \"originLng\": 121.5243402,\n  \"destinationAddress\": \"Manuel S. Enverga University Foundation, Lucena City\",\n  \"destinationLat\": 13.9490188,\n  \"destinationLng\": 121.6202904,\n  \"departureTime\": \"{{departureTime}}\",\n  \"recurrenceType\": \"ONE_TIME\",\n  \"customDays\": [],\n  \"totalSeats\": 3,\n  \"driverNotes\": \"Only riders I have driven before.\",\n  \"genderPreference\": \"ANY\",\n  \"flexibleDeparture\": true,\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": true\n}",
+                  "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"originAddress\": \"Sariaya, Quezon\",\n  \"originLat\": 13.9629837,\n  \"originLng\": 121.5243402,\n  \"destinationAddress\": \"Manuel S. Enverga University Foundation, Lucena City\",\n  \"destinationLat\": 13.9490188,\n  \"destinationLng\": 121.6202904,\n  \"departureTime\": \"{{familiarDepartureTime}}\",\n  \"recurrenceType\": \"ONE_TIME\",\n  \"customDays\": [],\n  \"totalSeats\": 3,\n  \"driverNotes\": \"Only riders I have driven before.\",\n  \"genderPreference\": \"ANY\",\n  \"flexibleDeparture\": true,\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": true\n}",
                   "options": {
                     "raw": {
                       "language": "json"

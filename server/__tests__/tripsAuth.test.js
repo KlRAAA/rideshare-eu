@@ -69,6 +69,8 @@ const guard = () => {
   return !dbUp;
 };
 
+// Each posted trip leaves on its own day: a host can't drive two trips at once.
+let nextTripDay = 30; // past the fixtures, which leave in a week
 const tripBody = (over = {}) => ({
   vehicleId: vehicle.id,
   originAddress: 'A',
@@ -77,7 +79,7 @@ const tripBody = (over = {}) => ({
   destinationAddress: 'B',
   destinationLat: 13.95,
   destinationLng: 121.62,
-  departureTime: new Date(Date.now() + 2 * 86400000).toISOString(),
+  departureTime: new Date(Date.now() + nextTripDay++ * 86400000).toISOString(),
   recurrenceType: 'ONE_TIME',
   customDays: [],
   totalSeats: 3,
@@ -150,7 +152,10 @@ describe('POST /api/trips', () => {
       tripBody({ recurrenceType: 'CUSTOM', customDays: [1, 3, 5], meetingPointAddress: 'Gate 2', meetingPointLat: 13.95, meetingPointLng: 121.61 })
     );
     expect(res.status).toBe(201);
-    expect((await res.json()).trip.customDays).toEqual([1, 3, 5]);
+    const { trip } = await res.json();
+    expect(trip.customDays).toEqual([1, 3, 5]);
+    // A trip every Mon/Wed/Fri would clash with this host's later test trips.
+    await prisma.trip.update({ where: { id: trip.id }, data: { status: 'CANCELLED' } });
   });
 
   test('someone else’s vehicle → 403 VEHICLE_NOT_OWNED, nothing created', async () => {

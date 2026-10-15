@@ -76,6 +76,8 @@ const call = (method, path, userId, body) =>
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 
+// Each posted trip leaves on its own day: a host can't drive two trips at once.
+let nextTripDay = 30; // past the fixtures, which leave in a week
 function tripBody(vehicleId, fuelPricePerLiter) {
   return {
     vehicleId,
@@ -85,7 +87,7 @@ function tripBody(vehicleId, fuelPricePerLiter) {
     destinationAddress: 'MSEUF',
     destinationLat: 13.9490188,
     destinationLng: 121.6202904,
-    departureTime: new Date(Date.now() + 2 * 86400000).toISOString(),
+    departureTime: new Date(Date.now() + nextTripDay++ * 86400000).toISOString(),
     recurrenceType: 'ONE_TIME',
     customDays: [],
     totalSeats: 3,

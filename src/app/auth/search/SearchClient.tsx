@@ -28,6 +28,7 @@ import RouteMap from '@/components/RouteMap';
 import type { LatLng } from '@/lib/directions';
 import { searchFlexWindow } from '@/lib/searchWindow';
 import RuleBadges from '@/components/RuleBadges';
+import MatchWhy from '@/components/MatchWhy';
 import TripFacts from '@/components/TripFacts';
 import { TRIPS_I_SEE_OPTIONS, type GenderPreference } from '@/lib/riderRules';
 
@@ -196,6 +197,9 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
   const [searchGeo, setSearchGeo] = useState<{
     origin: { lat: number; lng: number };
     destination: { lat: number; lng: number };
+    // The time and window searched with, for each result's time and match explanation.
+    time: string;
+    flexWindow: number;
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -277,7 +281,7 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
         originPin ?? apiFetch<{ lat: number; lng: number }>(`/api/geocode?q=${encodeURIComponent(origin)}`),
         destinationPin ?? apiFetch<{ lat: number; lng: number }>(`/api/geocode?q=${encodeURIComponent(destination)}`),
       ]);
-      setSearchGeo({ origin: originGeo, destination: destinationGeo });
+      setSearchGeo({ origin: originGeo, destination: destinationGeo, time, flexWindow: searchFlexWindow(flexibleTime) });
 
       const [hh, mm] = time.split(':').map(Number);
       const departureMinutes = phTimeToUtcMinutes(hh, mm);
@@ -604,7 +608,9 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
           <Card>
             <p className="text-sm text-gray-600 text-center py-6 font-medium">No matching rides right now</p>
             <p className="text-xs text-gray-400 text-center">
-              Try a wider flexible-time window, or check back later — new trips are posted throughout the day.
+              {searchGeo
+                ? `No trip goes your way within ±${searchGeo.flexWindow} min of your time. Try a wider flexible-time window, or see every trip going to ${destination} below.`
+                : 'Try a wider flexible-time window, or check back later — new trips are posted throughout the day.'}
             </p>
             {genderPreference === 'WOMEN_PLUS' && (
               <div className="text-center mt-4">
@@ -616,7 +622,7 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
             {searchGeo && (
               <div className="text-center mt-4">
                 <button type="button" onClick={runShowAll} className="rsu-btn-secondary inline-flex px-4">
-                  Show all trips to {destination} instead
+                  Show all trips going to {destination}
                 </button>
               </div>
             )}
@@ -625,7 +631,7 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
 
         {searched && !loading && !error && isFallback && (
           <div className="rounded-xl border border-[#fde68a] bg-[#fffbeb] px-3 py-2 text-xs text-[#b45309]">
-            Not matched by route or schedule — shown because your search returned no matches.
+            Trips that end at or pass {destination}, at any time of day. Check how far each one leaves from your time.
           </div>
         )}
 
@@ -653,12 +659,14 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
                       <h4 className="text-sm font-bold text-gray-900">{match.trip.host.fullName}</h4>
                       <Badge tone="neutral">{roleLabel(match.trip.host.role)}</Badge>
                     </div>
-                    <span className="text-xs font-semibold text-emerald-600">{Math.round(match.score * 100)}% match</span>
                   </div>
                 </Link>
                 <Badge tone={status.tone}>{status.label}</Badge>
               </div>
               <RuleBadges trip={match.trip} className="mb-2" />
+              {searchGeo && (
+                <MatchWhy match={match} departureTime={match.trip.departureTime} searchTime={searchGeo.time} flexWindowMinutes={searchGeo.flexWindow} />
+              )}
 
               <div className="text-xs text-gray-600 space-y-1.5">
                 <p className="flex items-start gap-2">

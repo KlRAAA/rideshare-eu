@@ -94,6 +94,19 @@ describe('runPSGA', () => {
     expect(runPSGA(passenger, candidates, config).status).toBe('NO_MATCH');
   });
 
+  // Demo feedback: a rider going from campus to Domoit was offered a Lucban →
+  // campus trip at 100%, because route overlap ignores direction.
+  test('leaves out a trip that drives the rider’s way in the opposite direction', () => {
+    const CAMPUS = { lat: 13.9490188, lng: 121.6202904 };
+    const DOMOIT = { lat: 13.9656741, lng: 121.5954539 };
+    const TAYABAS = { lat: 14.0263, lng: 121.5926 };
+    const rider = { origin: CAMPUS, destination: DOMOIT, departureMinutes: 420, flexWindowMinutes: 15 };
+    const trip = (id, waypoints) => ({ id, waypoints, departureMinutes: 420, genderPreference: 'ANY', filledSeats: 0, totalSeats: 3 });
+    const result = runPSGA(rider, [trip('to-campus', [TAYABAS, DOMOIT, CAMPUS]), trip('from-campus', [CAMPUS, DOMOIT, TAYABAS])], config);
+    expect(result.status).toBe('MATCHED');
+    expect(result.matches.map((m) => m.tripId)).toEqual(['from-campus']);
+  });
+
   test('ranks candidates descending by score', () => {
     const passenger = { origin: { lat: 13.9333, lng: 121.6167 }, destination: { lat: 13.9357, lng: 121.6220 }, departureMinutes: 420, flexWindowMinutes: 15 };
     const candidates = [
@@ -160,8 +173,8 @@ describe('runShowAllFallback', () => {
     expect(result.matches.map((m) => m.tripId)).toContain('t1');
   });
 
-  test('excludes a trip whose destination is outside the anchor radius', () => {
-    const farDest = { ...baseTrip, id: 'far', destination: { lat: 14.6, lng: 121.1 } };
+  test('excludes a trip that neither ends near the destination nor passes it', () => {
+    const farDest = { ...baseTrip, id: 'far', waypoints: [baseTrip.waypoints[0], { lat: 14.6, lng: 121.1 }], destination: { lat: 14.6, lng: 121.1 } };
     expect(runShowAllFallback(passenger, [farDest], config).status).toBe('NO_MATCH');
   });
 
@@ -187,6 +200,32 @@ describe('runShowAllFallback', () => {
   test('excludes a full trip', () => {
     const full = { ...baseTrip, id: 'full', filledSeats: 3, totalSeats: 3 };
     expect(runShowAllFallback(passenger, [full], config).status).toBe('NO_MATCH');
+  });
+
+  // Demo feedback: a rider going to Domoit (on the Lucena–Tayabas road) got no
+  // trips, because "Show all" only kept trips ending within 3 km of Domoit.
+  describe('a trip passing the rider’s drop-off on its way elsewhere', () => {
+    const CAMPUS = { lat: 13.9490188, lng: 121.6202904 };
+    const DOMOIT = { lat: 13.9656741, lng: 121.5954539 };
+    const TAYABAS = { lat: 14.0263, lng: 121.5926 };
+    const rider = { origin: CAMPUS, destination: DOMOIT, departureMinutes: 420, flexWindowMinutes: 15 };
+    const toTayabas = { ...baseTrip, id: 'to-tayabas', waypoints: [CAMPUS, DOMOIT, TAYABAS], destination: TAYABAS };
+
+    test('is kept when it passes the pickup first, then the drop-off', () => {
+      const result = runShowAllFallback(rider, [toTayabas], config);
+      expect(result.status).toBe('MATCHED');
+      expect(result.matches[0].tripId).toBe('to-tayabas');
+    });
+
+    test('is left out when it passes them the other way round', () => {
+      const toCampus = { ...baseTrip, id: 'to-campus', waypoints: [TAYABAS, DOMOIT, CAMPUS], destination: CAMPUS };
+      expect(runShowAllFallback(rider, [toCampus], config).status).toBe('NO_MATCH');
+    });
+
+    test('is left out when its route stays away from the drop-off', () => {
+      const elsewhere = { ...toTayabas, id: 'elsewhere', waypoints: [CAMPUS, { lat: 13.92, lng: 121.55 }], destination: { lat: 13.92, lng: 121.55 } };
+      expect(runShowAllFallback(rider, [elsewhere], config).status).toBe('NO_MATCH');
+    });
   });
 
   test('ranks kept trips by descending score', () => {

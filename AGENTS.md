@@ -805,3 +805,27 @@ No browser-drawn pop-ups: their look follows the phone, not the app's theme.
   form's `invalid` event, cancels the browser bubble, focuses the first bad
   field and shows "<Label> is required." under it. Needs the field's
   `<label htmlFor>`, so keep labels linked.
+
+## Adviser demo fixes (Oct 2026)
+
+- **Direction (PSGA Stage 1):** a trip passes only if the driver reaches the
+  rider's pickup before their drop-off (`goesRiderWay`, nearest point along
+  the route, `positionOnRoute`). Route overlap ignores direction, so a Lucban →
+  campus trip scored 100% for a rider going campus → Domoit. Mirrored in
+  `validation/psga.py` (`goes_rider_way`, 21 samples on the driver's line);
+  regenerated `method_rankings.json`: PSGA's picks unchanged in all 100
+  queries; 6 queries lose a trip whose rider lives past campus; Route-only
+  and Random shift slightly in `compare_methods.py`.
+- **Show all:** keeps trips that end within 3 km of the destination **or**
+  pass it after the pickup (`passesDropoffAfterPickup`, corridor), so a rider
+  getting off on the way (Domoit) sees them.
+- **Explanations:** each Find a Ride result shows "Leaves 9 min after your
+  6:15 AM" and a "How is this worked out?" disclosure (route ½, time 30%,
+  seats and rules 20%) from `src/lib/matchExplain.ts` / `MatchWhy`. A
+  fallback card with no time marks reads 70% (route 50 + seats 20).
+- **One trip at a time:** `createTrip` returns 409 `DRIVING_NOW` (with
+  `tripId`) while one of the host's runs is ONGOING; posting or editing a trip
+  that overlaps another trip the host drives is 409 `SCHEDULE_CONFLICT`
+  (`conflictWithHosted`). Post a Trip shows "You're driving a trip right now"
+  instead of the form. Tests that post several trips for one host use a
+  different day each.

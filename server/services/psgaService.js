@@ -88,6 +88,39 @@ function computeRouteOverlapDetail(passenger, host, corridorMeters, samples = 20
   return { fraction: within / (samples + 1), corridorMeters, samples: points };
 }
 
+// Where a point sits against a route: its distance from the route, and how far
+// along the route (meters from its start) the nearest point is.
+function positionOnRoute(point, waypoints, samples = 20) {
+  let best = { distance: Infinity, along: 0 };
+  let walked = 0;
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    const a = waypoints[i];
+    const b = waypoints[i + 1];
+    const length = haversineMeters(a, b);
+    for (let s = 0; s <= samples; s++) {
+      const t = s / samples;
+      const d = haversineMeters(point, { lat: a.lat + (b.lat - a.lat) * t, lng: a.lng + (b.lng - a.lng) * t });
+      if (d < best.distance) best = { distance: d, along: walked + length * t };
+    }
+    walked += length;
+  }
+  return best;
+}
+
+// The driver reaches the rider's pickup before their drop-off. Route overlap
+// alone ignores direction, so a trip driving the same road the other way
+// scored 100% (demo feedback).
+function goesRiderWay(passenger, waypoints) {
+  if (!waypoints || waypoints.length < 2) return false;
+  return positionOnRoute(passenger.origin, waypoints).along < positionOnRoute(passenger.destination, waypoints).along;
+}
+
+// The route passes the rider's drop-off, and reaches it after their pickup:
+// the trip goes the rider's way even if it ends somewhere else.
+function passesDropoffAfterPickup(passenger, waypoints, corridorMeters) {
+  return goesRiderWay(passenger, waypoints) && positionOnRoute(passenger.destination, waypoints).distance <= corridorMeters;
+}
+
 function computeRouteOverlap(passenger, host, corridorMeters, samples = 20) {
   return computeRouteOverlapDetail(passenger, host, corridorMeters, samples).fraction;
 }
@@ -126,7 +159,7 @@ function runPSGA(passengerRequest, candidateTrips, config) {
     const timeDiff = departureTimeDiff(passengerRequest.departureMinutes, trip.departureMinutes);
     const flexWindow = passengerRequest.flexWindowMinutes;
 
-    if (routeOverlap >= minRouteOverlap && timeDiff <= flexWindow) {
+    if (routeOverlap >= minRouteOverlap && timeDiff <= flexWindow && goesRiderWay(passengerRequest, trip.waypoints)) {
       filtered.push({ trip, routeOverlap, timeDiff, flexWindow });
     }
   }
@@ -161,9 +194,11 @@ function runPSGA(passengerRequest, candidateTrips, config) {
 //     this function, exactly as for runPSGA; checkPreferenceMatch re-checks
 //     seats and the eligibility flag here, so this view is never a way around
 //     them
-//   - the destination anchor: a candidate is kept only if its destination is
-//     within config.destinationAnchorMeters of the searcher's destination, so
-//     "show all" means "all trips going where you're going," not every trip.
+//   - the destination anchor: a candidate is kept only if it goes where the
+//     searcher is going: its destination is within
+//     config.destinationAnchorMeters of theirs, or its route passes their
+//     destination after their pickup (a rider getting off on the way, demo
+//     feedback). "Show all" means "all trips going your way," not every trip.
 //
 // routeOverlap / scheduleAlignment are still computed for display and ranking.
 function runShowAllFallback(passengerRequest, candidateTrips, config) {
@@ -172,8 +207,8 @@ function runShowAllFallback(passengerRequest, candidateTrips, config) {
 
   const kept = candidateTrips.filter((trip) => {
     if (!trip.destination) return false;
-    const destGap = haversineMeters(passengerRequest.destination, trip.destination);
-    if (destGap > destinationAnchorMeters) return false;
+    const endsThere = haversineMeters(passengerRequest.destination, trip.destination) <= destinationAnchorMeters;
+    if (!endsThere && !passesDropoffAfterPickup(passengerRequest, trip.waypoints, corridorMeters)) return false;
     // Hard safety gate — seats and rider eligibility.
     return checkPreferenceMatch(passengerRequest, trip);
   });
