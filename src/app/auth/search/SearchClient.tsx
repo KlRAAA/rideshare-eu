@@ -19,6 +19,7 @@ import Skeleton from '@/components/Skeleton';
 import { apiFetch } from '@/lib/api';
 import { formatTime, phTimeToUtcMinutes, getPhTodayDateString, getPhNowTimeString } from '@/lib/format';
 import { tripRoute, tripWhen } from '@/lib/tripLine';
+import { placeName } from '@/lib/places';
 import { useCurrentLocationAddress } from '@/lib/useCurrentLocationAddress';
 import { useGeocodedAddress } from '@/lib/useGeocodedAddress';
 import AddressInput from '@/components/AddressInput';
@@ -249,7 +250,8 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
   useEffect(() => {
     if (didAutoSearch.current) return;
     didAutoSearch.current = true;
-    if (initial.origin && initial.destination && initial.date && initial.time) {
+    // The URL leaves out the default destination (campus), so a missing one means campus.
+    if (initial.origin && initial.date && initial.time) {
       runSearch();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -550,7 +552,7 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
           onClick={() => setMobileFiltersOpen(true)}
           className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl shadow-sm"
         >
-          <span className="text-sm text-gray-500">{origin ? `${origin} → ${destination}` : 'Search'}</span>
+          <span className="min-w-0 truncate text-sm text-gray-600">{origin ? `${placeName(origin)} → ${placeName(destination)}` : 'Search'}</span>
           <FaSlidersH className="w-4 h-4 text-gray-400" />
         </button>
 
