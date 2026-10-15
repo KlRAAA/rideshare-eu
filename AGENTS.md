@@ -898,3 +898,21 @@ Rules for app screens:
   trips; recurring ratings go through occurrence prompts.
 - Postman folder "8. Completion and rating" cancels the main trip, drives a
   short trip (start, end) to rate, and covers stop-repeating.
+
+## One ride at a time for riders (Oct 2026)
+
+- A rider may have several PENDING requests at the same time (asking 2–3
+  drivers is allowed). Approving one (`PATCH /api/matches/:id`) withdraws,
+  in the same transaction, the rider's other PENDING requests whose trips
+  overlap it (`overlaps` from `scheduleRules.js`; other days and times are
+  left alone): status CANCELLED with `respondedAt` null, so the watch list
+  doesn't count them. Each driver gets a quiet `TRIP_UPDATED` note ("… found
+  another ride at that time and withdrew their request …"); the rider's
+  approval message adds "Your other N requests at that time were withdrawn."
+- Approving a rider who already has an APPROVED overlapping ride → 409
+  `RIDER_ALREADY_BOOKED` (with a readable `message`) and that request is
+  withdrawn. The approval locks the rider's `User` row (`SELECT … FOR
+  UPDATE`), so two drivers approving at once can't both win.
+- Code: `server/services/rideOverlapService.js`; tests
+  `server/__tests__/rideOverlap.test.js` (including the race). Not in Postman:
+  it needs two licensed drivers at the same time, and the Postman set has one.

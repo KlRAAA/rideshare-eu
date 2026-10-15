@@ -227,6 +227,8 @@ export default function TripDetailClient({
         matchId,
         message: err instanceof ApiError ? err.message : 'Couldn’t update that request. Try again in a moment.',
       });
+      // The rider took another ride at that time; their request is gone now.
+      if (err instanceof ApiError && err.code === 'RIDER_ALREADY_BOOKED') router.refresh();
     } finally {
       setBusyMatchId(null);
     }

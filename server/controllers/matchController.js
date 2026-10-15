@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const { setSharing, setPickedUp } = require('../services/riderLocationService');
 const { conflictWithHosted, conflictBody } = require('../services/scheduleConflicts');
+const { lockRider, sameTimeRequests, withdrawSameTime } = require('../services/rideOverlapService');
 const { runPSGA, runShowAllFallback, computeRouteOverlapDetail, tripRunsOnSearchDate } = require('../services/psgaService');
 const { settleTrips, phDay } = require('../services/tripDayService');
 const psgaConfig = require('../config/psgaConfig');
@@ -375,6 +376,7 @@ async function updateStatus(req, res) {
 
   let match;
   let autoDeclinedMatches = []; // [{ id, passengerId }] — only set when this approval fills the last seat
+  let withdrawn = []; // the rider's other requests at that time, withdrawn by this approval
   if (status === 'DECLINED') {
     const declinedRaw = await prisma.match.update({
       where: { id },
@@ -398,6 +400,14 @@ async function updateStatus(req, res) {
     // trip can never end up with an approved match the seat count didn't
     // actually have room for.
     const result = await prisma.$transaction(async (tx) => {
+      // One ride per rider at a time: already approved for an overlapping
+      // trip (by another driver, maybe a moment ago) → this request lapses.
+      await lockRider(tx, existing.passengerId);
+      if ((await sameTimeRequests(tx, existing.passengerId, existing.trip, 'APPROVED')).length > 0) {
+        await tx.match.update({ where: { id }, data: { status: 'CANCELLED' } });
+        return { ok: false, booked: true };
+      }
+
       const seatUpdate = await tx.trip.updateMany({
         where: { id: existing.tripId, status: { not: 'FULL' }, filledSeats: { lt: existing.trip.totalSeats } },
         data: { filledSeats: { increment: 1 } },
@@ -439,9 +449,16 @@ async function updateStatus(req, res) {
         data: { status: 'APPROVED', respondedAt: new Date() },
         include: { trip: true, passenger: { select: safeUserSelect } },
       });
-      return { ok: true, match: approvedMatch, declinedOthers };
+      const withdrawnOthers = await withdrawSameTime(tx, existing.passengerId, existing.trip);
+      return { ok: true, match: approvedMatch, declinedOthers, withdrawnOthers };
     });
 
+    if (result.booked) {
+      return res.status(409).json({
+        error: 'RIDER_ALREADY_BOOKED',
+        message: 'This rider already has a ride at that time, so their request was withdrawn.',
+      });
+    }
     if (!result.ok) {
       // The trip was already full before this call — whichever earlier
       // approval actually claimed the last seat already auto-declined every
@@ -455,6 +472,7 @@ async function updateStatus(req, res) {
       passenger: decryptUserFields(result.match.passenger),
     };
     autoDeclinedMatches = result.declinedOthers;
+    withdrawn = result.withdrawnOthers;
   }
 
   await prisma.notification.create({
@@ -463,7 +481,7 @@ async function updateStatus(req, res) {
       type: 'APPROVAL',
       message:
         status === 'APPROVED'
-          ? `Your request to join the trip to ${match.trip.destinationAddress} has been approved.`
+          ? `Your request to join the trip to ${match.trip.destinationAddress} has been approved.${withdrawnNote(withdrawn.length)}`
           : `Your request to join the trip to ${match.trip.destinationAddress} was declined.`,
       relatedMatchId: match.id,
       relatedTripId: match.tripId,
@@ -487,7 +505,25 @@ async function updateStatus(req, res) {
     });
   }
 
+  // Each driver whose request was withdrawn hears it quietly (no push).
+  if (withdrawn.length > 0) {
+    await prisma.notification.createMany({
+      data: withdrawn.map((m) => ({
+        userId: m.trip.hostId,
+        type: 'TRIP_UPDATED',
+        message: `${match.passenger.fullName} found another ride at that time and withdrew their request to join your trip to ${decryptTripFields(m.trip).destinationAddress}.`,
+        relatedMatchId: m.id,
+        relatedTripId: m.trip.id,
+      })),
+    });
+  }
+
   res.json({ match });
+}
+
+function withdrawnNote(count) {
+  if (count === 0) return '';
+  return count === 1 ? ' Your other request at that time was withdrawn.' : ` Your other ${count} requests at that time were withdrawn.`;
 }
 
 // Feeds the RouteMap's overlap layer on the pre-join Ride Details page. Returns
