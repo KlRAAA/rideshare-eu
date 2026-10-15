@@ -9,7 +9,7 @@ const { suggestAddresses } = require('../services/addressSuggestService');
 const { validateClientRoute } = require('../services/routeSanity');
 const { computeFuelSharePerSeat } = require('../services/fuelShareService');
 const { classifyTripChanges, describeCategories, fuelShareWouldChange } = require('../services/tripUpdateService');
-const { completeTrip } = require('../services/tripCompletionService');
+const { stopRepeatingTrip } = require('../services/tripCompletionService');
 const { settleTrips } = require('../services/tripDayService');
 const { licenseState } = require('../services/licenseService');
 const { upcomingDays, DAY_MS } = require('../services/tripDayRules');
@@ -362,9 +362,7 @@ async function getById(req, res) {
   res.json({ trip });
 }
 
-// Host-only manual override — same underlying completeTrip() as End Trip, so
-// both trigger identical downstream effects (approved matches complete,
-// pending ones decline, both sides get rating prompts).
+// Host only: the same as End Trip, so it works only while a run is ongoing.
 async function markCompleted(req, res) {
   const { id } = req.params;
   const userId = req.user.id;
@@ -376,15 +374,23 @@ async function markCompleted(req, res) {
     return res.status(409).json({ error: 'TRIP_NOT_ACTIVE' });
   }
 
-  // While a run is on the road, completing it means ending that run.
+  // A trip is completed by ending its run, never on its own: a trip nobody
+  // started would hand riders rating prompts for a ride that never happened.
   const run = await ongoingRun(id);
-  if (run) {
-    await finishRun(run, 'DRIVER');
-    return res.json({ trip: await prisma.trip.findUnique({ where: { id } }) });
-  }
+  if (!run) return res.status(409).json({ error: 'NO_ONGOING_RUN' });
+  await finishRun(run, 'DRIVER');
+  res.json({ trip: await prisma.trip.findUnique({ where: { id } }) });
+}
 
-  const { trip: updated } = await completeTrip(id);
-  res.json({ trip: updated });
+// Ends a repeating trip for good (the semester is over); see stopRepeatingTrip.
+async function stopRepeating(req, res) {
+  const trip = await prisma.trip.findUnique({ where: { id: req.params.id }, include: { matches: true } });
+  if (!trip) return res.status(404).json({ error: 'TRIP_NOT_FOUND' });
+  if (trip.hostId !== req.user.id) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
+  if (trip.recurrenceType === 'ONE_TIME') return res.status(409).json({ error: 'ONE_TIME_TRIP' });
+  if (trip.status !== 'OPEN' && trip.status !== 'FULL') return res.status(409).json({ error: 'TRIP_NOT_ACTIVE' });
+  if (await ongoingRun(trip.id)) return res.status(409).json({ error: 'TRIP_IN_PROGRESS' });
+  res.json({ trip: await stopRepeatingTrip(trip) });
 }
 
 // Forward (?q=) or reverse (?lat=&lng=) — same endpoint, dispatched on which
@@ -675,4 +681,4 @@ async function updateTrip(req, res) {
   res.json({ trip: decryptTripFields(updated), notified: notifyMatches.length });
 }
 
-module.exports = { createTrip, listMine, getById, geocode, suggestAddress, cancelTrip, markCompleted, updateTrip };
+module.exports = { createTrip, listMine, getById, geocode, suggestAddress, cancelTrip, markCompleted, stopRepeating, updateTrip };

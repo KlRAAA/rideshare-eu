@@ -302,15 +302,15 @@ describe('PATCH /api/trips/:id (edit) — ownership', () => {
 });
 
 describe('POST /api/trips/:id/complete — ownership', () => {
-  test('a non-host → 403; the host → 200', async () => {
+  test('a non-host → 403; the host → 409 while the trip is not running', async () => {
     if (guard()) return;
     const created = await (await json('POST', '/api/trips', host.id, tripBody())).json();
     const id = created.trip.id;
 
     expect((await json('POST', `/api/trips/${id}/complete`, other.id, {})).status).toBe(403);
-    expect((await json('POST', `/api/trips/${id}/complete`, host.id, {})).status).toBe(200);
+    expect((await json('POST', `/api/trips/${id}/complete`, host.id, {})).status).toBe(409);
     const fresh = await prisma.trip.findUnique({ where: { id } });
-    expect(fresh.status).toBe('COMPLETED');
+    expect(fresh.status).toBe('OPEN');
   });
 });
 

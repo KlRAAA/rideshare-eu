@@ -5,9 +5,8 @@ function utcDateOnly(date) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
-// Shared by End Trip (via tripRunService.finishRun) and the host's manual
-// "Mark as Completed" button, so a trip completed either way gets the exact
-// same downstream effects: approved matches complete, still-open
+// Used by End Trip (via tripRunService.finishRun), so a completed trip gets
+// these downstream effects: approved matches complete, still-open
 // requests get declined (a join request never approved before the trip
 // already happened can't retroactively become valid), and both sides get a
 // RATING_PROMPT notification.
@@ -158,8 +157,36 @@ async function completeRecurringOccurrence(tripOrId, occurrenceDate) {
   return { trip, pendingDeclinedIds: pendingMatches.map((m) => m.id) };
 }
 
+const REPEAT_LABEL = { DAILY: 'daily', WEEKDAYS: 'weekday', CUSTOM: 'repeating' };
+
+// The driver is done with a repeating trip (the semester ended): it closes
+// without rating prompts, because every day actually driven was already
+// rated through its own run. Approved riders are told, pending requests are
+// closed. Not a cancellation, so it doesn't count against the driver on the
+// admin watch list. `tripRaw` is a trip row with `matches` included.
+async function stopRepeatingTrip(tripRaw) {
+  const trip = decryptTripFields(tripRaw);
+  const label = REPEAT_LABEL[trip.recurrenceType] ?? 'repeating';
+  const approved = trip.matches.filter((m) => m.status === 'APPROVED');
+  const pending = trip.matches.filter((m) => m.status === 'PENDING');
+  const note = (m, type, message) => ({ userId: m.passengerId, type, message, relatedMatchId: m.id, relatedTripId: trip.id });
+  const [updated] = await prisma.$transaction([
+    prisma.trip.update({ where: { id: trip.id }, data: { status: 'COMPLETED' } }),
+    prisma.match.updateMany({ where: { id: { in: approved.map((m) => m.id) } }, data: { status: 'COMPLETED' } }),
+    prisma.match.updateMany({ where: { id: { in: pending.map((m) => m.id) } }, data: { status: 'DECLINED' } }),
+    prisma.notification.createMany({
+      data: [
+        ...approved.map((m) => note(m, 'CANCELLATION', `Your driver stopped the ${label} trip to ${trip.destinationAddress}. It won’t run again.`)),
+        ...pending.map((m) => note(m, 'APPROVAL', `Your driver stopped the ${label} trip to ${trip.destinationAddress}, so your request was closed.`)),
+      ],
+    }),
+  ]);
+  return updated;
+}
+
 module.exports = {
   completeTrip,
+  stopRepeatingTrip,
   utcDateOnly,
   completeRecurringOccurrence,
 };

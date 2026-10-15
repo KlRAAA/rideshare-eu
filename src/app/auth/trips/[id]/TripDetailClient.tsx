@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaFlag, FaBan, FaPen } from 'react-icons/fa';
+import { useAppDialog } from '@/components/AppDialog';
 import LiveRouteMap from '@/components/LiveRouteMap';
 import RatingModal from '@/components/RatingModal';
 import CancelTripModal from '@/components/CancelTripModal';
@@ -114,7 +115,9 @@ export default function TripDetailClient({
     null
   );
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [completing, setCompleting] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const [stopError, setStopError] = useState<string | null>(null);
+  const { confirm, dialog } = useAppDialog();
   const [reportTarget, setReportTarget] = useState<{ matchId: string; name: string } | null>(null);
 
   const isHost = trip.host.id === currentUserId;
@@ -123,7 +126,11 @@ export default function TripDetailClient({
   // The passenger can only rate the host off a match that actually completed —
   // not a declined/cancelled one they also have on this trip (a passenger can
   // re-request after a decline, so `myMatch` alone isn't enough).
-  const myCompletedMatch = trip.matches.find((m) => m.passengerId === currentUserId && m.status === 'COMPLETED') ?? null;
+  // One-time trips only: a stopped repeating trip's matches are COMPLETED too,
+  // but its days were rated one by one (myRatableRecurringMatch).
+  const oneTime = trip.recurrenceType === 'ONE_TIME';
+  const myCompletedMatch =
+    (oneTime && trip.matches.find((m) => m.passengerId === currentUserId && m.status === 'COMPLETED')) || null;
   // Recurring counterpart to myCompletedMatch — myMatch stays APPROVED across
   // occurrences, so "ratable" comes from the server-computed occurrence field
   // instead of a status transition.
@@ -225,13 +232,27 @@ export default function TripDetailClient({
     }
   }
 
-  async function markCompleted() {
-    setCompleting(true);
+  async function stopRepeating() {
+    const ok = await confirm({
+      title: 'Stop this repeating trip?',
+      message: 'It won’t run again. Your riders are told, and open requests are closed.',
+      confirmLabel: 'Stop repeating',
+      danger: true,
+    });
+    if (!ok) return;
+    setStopping(true);
+    setStopError(null);
     try {
-      await apiFetch(`/api/trips/${trip.id}/complete`, { method: 'POST' });
+      await apiFetch(`/api/trips/${trip.id}/stop-repeating`, { method: 'POST' });
       router.refresh();
+    } catch (err) {
+      setStopError(
+        err instanceof ApiError && err.code === 'TRIP_IN_PROGRESS'
+          ? 'End the trip in progress first.'
+          : 'Couldn’t stop the trip. Try again in a moment.'
+      );
     } finally {
-      setCompleting(false);
+      setStopping(false);
     }
   }
 
@@ -432,7 +453,7 @@ export default function TripDetailClient({
                       </>
                     );
                   }
-                  if (m.status === 'COMPLETED') {
+                  if (m.status === 'COMPLETED' && oneTime) {
                     return (
                       <>
                         <button
@@ -491,16 +512,17 @@ export default function TripDetailClient({
                 {isHost ? 'Cancel trip' : 'Cancel my spot'}
               </button>
             )}
-            {isHost && tripIsActive && !runOngoing && (
+            {isHost && tripIsActive && !runOngoing && !oneTime && (
               <button
                 type="button"
-                onClick={markCompleted}
-                disabled={completing}
+                onClick={stopRepeating}
+                disabled={stopping}
                 className="w-full py-1 text-center text-sm font-semibold text-gray-600 hover:underline disabled:opacity-60"
               >
-                {completing ? 'Marking completed…' : 'Mark as completed'}
+                {stopping ? 'Stopping…' : 'Stop repeating'}
               </button>
             )}
+            {stopError && <p role="alert" className="w-full text-center text-sm text-red-600">{stopError}</p>}
             {!isHost && myMatch && (
               <button
                 type="button"
@@ -515,6 +537,7 @@ export default function TripDetailClient({
         )}
       </div>
 
+      {dialog}
       {reportTarget && (
         <ReportModal
           reportedUserName={reportTarget.name}

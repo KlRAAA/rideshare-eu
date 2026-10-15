@@ -93,6 +93,7 @@ const SCHEMAS = {
   'trip.update': { ...TRIP_ROUTE, ...TRIP_SETTINGS, confirmStructural: 'boolean', vehicle: VEHICLE },
   'trip.cancel': { reason: 'string' },
   'trip.complete': NONE,
+  'trip.stopRepeating': NONE,
   'trip.start': NONE,
   'trip.end': NONE,
   'trip.arrived': NONE,

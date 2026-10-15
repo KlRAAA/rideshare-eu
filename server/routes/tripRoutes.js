@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createTrip, listMine, getById, cancelTrip, markCompleted, updateTrip } = require('../controllers/tripController');
+const { createTrip, listMine, getById, cancelTrip, markCompleted, stopRepeating, updateTrip } = require('../controllers/tripController');
 const { postMessage, listMessages } = require('../controllers/messageController');
 const { start, end, arrived, updateLocation, getLocation, confirm, skip, unskip, postRiderLocation, getRiderLocations } = require('../controllers/tripRunController');
 const { strictBody } = require('../middleware/strictBody');
@@ -11,6 +11,7 @@ router.get('/:id', getById);
 router.patch('/:id/cancel', strictBody('trip.cancel'), cancelTrip);
 router.patch('/:id', strictBody('trip.update'), updateTrip); // host-only edit
 router.post('/:id/complete', strictBody('trip.complete'), markCompleted);
+router.post('/:id/stop-repeating', strictBody('trip.stopRepeating'), stopRepeating); // host: end a repeating trip for good
 router.post('/:id/start', strictBody('trip.start'), start); // host: begin today's run
 router.post('/:id/end', strictBody('trip.end'), end); // host: end the ongoing run
 router.post('/:id/days/:date/confirm', strictBody('trip.dayConfirm'), confirm); // host: still driving that day

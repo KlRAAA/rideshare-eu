@@ -851,8 +851,26 @@ Rules for app screens:
   and the flexible window are rows in `TripSummaryCard` (the old maroon
   `FuelShareCard` claimed the share depends on occupancy; it doesn't);
   `TripDaysCard` shows the next day, the rest under "All N days"; Edit and
-  Cancel side by side, "Mark as completed" as a text button.
+  Cancel side by side, "Stop repeating" (repeating trips) as a text button.
 - The Home phone-notifications card appears only when there's something to
   tap (not when the browser blocks notifications; Profile explains that).
 - `space-y-*` doesn't space an `h1` (Tailwind v4 puts the margin on the
   child, and the base `h1` style wins); use `flex flex-col gap-*`.
+
+## Completing and stopping trips (Oct 2026)
+
+- A trip is completed only by ending a run (End Trip, arrived, auto end).
+  `POST /api/trips/:id/complete` ends the ongoing run and otherwise returns
+  409 `NO_ONGOING_RUN`; the "Mark as completed" button is gone, so riders
+  never get rating prompts for a ride that didn't happen.
+- `POST /api/trips/:id/stop-repeating` (host; repeating trips have no end
+  date): trip → COMPLETED, approved riders → COMPLETED with a `CANCELLATION`
+  notification ("Your driver stopped the weekday trip to …"), pending requests
+  → DECLINED (`APPROVAL`). No rating prompts (each driven day was rated through
+  its run), and it isn't a cancellation on the watch list. 409
+  `ONE_TIME_TRIP` / `TRIP_NOT_ACTIVE` / `TRIP_IN_PROGRESS`, 403, 404
+  (`stopRepeatingTrip` in `tripCompletionService.js`).
+- The trip page's Rate buttons for COMPLETED matches show only on one-time
+  trips; recurring ratings go through occurrence prompts.
+- Postman folder "8. Completion and rating" cancels the main trip, drives a
+  short trip (start, end) to rate, and covers stop-repeating.
