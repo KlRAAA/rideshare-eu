@@ -3,19 +3,15 @@
 import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FaFlag, FaSignOutAlt, FaSpinner, FaCompass, FaUserShield, FaLifeRing } from 'react-icons/fa';
-import Card from '@/components/Card';
-import Badge from '@/components/Badge';
+import { FaCamera, FaCheckCircle, FaChevronRight, FaSpinner } from 'react-icons/fa';
 import Select from '@/components/Select';
 import Avatar from '@/components/Avatar';
+import Tip from '@/components/Tip';
 import ReportHistoryModal from '@/components/ReportHistoryModal';
-import MyCarsCard from './MyCarsCard';
 import DeleteAccountPanel from './DeleteAccountPanel';
-import ModeSegmented from '@/components/ModeSegmented';
+import MyCarsCard from './MyCarsCard';
 import { useMode } from '@/components/ModeProvider';
-import { modeLabel } from '@/lib/modeNav';
 import { apiFetch, clearSessionCookie, API_BASE } from '@/lib/api';
-import { roleLabel } from '@/lib/format';
 import type { CurrentUser } from '@/lib/session';
 import { isWomenPlusEligible, TRIPS_I_SEE_OPTIONS, type GenderPreference } from '@/lib/riderRules';
 import GenderCard from './GenderCard';
@@ -36,13 +32,38 @@ export interface Preference {
 
 const FLEX_OPTIONS = [5, 15, 30, 60];
 
-export default function ProfileClient({ user, initialPreference }: { user: CurrentUser; initialPreference: Preference }) {
+// One bordered list per section, rows divided by a line (no card per setting).
+const ROWS = 'divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white';
+const ROW = 'px-4 py-3';
+const LINK_ROW = 'flex items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-gray-900 hover:bg-gray-50';
+const SELECT = 'rounded-xl border border-gray-300 bg-gray-50 py-2 pl-3 pr-9 text-sm disabled:text-gray-500';
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="px-1 text-base font-semibold text-gray-900">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+interface ProfileClientProps {
+  user: CurrentUser;
+  initialPreference: Preference;
+  // Server-rendered parts, placed by section: license status and the push card.
+  license: React.ReactNode;
+  notifications: React.ReactNode;
+}
+
+// Profile, grouped by what people come here to do. Passenger mode shows ride
+// preferences; Driver mode shows the license, cars and driving summary.
+export default function ProfileClient({ user, initialPreference, license, notifications }: ProfileClientProps) {
   const router = useRouter();
   const mode = useMode();
-  const [editing, setEditing] = useState(false);
+  const isDriver = mode === 'DRIVER';
   const [preference, setPreference] = useState(initialPreference);
+  const [prefStatus, setPrefStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const womenPlusEligible = isWomenPlusEligible(user.gender);
-  const [saving, setSaving] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [showReportHistory, setShowReportHistory] = useState(false);
 
@@ -92,18 +113,18 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
     }
   }
 
-  async function handleSave() {
-    setSaving(true);
+  // Each preference saves as soon as it changes; a failure puts it back.
+  async function savePreference(change: Partial<Preference>) {
+    const before = preference;
+    const next = { ...preference, ...change };
+    setPreference(next);
+    setPrefStatus('saving');
     try {
-      await apiFetch(`/api/preferences/${user.id}`, { method: 'PATCH', body: JSON.stringify({
-          genderPreference: preference.genderPreference,
-          flexWindowMinutes: preference.flexWindowMinutes,
-          familiarRidersOnly: preference.familiarRidersOnly,
-        }),
-      });
-      setEditing(false);
-    } finally {
-      setSaving(false);
+      await apiFetch(`/api/preferences/${user.id}`, { method: 'PATCH', body: JSON.stringify(next) });
+      setPrefStatus('saved');
+    } catch {
+      setPreference(before);
+      setPrefStatus('error');
     }
   }
 
@@ -113,92 +134,58 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
     router.push('/login');
   }
 
+  const photo = avatarPreview ?? avatarUrl;
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="space-y-4">
-        <Card className="text-center">
-          <div className="relative w-16 h-16 mx-auto mb-3">
-            <Avatar
-              name={user.fullName}
-              src={avatarPreview ?? avatarUrl}
-              sizeClass="w-16 h-16"
-              textClass="text-xl"
-            />
-            {avatarUploading && (
-              <div className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center">
-                <FaSpinner className="w-4 h-4 text-white animate-spin" />
-              </div>
+    <div className="flex max-w-2xl flex-col gap-6">
+      <header className="flex items-center gap-4">
+        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarSelect} />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={avatarUploading}
+          aria-label={photo ? 'Change profile photo' : 'Add a profile photo'}
+          className="relative h-16 w-16 shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--rsu-color-primary)]"
+        >
+          <Avatar name={user.fullName} src={photo} sizeClass="w-16 h-16" textClass="text-xl" />
+          <span className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-[color:var(--rsu-color-primary)] text-white">
+            {avatarUploading ? <FaSpinner className="h-3 w-3 animate-spin" aria-hidden /> : <FaCamera className="h-3 w-3" aria-hidden />}
+          </span>
+        </button>
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-xl font-bold text-gray-900">
+            <span className="truncate">{user.fullName}</span>
+            {user.verified && (
+              <Tip label="Verified university member" iconOnly>
+                <FaCheckCircle className="h-4 w-4 text-[color:var(--rsu-color-primary)]" aria-hidden />
+              </Tip>
             )}
-          </div>
-          <h2 className="text-lg font-bold text-gray-900">{user.fullName}</h2>
-          <div className="flex justify-center mt-1">
-            <Badge tone="neutral">{roleLabel(user.role)}</Badge>
-          </div>
-          <p className="text-xs text-gray-500 mt-2">{user.email}</p>
-          <p className="text-sm font-semibold text-gray-800 mt-3">
-            ★ {user.trustScore.toFixed(1)} <span className="text-gray-400 font-normal">/5.0</span>
           </p>
+          <p className="text-sm text-gray-600">
+            ★ {user.trustScore.toFixed(1)} · {isDriver ? `${user.tripsHosted} trips driven` : `${user.tripsJoined} rides`}
+          </p>
+          <p className="truncate text-xs text-gray-500">{user.email}</p>
+        </div>
+      </header>
+      {avatarError && (
+        <p role="alert" className="-mt-4 text-sm text-red-600">
+          {avatarError}
+        </p>
+      )}
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={handleAvatarSelect}
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={avatarUploading}
-            className="rsu-btn-secondary w-full mt-4 disabled:opacity-60"
-          >
-            {avatarUploading ? 'Uploading…' : avatarUrl ? 'Change Profile Photo' : 'Add Profile Photo'}
-          </button>
-          {avatarError && <p className="text-xs text-red-600 mt-2">{avatarError}</p>}
-          <p className="text-[11px] text-gray-400 mt-1">JPEG, PNG or WebP · up to 5 MB</p>
-        </Card>
-
-        <Card>
-          <h3 className="text-sm font-bold text-gray-900 mb-3">Activity Summary</h3>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Trips Hosted</span>
-            <span className="font-semibold text-gray-900">{user.tripsHosted}</span>
-          </div>
-          <div className="flex justify-between text-sm mt-2">
-            <span className="text-gray-500">Trips Joined</span>
-            <span className="font-semibold text-gray-900">{user.tripsJoined}</span>
-          </div>
-          {user.verified && (
-            <div className="mt-3 pt-3 border-t border-gray-100">
-              <Badge tone="success">Verified University Member</Badge>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      <div className="space-y-4">
-        <GenderCard initialGender={user.gender ?? 'PREFER_NOT_TO_SAY'} />
-        <Card>
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-bold text-gray-900">Matching Preferences</h3>
-            {!editing && (
-              <button type="button" onClick={() => setEditing(true)} className="text-xs font-semibold text-[color:var(--rsu-color-primary)]">
-                Edit
-              </button>
-            )}
-          </div>
-          <p className="text-xs text-gray-500 mb-4">Set your default preferences for finding and posting rides</p>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                Trips I See
+      {!isDriver && (
+        <Section title="Ride preferences">
+          <div className={ROWS}>
+            <div className={`${ROW} flex items-center justify-between gap-3`}>
+              <label htmlFor="pref-trips" className="text-sm text-gray-800">
+                Trips I see
               </label>
               <Select
-                disabled={!editing || !womenPlusEligible}
+                id="pref-trips"
+                disabled={!womenPlusEligible}
                 value={preference.genderPreference}
-                onChange={(e) => setPreference((p) => ({ ...p, genderPreference: e.target.value as GenderPreference }))}
-                className="w-full pl-3 pr-9 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm disabled:text-gray-500"
+                onChange={(e) => savePreference({ genderPreference: e.target.value as GenderPreference })}
+                className={SELECT}
               >
                 {TRIPS_I_SEE_OPTIONS.filter((o) => womenPlusEligible || o.value === 'ANY').map((o) => (
                   <option key={o.value} value={o.value}>
@@ -206,170 +193,122 @@ export default function ProfileClient({ user, initialPreference }: { user: Curre
                   </option>
                 ))}
               </Select>
-              <p className="text-[11px] text-gray-400 mt-1">
-                {womenPlusEligible
-                  ? 'Your default filter on Find a Ride'
-                  : 'Women+ trips are for women and non-binary riders. Choose a gender above to use them.'}
-              </p>
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                Departure Time Flexibility
+            <div className={`${ROW} flex items-center justify-between gap-3`}>
+              <label htmlFor="pref-flex" className="text-sm text-gray-800">
+                Time flexibility
               </label>
               <Select
-                disabled={!editing}
+                id="pref-flex"
                 value={preference.flexWindowMinutes}
-                onChange={(e) => setPreference((p) => ({ ...p, flexWindowMinutes: Number(e.target.value) }))}
-                className="w-full pl-3 pr-9 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm disabled:text-gray-500"
+                onChange={(e) => savePreference({ flexWindowMinutes: Number(e.target.value) })}
+                className={SELECT}
               >
                 {FLEX_OPTIONS.map((n) => (
                   <option key={n} value={n}>
-                    ±{n} minutes
+                    ±{n} min
                   </option>
                 ))}
               </Select>
-              <p className="text-[11px] text-gray-400 mt-1">How flexible you are with departure times</p>
             </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-800">Familiar Riders Only</p>
-                <p className="text-xs text-gray-500">Only match with people you've ridden with before</p>
-              </div>
+            <label className={`${ROW} flex items-center justify-between gap-3`}>
+              <span className="text-sm text-gray-800">Only riders I’ve ridden with</span>
               <input
                 type="checkbox"
-                disabled={!editing}
                 checked={preference.familiarRidersOnly}
-                onChange={(e) => setPreference((p) => ({ ...p, familiarRidersOnly: e.target.checked }))}
-                className="w-5 h-5 accent-[color:var(--rsu-color-primary)]"
+                onChange={(e) => savePreference({ familiarRidersOnly: e.target.checked })}
+                className="h-5 w-5 accent-[color:var(--rsu-color-primary)]"
               />
-            </div>
-
+            </label>
           </div>
+          <p className="px-1 text-xs text-gray-500" aria-live="polite">
+            {prefStatus === 'saving'
+              ? 'Saving…'
+              : prefStatus === 'saved'
+                ? 'Saved. Find a Ride starts from these.'
+                : prefStatus === 'error'
+                  ? 'Couldn’t save that. Try again.'
+                  : womenPlusEligible
+                    ? 'Find a Ride starts from these.'
+                    : 'Women+ trips are for women and non-binary riders.'}
+          </p>
+        </Section>
+      )}
 
-          {editing && (
-            <div className="flex gap-2 mt-4">
-              <button type="button" onClick={handleSave} disabled={saving} className="rsu-btn-primary flex-1 disabled:opacity-60">
-                {saving ? 'Saving...' : 'Save Preferences'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPreference(initialPreference);
-                  setEditing(false);
-                }}
-                className="rsu-btn-secondary flex-1"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-        </Card>
-
-        <Card>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-bold text-gray-900">Mode</h3>
-              <p className="text-xs text-gray-500">
-                You’re in {modeLabel(mode)} mode. {mode === 'DRIVER' ? 'Switch to find rides.' : 'Switch to post trips and drive.'}
-              </p>
-            </div>
-            <ModeSegmented className="w-full sm:w-72" />
-          </div>
-        </Card>
-
-        <Card>
-          <h3 className="text-sm font-bold text-gray-900 mb-1">Account Settings</h3>
-          <p className="text-xs text-gray-500 mb-4">Manage your account information</p>
-
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Display Name</label>
-              <input
-                type="text"
-                readOnly
-                value={user.fullName}
-                className="w-full px-3 py-2.5 bg-gray-100 border border-gray-300 rounded-xl text-sm text-gray-600"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">University ID</label>
-              <input
-                type="text"
-                readOnly
-                value={user.universityId}
-                className="w-full px-3 py-2.5 bg-gray-100 border border-gray-300 rounded-xl text-sm text-gray-600"
-              />
-              <p className="text-[11px] text-gray-400 mt-1">Contact admin to update verified credentials</p>
-            </div>
-            <button
-              type="button"
-              // Re-runs the tour client-side via OnboardingTour's ?tour=1
-              // check on the dashboard — the DB's hasSeenOnboarding flag is
-              // left untouched, so this is a manual replay, not a reset of
-              // "don't auto-show again."
-              onClick={() => router.push('/auth/dashboard?tour=1')}
-              className="flex items-center gap-2 text-sm font-semibold text-[color:var(--rsu-color-primary)] hover:underline"
-            >
-              <FaCompass className="w-4 h-4" />
-              Show tutorial again
-            </button>
-          </div>
-        </Card>
-
-        <MyCarsCard />
-
-        {user.isAdmin && (
-          <Card>
-            <h3 className="text-sm font-bold text-gray-900 mb-1">Administration</h3>
-            <Link
-              href="/auth/admin"
-              className="flex items-center gap-2 text-sm font-semibold text-[color:var(--rsu-color-primary)] hover:underline mt-2"
-            >
-              <FaUserShield className="w-4 h-4" />
-              Open admin console
+      {isDriver && (
+        <Section title="Driving">
+          {license}
+          <MyCarsCard />
+          <div className={ROWS}>
+            <Link href="/auth/driver" className={LINK_ROW}>
+              My driving: rides and fuel share
+              <FaChevronRight className="h-3 w-3 text-gray-400" aria-hidden />
             </Link>
-            <p className="text-[11px] text-gray-400 mt-1">Reports, bans, users, trips and the official fuel price</p>
-          </Card>
-        )}
+          </div>
+        </Section>
+      )}
 
-        <Card>
-          <h3 className="text-sm font-bold text-gray-900 mb-1">Help &amp; support</h3>
-          <Link
-            href="/help"
-            className="flex items-center gap-2 text-sm font-semibold text-[color:var(--rsu-color-primary)] hover:underline mt-2"
-          >
-            <FaLifeRing className="w-3.5 h-3.5" />
-            Get help or contact an admin
+      <Section title="Notifications">{notifications}</Section>
+
+      <Section title="Account">
+        <div className={ROWS}>
+          <div className={`${ROW} flex items-center justify-between gap-3 text-sm`}>
+            <span className="text-gray-600">Name</span>
+            <span className="truncate font-medium text-gray-900">{user.fullName}</span>
+          </div>
+          <div className={`${ROW} flex items-center justify-between gap-3 text-sm`}>
+            <span className="text-gray-600">University ID</span>
+            <span className="font-medium tabular-nums text-gray-900">{user.universityId}</span>
+          </div>
+          <div className={ROW}>
+            <GenderCard initialGender={user.gender ?? 'PREFER_NOT_TO_SAY'} />
+          </div>
+          {/* Replays the tour via the dashboard's ?tour=1 check; hasSeenOnboarding is left as is. */}
+          <button type="button" onClick={() => router.push('/auth/dashboard?tour=1')} className={`${LINK_ROW} w-full text-left`}>
+            Show the tour again
+            <FaChevronRight className="h-3 w-3 text-gray-400" aria-hidden />
+          </button>
+          {user.isAdmin && (
+            <Link href="/auth/admin" className={LINK_ROW}>
+              Admin console
+              <FaChevronRight className="h-3 w-3 text-gray-400" aria-hidden />
+            </Link>
+          )}
+        </div>
+        <p className="px-1 text-xs text-gray-500">Your name and ID come from the school. Ask an admin to correct them.</p>
+      </Section>
+
+      <Section title="Help and safety">
+        <div className={ROWS}>
+          <Link href="/help" className={LINK_ROW}>
+            Help, emergency numbers and admins
+            <FaChevronRight className="h-3 w-3 text-gray-400" aria-hidden />
           </Link>
-          <p className="text-[11px] text-gray-400 mt-1">Emergency numbers, reporting, and your requests to the admins</p>
-        </Card>
-
-        <Card>
-          <h3 className="text-sm font-bold text-gray-900 mb-1">Privacy &amp; Safety</h3>
+          <button type="button" onClick={() => setShowReportHistory(true)} className={`${LINK_ROW} w-full text-left`}>
+            Reports you’ve made
+            <FaChevronRight className="h-3 w-3 text-gray-400" aria-hidden />
+          </button>
+          <div className={`${ROW} flex gap-4 text-sm`}>
+            <Link href="/privacy" className="font-medium text-gray-700 hover:underline">
+              Privacy policy
+            </Link>
+            <Link href="/terms" className="font-medium text-gray-700 hover:underline">
+              Terms of use
+            </Link>
+          </div>
+          <div className="px-4">
+            <DeleteAccountPanel />
+          </div>
           <button
             type="button"
-            onClick={() => setShowReportHistory(true)}
-            className="flex items-center gap-2 text-sm font-semibold text-[color:var(--rsu-color-primary)] hover:underline mt-2"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
           >
-            <FaFlag className="w-3.5 h-3.5" />
-            View Report History
+            {loggingOut ? 'Logging out…' : 'Log out'}
           </button>
-          <p className="text-[11px] text-gray-400 mt-1">See reports you've submitted (privacy protected)</p>
-          <DeleteAccountPanel />
-        </Card>
-
-        <button
-          type="button"
-          onClick={handleLogout}
-          disabled={loggingOut}
-          className="flex items-center justify-center gap-2 w-full py-3 border border-red-200 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 disabled:opacity-60"
-        >
-          <FaSignOutAlt className="w-4 h-4" />
-          {loggingOut ? 'Logging out...' : 'Log Out'}
-        </button>
-      </div>
+        </div>
+      </Section>
 
       {showReportHistory && <ReportHistoryModal onClose={() => setShowReportHistory(false)} />}
     </div>

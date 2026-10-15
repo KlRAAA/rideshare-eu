@@ -855,7 +855,28 @@ Rules for app screens:
 - The Home phone-notifications card appears only when there's something to
   tap (not when the browser blocks notifications; Profile explains that).
 - `space-y-*` doesn't space an `h1` (Tailwind v4 puts the margin on the
-  child, and the base `h1` style wins); use `flex flex-col gap-*`.
+  child, and the base `h1` style wins); use `flex flex-col gap-*`, or put
+  the margin on a wrapper `div`.
+- Second pass (critique of every main screen, both modes):
+  - Trips in lists use `TripRow` / `TRIP_LIST` (`src/components/TripRow.tsx`)
+    and the wording in `src/lib/tripLine.ts` (`tripRoute`, `tripWhen`,
+    `seatsLeft`): Home, My Trips/My Rides (rows, no cards; Cancel lives on
+    the trip page; badges only for In progress, Full, Waiting, Declined;
+    rating prompts as "Rate Maria" under the row, one-time trips only for
+    COMPLETED matches) and Find a Ride (time first; "You're on this ride" /
+    "Requested" from the rider's own rides, passed in by the page).
+  - Driver Home names the next trip day and, while riders wait, shows
+    "Not confirmed" with `ConfirmDayButton` (the trip-day confirm route).
+  - Post a Trip: one column; Route (with the map and meeting point under
+    it, so a phone shows them before Publish), When (4-way "Repeats"),
+    Car and seats, Who can join. Sentence-case labels, no subtitles.
+  - Profile: identity header (tap the photo to change it), then sections
+    of divided rows: Ride preferences (Passenger mode; each saves on
+    change), Driving (Driver mode: license, cars, My driving),
+    Notifications, Account, Help and safety. No mode switch (Home has it).
+  - Fuel share shows two decimals everywhere. A no-show noticed on a later
+    day (after downtime) names the day instead of "today". Icon-only
+    tooltips (`<Tip iconOnly>`) use the label as the name, read once.
 
 ## Completing and stopping trips (Oct 2026)
 

@@ -38,7 +38,7 @@ export default function DeleteAccountPanel() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 text-sm font-semibold text-red-600 hover:underline mt-3"
+        className="flex items-center gap-2 py-3 text-sm font-semibold text-red-600 hover:underline"
       >
         <FaTrashAlt className="w-3.5 h-3.5" />
         Delete account
@@ -47,7 +47,7 @@ export default function DeleteAccountPanel() {
   }
 
   return (
-    <form onSubmit={confirmDelete} className="mt-3 rounded-xl border border-red-200 p-3 space-y-2">
+    <form onSubmit={confirmDelete} className="my-3 rounded-xl border border-red-200 p-3 space-y-2">
       <p className="text-sm font-semibold text-gray-900">Delete your account?</p>
       <ul className="text-xs text-gray-600 list-disc pl-4 space-y-0.5">
         <li>Your name, email, university ID, photo, saved cars, preferences, notifications and chat messages are erased.</li>
@@ -55,7 +55,7 @@ export default function DeleteAccountPanel() {
         <li>Past trips and ratings stay in other people&apos;s history as &quot;Deleted user&quot;, and safety reports are kept.</li>
         <li>This can&apos;t be undone. You can register again later with the same school email.</li>
       </ul>
-      <label htmlFor="delete-account-password" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+      <label htmlFor="delete-account-password" className="block text-sm font-medium text-gray-700">
         Your password
       </label>
       <input

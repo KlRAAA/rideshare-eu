@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Card from '@/components/Card';
 import Select from '@/components/Select';
 import { apiFetch, ApiError } from '@/lib/api';
 import { GENDER_HELP, GENDER_OPTIONS, genderChangeMessage, type Gender } from '@/lib/riderRules';
@@ -38,11 +37,11 @@ export default function GenderCard({ initialGender }: { initialGender: Gender })
   const changed = gender !== initialGender;
 
   return (
-    <Card>
-      <label htmlFor="profile-gender" className="block text-sm font-bold text-gray-900 mb-1">
+    <div>
+      <label htmlFor="profile-gender" className="mb-1 block text-sm font-medium text-gray-900">
         Gender
       </label>
-      <p className="text-xs text-gray-500 mb-3">{GENDER_HELP}</p>
+      <p className="mb-2 text-xs text-gray-500">{GENDER_HELP}</p>
       <Select
         id="profile-gender"
         value={gender}
@@ -82,6 +81,6 @@ export default function GenderCard({ initialGender }: { initialGender: Gender })
       {message && (
         <p className={`text-xs mt-2 ${message.tone === 'error' ? 'text-red-600' : 'text-green-700'}`}>{message.text}</p>
       )}
-    </Card>
+    </div>
   );
 }

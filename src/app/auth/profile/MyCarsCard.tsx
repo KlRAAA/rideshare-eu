@@ -105,7 +105,7 @@ export default function MyCarsCard() {
   return (
     <Card>
       <h3 className="text-sm font-bold text-gray-900 mb-1">My cars</h3>
-      <p className="text-[11px] text-gray-400">Your default car is pre-selected when you post a trip.</p>
+      <p className="text-xs text-gray-500">The default one is picked for you when you post a trip.</p>
 
       {cars === null ? (
         <div className="h-12 mt-3 rounded-xl bg-gray-100 animate-pulse" aria-label="Loading your cars" />

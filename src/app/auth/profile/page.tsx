@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import React from 'react';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
@@ -17,36 +16,27 @@ export default async function ProfilePage() {
     apiFetch<{ preference: Preference }>(`/api/preferences/${user.id}`),
     apiFetch<MyLicense>('/api/users/me/license'),
   ]);
+  const licenseLabel = license.verified
+    ? 'Manage your license'
+    : license.license?.status === 'PENDING'
+      ? 'View your license'
+      : 'Upload your license';
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <Header active="profile" />
       <main className="app-desktop w-full pt-2 md:pt-4">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Profile &amp; Preferences</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage your account and ride preferences</p>
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
         </div>
         {/* Remounts after a gender change, which can reset the Women+ preference. */}
-        <ProfileClient key={user.gender} user={user} initialPreference={preference} />
-        <div className="mt-4">
-          <PushCard placement="profile" />
-        </div>
-        <div className="mt-4">
-          <LicenseStatusCard my={license} linkLabel={license.verified ? 'Manage your license' : license.license?.status === 'PENDING' ? 'View your license' : 'Upload your license'} />
-        </div>
-        <Link href="/auth/driver" className="rsu-card mt-4 flex items-center justify-between text-sm font-semibold text-gray-900 hover:bg-gray-50">
-          My driving: rides and fuel share
-          <span className="text-[color:var(--rsu-color-primary)]">Open</span>
-        </Link>
-        <p className="text-xs text-center text-gray-500 mt-6">
-          <Link href="/privacy" className="font-semibold text-gray-500 hover:underline">
-            Privacy Policy
-          </Link>
-          {' · '}
-          <Link href="/terms" className="font-semibold text-gray-500 hover:underline">
-            Terms of Use
-          </Link>
-        </p>
+        <ProfileClient
+          key={user.gender}
+          user={user}
+          initialPreference={preference}
+          license={<LicenseStatusCard my={license} linkLabel={licenseLabel} />}
+          notifications={<PushCard placement="profile" />}
+        />
       </main>
       <BottomNav active="profile" />
     </div>
