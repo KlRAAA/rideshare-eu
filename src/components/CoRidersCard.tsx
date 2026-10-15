@@ -48,7 +48,7 @@ export default function CoRidersCard({
         </p>
       ) : (
         // Rows divided by a line, not boxed: no cards inside the card.
-        <ul className="-my-2 divide-y divide-gray-100">
+        <ul className="divide-y divide-gray-100">
           {matches.map((m) => {
             const mStatus = matchStatusBadge(m.status);
             const highlighted = m.id === highlightId;
@@ -57,8 +57,12 @@ export default function CoRidersCard({
               <li
                 key={m.id}
                 id={`request-${m.id}`}
-                className={`space-y-1.5 py-2.5 ${
-                  highlighted ? '-mx-2 rounded-lg bg-[color:var(--rsu-color-primary)]/5 px-2 ring-2 ring-[color:var(--rsu-color-primary)]/40' : ''
+                // The first row sits flush under the title; a highlighted row keeps
+                // its padding so its ring never runs into the title.
+                className={`space-y-1.5 ${
+                  highlighted
+                    ? '-mx-2 rounded-lg bg-[color:var(--rsu-color-primary)]/5 px-2 py-2.5 ring-2 ring-[color:var(--rsu-color-primary)]/40'
+                    : 'py-2.5 first:pt-0 last:pb-0'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">

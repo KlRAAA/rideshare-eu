@@ -166,8 +166,17 @@ export default function Select({
 
       {open && (
         <>
-          {/* Phones: a dimmed backdrop under a bottom sheet. */}
-          <div aria-hidden className="fixed inset-0 z-[70] bg-black/50 md:hidden" onClick={() => close(false)} />
+          {/* Phones: a dimmed backdrop under a bottom sheet. preventDefault here and
+              on the options: inside a <label>, a click would otherwise also "click"
+              the field and open the list again straight away. */}
+          <div
+            aria-hidden
+            className="fixed inset-0 z-[70] bg-black/50 md:hidden"
+            onClick={(e) => {
+              e.preventDefault();
+              close(false);
+            }}
+          />
           <ul
             ref={listRef}
             id={listId}
@@ -188,7 +197,10 @@ export default function Select({
                   role="option"
                   aria-selected={isSelected}
                   aria-disabled={o.disabled || undefined}
-                  onClick={() => pick(i)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    pick(i);
+                  }}
                   onMouseMove={() => enabled(i) && setActive(i)}
                   className={`flex min-h-12 items-center justify-between gap-3 rounded-xl px-4 text-base md:min-h-0 md:rounded-lg md:px-3 md:py-2 md:text-sm ${
                     o.disabled
