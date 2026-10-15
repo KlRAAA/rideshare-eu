@@ -817,18 +817,22 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
       </section>
 
       <section className={SECTION}>
-        <h2 className={SECTION_TITLE}>Who can join</h2>
-        <div>
-          <Listbox<GenderPreference>
-            value={genderPreference}
-            onChange={setGenderPreference}
-            options={whoCanJoinOptions}
-            ariaLabel="Who can join"
-            disabled={whoCanJoinLocked}
-            className="rounded-xl border border-gray-300 bg-gray-50 py-2.5 pl-3 pr-3 text-sm"
-          />
-          {whoCanJoinLocked && <p className={NOTE}>Locked because riders are already approved.</p>}
-        </div>
+        <h2 className={SECTION_TITLE}>Riders</h2>
+        {/* Only Women+ hosts have a choice here; for everyone else it's always "Anyone". */}
+        {whoCanJoinOptions.length > 1 && (
+          <div>
+            <span className={LABEL}>Who can join</span>
+            <Listbox<GenderPreference>
+              value={genderPreference}
+              onChange={setGenderPreference}
+              options={whoCanJoinOptions}
+              ariaLabel="Who can join"
+              disabled={whoCanJoinLocked}
+              className="rounded-xl border border-gray-300 bg-gray-50 py-2.5 pl-3 pr-3 text-sm"
+            />
+            {whoCanJoinLocked && <p className={NOTE}>Locked because riders are already approved.</p>}
+          </div>
+        )}
 
         <label className="flex items-center justify-between gap-3">
           <span className="text-sm text-gray-800">Flexible time (±15 min)</span>
