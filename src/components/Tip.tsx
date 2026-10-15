@@ -12,12 +12,15 @@ interface TipProps {
   mode?: 'button' | 'wrap';
   // Where the bubble opens; 'bottom' for things along the top edge (the header).
   side?: 'top' | 'bottom';
+  // An icon-only trigger: the label is its name, so screen readers don't hear
+  // it twice (once as the name, once as the description).
+  iconOnly?: boolean;
   className?: string;
 }
 
 // An icon or short value whose meaning shows in a tooltip (sub-project I):
 // hover or focus on a computer, tap on a phone; Escape or a tap elsewhere closes it.
-export default function Tip({ label, children, mode = 'button', side = 'top', className = '' }: TipProps) {
+export default function Tip({ label, children, mode = 'button', side = 'top', iconOnly = false, className = '' }: TipProps) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
@@ -63,6 +66,7 @@ export default function Tip({ label, children, mode = 'button', side = 'top', cl
       ref={bubbleRef}
       role="tooltip"
       id={id}
+      aria-hidden={iconOnly || undefined}
       style={open && shift ? { translate: `calc(-50% + ${shift}px) 0` } : undefined}
       className={
         open
@@ -88,7 +92,8 @@ export default function Tip({ label, children, mode = 'button', side = 'top', cl
     <span ref={ref} className={`relative inline-flex ${className}`}>
       <button
         type="button"
-        aria-describedby={id}
+        aria-label={iconOnly ? label : undefined}
+        aria-describedby={iconOnly ? undefined : id}
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         {...hover}

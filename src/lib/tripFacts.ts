@@ -14,7 +14,7 @@ export function seatsFact(total: number, filled: number): Fact {
 
 export function priceFact(fuelShare: number | null | undefined): Fact | null {
   if (fuelShare == null) return null;
-  return { short: `₱${fuelShare.toFixed(0)}/seat`, long: 'Fuel share per seat, paid to the driver in person' };
+  return { short: `₱${fuelShare.toFixed(2)}/seat`, long: 'Fuel share per seat, paid to the driver in person' };
 }
 
 export function carFact(vehicle: { make: string; model: string; color: string }): Fact {

@@ -39,9 +39,8 @@ function Row({ icon: Icon, label, children }: { icon: React.ComponentType<{ clas
   return (
     <div className="flex items-start gap-2.5">
       <dt className="mt-0.5 shrink-0 text-gray-400">
-        <Tip label={label}>
+        <Tip label={label} iconOnly>
           <Icon className="h-3.5 w-3.5" aria-hidden />
-          <span className="sr-only">{label}</span>
         </Tip>
       </dt>
       <dd className="min-w-0">{children}</dd>

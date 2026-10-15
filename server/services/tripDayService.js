@@ -216,8 +216,11 @@ async function applyStep(step, c) {
   }
   // NO_SHOW
   if (!(await recordNoShow(trip, day, departure, run, now, pendingIds))) return;
-  const after = oneTime ? 'The trip is cancelled.' : 'Find another ride for today.';
-  await notifyOnce(sent, 'DRIVER_NO_SHOW', approvedIds, trip.id, day, `${driver} didn't start the ${time} trip to ${dest}. ${after}`);
+  // Noticed on a later day (the API was down): name the day, don't say "today".
+  const today = day.getTime() === phDateOnly(now).getTime();
+  const missed = `${driver} didn't start the ${time} trip to ${dest}${today ? '' : ` on ${dayLabel(day)}`}.`;
+  const after = oneTime ? ' The trip is cancelled.' : today ? ' Find another ride for today.' : '';
+  await notifyOnce(sent, 'DRIVER_NO_SHOW', approvedIds, trip.id, day, missed + after);
   if (oneTime) {
     Object.assign(trip, { status: 'CANCELLED', cancelledAt: now, cancelReason: NO_SHOW_CANCEL_REASON });
     patchMatches(trip, ACTIVE_MATCH_STATUSES, 'CANCELLED');

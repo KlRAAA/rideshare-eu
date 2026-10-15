@@ -9,7 +9,7 @@ describe('trip facts: a short value and its full meaning', () => {
     expect(seatsFact(4, 0)).toEqual({ short: '4 left', long: '4 of 4 seats left, none taken' });
   });
   test('fuel share per seat', () => {
-    expect(priceFact(25.4)).toEqual({ short: '₱25/seat', long: 'Fuel share per seat, paid to the driver in person' });
+    expect(priceFact(25.4)).toEqual({ short: '₱25.40/seat', long: 'Fuel share per seat, paid to the driver in person' });
     expect(priceFact(null)).toBeNull();
   });
   test('car', () => {

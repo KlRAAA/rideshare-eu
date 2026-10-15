@@ -3,7 +3,7 @@ const prisma = require('../config/db');
 const { newBag, makeUser, makeVehicle, makeTrip, makeMatch, cleanup } = require('../test-helpers/seed');
 const { phDateOnly } = require('../services/recurrenceMath');
 const { askAt } = require('../services/tripDayRules');
-const { settleTrips } = require('../services/tripDayService');
+const { settleTrips, dayLabel } = require('../services/tripDayService');
 const { NO_SHOW_CANCEL_REASON } = require('../services/tripCancellationService');
 const { buildWatchlist } = require('../services/watchlistService');
 
@@ -142,6 +142,20 @@ describe('no-shows', () => {
     const run = await prisma.tripRun.findUnique({ where: { tripId_runDate: { tripId: trip.id, runDate: DAY } } });
     expect(run.status).toBe('NO_SHOW');
     expect(await count(riders[0].rider.id, 'DRIVER_NO_SHOW', trip.id)).toBe(1);
+  });
+
+  test('a day noticed late (after downtime) is named, not called "today"', async () => {
+    if (guard()) return;
+    const { trip, riders } = await seedTrip({ recurrenceType: 'DAILY' });
+    await settleAt(trip.id, new Date(DEP.getTime() + DAY_MS + 30 * MIN));
+    const told = await prisma.notification.findFirst({ where: { userId: riders[0].rider.id, type: 'DRIVER_NO_SHOW', relatedTripId: trip.id } });
+    expect(told.message).toContain(`on ${dayLabel(DAY)}.`);
+    expect(told.message).not.toContain('today');
+
+    const sameDay = await seedTrip({ recurrenceType: 'DAILY' });
+    await settleAt(sameDay.trip.id, late);
+    const now = await prisma.notification.findFirst({ where: { userId: sameDay.riders[0].rider.id, type: 'DRIVER_NO_SHOW' } });
+    expect(now.message).toContain('Find another ride for today.');
   });
 
   test('a one-time trip nobody was approved for just closes, without a rating prompt', async () => {
