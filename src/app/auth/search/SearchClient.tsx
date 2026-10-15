@@ -559,14 +559,15 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
           // globals.css), or the nav bar visually and interactively covers
           // the bottom of this sheet regardless of its own scroll behavior.
           <div className="fixed inset-0 bg-black/40 z-[70] flex items-end" onClick={() => setMobileFiltersOpen(false)}>
-            <form
-              onSubmit={handleSearch}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-t-2xl w-full max-h-[85vh] overflow-y-auto p-5 pb-8 space-y-4"
-            >
-              <h2 className="text-sm font-bold text-gray-900">Search</h2>
-              {renderFilterFields(!isDesktop, 'search-sheet')}
-            </form>
+            {/* The rounded corners are on a wrapper that clips, not on the scrolling
+                form: phone in-app browsers (Messenger's) paint a scrolling box's
+                background square, which showed as white corners. */}
+            <div className="w-full overflow-hidden rounded-t-2xl bg-white [isolation:isolate]" onClick={(e) => e.stopPropagation()}>
+              <form onSubmit={handleSearch} className="max-h-[85vh] space-y-4 overflow-y-auto p-5 pb-8">
+                <h2 className="text-sm font-bold text-gray-900">Search</h2>
+                {renderFilterFields(!isDesktop, 'search-sheet')}
+              </form>
+            </div>
           </div>
         )}
       </div>

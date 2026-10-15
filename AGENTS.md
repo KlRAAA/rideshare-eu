@@ -854,9 +854,12 @@ Rules for app screens:
   Cancel side by side, "Stop repeating" (repeating trips) as a text button.
 - The Home phone-notifications card appears only when there's something to
   tap (not when the browser blocks notifications; Profile explains that).
-- `space-y-*` doesn't space an `h1` (Tailwind v4 puts the margin on the
-  child, and the base `h1` style wins); use `flex flex-col gap-*`, or put
-  the margin on a wrapper `div`.
+- Heading margins: the `h1`–`h6` `margin: 0` reset in `globals.css` is in
+  `@layer base`, so `mb-*` on a heading works. (It used to be unlayered and
+  cancelled every heading margin, e.g. under "Trip Chat" and "Passengers".)
+- Bottom sheets that scroll: put `rounded-t-2xl overflow-hidden` on a wrapper
+  and `overflow-y-auto` on the inside; phone in-app browsers (Messenger)
+  paint a rounded scroller's background square.
 - Second pass (critique of every main screen, both modes):
   - Trips in lists use `TripRow` / `TRIP_LIST` (`src/components/TripRow.tsx`)
     and the wording in `src/lib/tripLine.ts` (`tripRoute`, `tripWhen`,

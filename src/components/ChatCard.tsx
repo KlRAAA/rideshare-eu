@@ -108,9 +108,9 @@ export default function ChatCard({ tripId, currentUserId }: ChatCardProps) {
 
   return (
     <Card>
-      <h3 className="text-sm font-bold text-gray-900 mb-3">Trip Chat</h3>
+      <h3 className="mb-4 text-sm font-bold text-gray-900">Trip Chat</h3>
 
-      <div ref={listRef} className="space-y-3 max-h-80 overflow-y-auto pr-1 mb-3">
+      <div ref={listRef} className="mb-4 max-h-80 space-y-4 overflow-y-auto pr-1">
         {messages === null ? (
           <p className="text-xs text-gray-400">Loading messages…</p>
         ) : messages.length === 0 ? (
@@ -123,16 +123,16 @@ export default function ChatCard({ tripId, currentUserId }: ChatCardProps) {
                 <Avatar name={m.sender.fullName} src={m.sender.avatarUrl} sizeClass="w-6 h-6" textClass="text-[10px]" />
                 <div className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'} flex flex-col`}>
                   <div
-                    className={`rounded-lg px-3 py-1.5 text-xs break-words ${
+                    className={`rounded-2xl px-3.5 py-2 text-sm leading-snug break-words ${
                       isMe
-                        ? 'bg-[color:var(--rsu-color-primary)] text-white rounded-br-none'
-                        : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                        ? 'bg-[color:var(--rsu-color-primary)] text-white rounded-br-md'
+                        : 'bg-gray-100 text-gray-800 rounded-bl-md'
                     }`}
                   >
-                    {!isMe && <div className="font-semibold text-[10px] mb-0.5 opacity-70">{m.sender.fullName}</div>}
+                    {!isMe && <div className="mb-1 text-xs font-semibold opacity-70">{m.sender.fullName}</div>}
                     {m.body}
                   </div>
-                  <span className="text-[10px] text-gray-400 mt-0.5">{formatDateTimeAgo(m.createdAt)}</span>
+                  <span className="mt-1 px-1 text-[11px] text-gray-500">{formatDateTimeAgo(m.createdAt)}</span>
                 </div>
               </div>
             );
