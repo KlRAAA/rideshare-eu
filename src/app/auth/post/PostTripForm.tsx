@@ -482,6 +482,8 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
         setError('Only women and non-binary hosts can post Women+ trips.');
       } else if (err instanceof ApiError && err.code === 'TRIP_NOT_EDITABLE') {
         setError('This trip can no longer be edited.');
+      } else if (err instanceof ApiError && err.code === 'DRIVING_NOW') {
+        setError('You’re driving a trip right now. End it before you post your next trip.');
       } else if (err instanceof ApiError && err.code === 'SCHEDULE_CONFLICT') {
         setError(conflictMessage(String(err.body?.conflictDepartureTime)));
       } else if (err instanceof ApiError && err.code === 'INVALID_TRIP') {

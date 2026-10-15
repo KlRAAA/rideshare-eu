@@ -1,7 +1,7 @@
 const prisma = require('../config/db');
 const { inLuzon } = require('../config/serviceArea');
 const { ongoingRun, finishRun } = require('../services/tripRunService');
-const { conflictWithRides, conflictBody } = require('../services/scheduleConflicts');
+const { conflictWithRides, conflictWithHosted, conflictBody } = require('../services/scheduleConflicts');
 const { nextDeparture, plannedArrival } = require('../services/tripRunRules');
 const { phDateOnly } = require('../services/recurrenceMath');
 const { geocodeAddress, reverseGeocode } = require('../services/geocodingService');
@@ -102,14 +102,22 @@ async function createTrip(req, res) {
   const invalidField = validateNewTrip(body);
   if (invalidField) return res.status(400).json({ error: 'INVALID_TRIP', field: invalidField });
 
-  // Nobody drives while riding someone else's trip at the same time.
-  const clash = await conflictWithRides(req.user.id, {
+  // Not while driving: end the trip in progress first (demo feedback).
+  const driving = await prisma.tripRun.findFirst({
+    where: { status: 'ONGOING', trip: { hostId: req.user.id } },
+    select: { tripId: true },
+  });
+  if (driving) return res.status(409).json({ error: 'DRIVING_NOW', tripId: driving.tripId });
+
+  // Nobody drives while riding someone else's trip, or drives two trips, at the same time.
+  const candidate = {
     id: null,
     departureTime: new Date(body.departureTime),
     durationSeconds: durationSeconds ?? null,
     recurrenceType: body.recurrenceType,
     customDays: body.customDays ?? [],
-  }, prisma);
+  };
+  const clash = (await conflictWithRides(req.user.id, candidate, prisma)) ?? (await conflictWithHosted(req.user.id, candidate, prisma));
   if (clash) return res.status(409).json(conflictBody(clash));
   if (body.recurrenceType !== 'CUSTOM') body.customDays = [];
 
@@ -543,13 +551,14 @@ async function updateTrip(req, res) {
   if (outside) return res.status(400).json({ error: 'INVALID_TRIP', field: outside });
 
   if (['departureTime', 'recurrenceType', 'customDays', 'durationSeconds'].some((k) => k in incoming)) {
-    const clash = await conflictWithRides(userId, {
+    const candidate = {
       id: trip.id,
       departureTime: new Date(incoming.departureTime ?? trip.departureTime),
       durationSeconds: incoming.durationSeconds ?? trip.durationSeconds,
       recurrenceType: incoming.recurrenceType ?? trip.recurrenceType,
       customDays: incoming.customDays ?? trip.customDays,
-    }, prisma);
+    };
+    const clash = (await conflictWithRides(userId, candidate, prisma)) ?? (await conflictWithHosted(userId, candidate, prisma));
     if (clash) return res.status(409).json(conflictBody(clash));
   }
 

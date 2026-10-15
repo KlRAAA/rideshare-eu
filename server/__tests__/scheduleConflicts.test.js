@@ -120,3 +120,37 @@ describe('approving', () => {
     expect((await prisma.match.findUnique({ where: { id: match.id } })).status).toBe('PENDING');
   });
 });
+
+// Demo feedback: a driver could post a new trip while driving one, or post two
+// trips at the same time.
+describe('posting while driving', () => {
+  test('a driver cannot post a trip that overlaps another trip they drive', async () => {
+    if (guard()) return;
+    const { driver, vehicle, trip: mine } = await driverWithTrip(7);
+
+    const clash = await req('POST', '/api/trips', driver.id, tripBody(vehicle.id, at(7, 15)));
+    expect(clash.status).toBe(409);
+    expect(await clash.json()).toMatchObject({ error: 'SCHEDULE_CONFLICT', conflictTripId: mine.id });
+
+    const later = await req('POST', '/api/trips', driver.id, tripBody(vehicle.id, at(10)));
+    expect(later.status).toBe(201);
+    const posted = (await later.json()).trip;
+    bag.tripIds.push(posted.id);
+
+    const edit = await req('PATCH', `/api/trips/${posted.id}`, driver.id, { departureTime: at(7, 10).toISOString() });
+    expect(edit.status).toBe(409);
+    expect((await edit.json()).conflictTripId).toBe(mine.id);
+  });
+
+  test('a driver cannot post any trip while one of their trips is in progress', async () => {
+    if (guard()) return;
+    const { driver, vehicle, trip: driving } = await driverWithTrip(7);
+    await prisma.tripRun.create({
+      data: { tripId: driving.id, runDate: phDateOnly(driving.departureTime), status: 'ONGOING', startedAt: new Date(), plannedArrivalAt: driving.departureTime },
+    });
+
+    const res = await req('POST', '/api/trips', driver.id, tripBody(vehicle.id, at(15)));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'DRIVING_NOW', tripId: driving.id });
+  });
+});
