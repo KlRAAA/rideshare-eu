@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import RouteMap from './RouteMap';
 import { apiFetch } from '@/lib/api';
 import { riderTripLine, type DriverFeed } from '@/lib/riderLocation';
+import { nextHeading, type HeadingState } from '@/lib/heading';
 
 // Riders poll as often as the driver's phone sends (every 10 s).
 const DRIVER_POLL_MS = 10 * 1000;
@@ -28,6 +29,8 @@ interface LiveRouteMapProps {
   riderLocations?: (LatLng & { label: string })[];
   // The driver's own position from their phone; drawn as the car, no polling.
   ownLocation?: LatLng | null;
+  // Which way the driver's own car faces (from their GPS).
+  ownHeading?: number | null;
   // The live ETA the driver's phone last sent (null when there's none).
   onEta?: (etaAt: string | null) => void;
   // Whether the driver marked this rider picked up (rider side).
@@ -50,11 +53,14 @@ export default function LiveRouteMap({
   canWatchDriverLocation,
   riderLocations,
   ownLocation,
+  ownHeading = null,
   onEta,
   onPickedUp,
 }: LiveRouteMapProps) {
   const [feed, setFeed] = useState<DriverFeed | null>(null);
   const [now, setNow] = useState(() => new Date());
+  // A rider's page works out the heading from the driver's last two points.
+  const feedHeading = useRef<HeadingState>({ from: null, heading: null });
 
   useEffect(() => {
     if (!canWatchDriverLocation) {
@@ -66,6 +72,7 @@ export default function LiveRouteMap({
       apiFetch<DriverFeed>(`/api/trips/${tripId}/location`)
         .then((data) => {
           if (cancelled) return;
+          if (data.location) feedHeading.current = nextHeading(feedHeading.current, data.location);
           setFeed(data);
           setNow(new Date());
           onEta?.(data.etaAt ?? null);
@@ -86,6 +93,18 @@ export default function LiveRouteMap({
   }, [tripId, canWatchDriverLocation]);
 
   const car = ownLocation ?? (feed?.location ? { lat: feed.location.lat, lng: feed.location.lng } : null);
+  const heading = ownLocation ? ownHeading : feedHeading.current.heading;
+  // While the car moves, follow it: the driver sees their own car up close; a
+  // rider sees the car and where they'll be picked up (just the car after pickup).
+  // Keyed on the coordinates, so the 5 s clock tick doesn't move the camera.
+  const pickupPoint = meetingPoint ?? origin;
+  const carOnly = Boolean(ownLocation || feed?.pickedUp);
+  const followKey = car ? `${car.lat},${car.lng},${carOnly},${pickupPoint.lat},${pickupPoint.lng}` : '';
+  const follow = useMemo(
+    () => (!car ? null : carOnly ? [car] : [car, pickupPoint]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [followKey]
+  );
   return (
     <div className="space-y-2">
       <RouteMap
@@ -94,6 +113,8 @@ export default function LiveRouteMap({
         meetingPoint={meetingPoint}
         routeWaypoints={routeWaypoints}
         driverLocation={car}
+        driverHeading={heading}
+        follow={follow}
         riderLocations={riderLocations}
       />
       {canWatchDriverLocation && feed && (

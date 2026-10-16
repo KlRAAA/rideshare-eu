@@ -8,6 +8,7 @@ import { apiFetch } from '@/lib/api';
 import { fetchNavRoute, type LatLng } from '@/lib/directions';
 import { isNearCampus } from '@/lib/geoProximity';
 import { isOffRoute, nextManeuver, type NavRoute } from '@/lib/navigation';
+import { nextHeading, type HeadingState } from '@/lib/heading';
 
 const SEND_MS = 10 * 1000;
 const REFRESH_MS = 2 * 60 * 1000;
@@ -24,6 +25,8 @@ interface Options {
 
 export function useDriverNavigation({ tripId, active, pickup, destination, onArrived }: Options) {
   const [position, setPosition] = useState<LatLng | null>(null);
+  const [heading, setHeading] = useState<number | null>(null);
+  const headingState = useRef<HeadingState>({ from: null, heading: null });
   const [route, setRoute] = useState<NavRoute | null>(null);
   // Arrival at campus as of the latest route; one value for every screen.
   const [etaAt, setEtaAt] = useState<string | null>(null);
@@ -78,6 +81,8 @@ export function useDriverNavigation({ tripId, active, pickup, destination, onArr
       (p) => {
         const here = { lat: p.coords.latitude, lng: p.coords.longitude };
         pos.current = here;
+        headingState.current = nextHeading(headingState.current, here, p.coords.heading);
+        setHeading(headingState.current.heading);
         setBlocked(false);
         setPosition(here);
       },
@@ -95,6 +100,8 @@ export function useDriverNavigation({ tripId, active, pickup, destination, onArr
       // The run is over: a page left open until the next run must start from a
       // fresh fix, not send yesterday's last position or skip the campus check.
       pos.current = null;
+      headingState.current = { from: null, heading: null };
+      setHeading(null);
       routeRef.current = null;
       arrived.current = false;
       setPosition(null);
@@ -161,5 +168,5 @@ export function useDriverNavigation({ tripId, active, pickup, destination, onArr
     if (found) along.current = found.along;
     return found;
   }, [route, position]);
-  return { position, route, next, blocked, etaAt };
+  return { position, heading, route, next, blocked, etaAt };
 }

@@ -279,6 +279,7 @@ export default function TripDetailClient({
           canWatchDriverLocation={canWatchDriverLocation}
           riderLocations={isHost ? riderPins : selfPin}
           ownLocation={isHost && runOngoing ? nav.position : undefined}
+          ownHeading={isHost && runOngoing ? nav.heading : null}
           onEta={setLiveEtaAt}
           onPickedUp={setPickedUp}
         />

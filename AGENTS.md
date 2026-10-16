@@ -754,6 +754,14 @@ plan `docs/superpowers/plans/2026-10-11-live-trip-map.md`.
   `src/lib/navigation.ts`. The map uses `dark-v11` in dark mode.
 - A web page can't use GPS in the background: in Google Maps/Waze or with
   the screen off, riders see the driver paused.
+- While the car moves the map follows it (`RouteMapView` `follow`): the
+  driver's map centres on their car (zoom 16); a rider's map frames the car
+  and their pickup (meeting point, else origin), just the car after pickup.
+  Panning stops following until "Recenter". A cone in front of the car shows
+  which way it faces (`driverHeading`, a map-aligned rotated marker): the
+  phone's GPS heading on the driver's side, the direction between the last
+  two polled points on a rider's (`src/lib/heading.ts`; under 8 m of movement
+  keeps the last heading).
 - Postman: folder "23. Rider location" covers pickup.
 - Deploy the API (Railway) before the website: the old API rejects `pickupEtaSeconds`.
 

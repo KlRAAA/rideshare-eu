@@ -30,12 +30,14 @@ export interface RouteMapProps {
   // Passenger straight-line vs host-corridor classification from
   // POST /api/matches/route-overlap. Draws the shared/detour split + legend.
   overlap?: OverlapData | null;
-  // Host's live position during a started run, polled by the caller — this
-  // component only renders it. Deliberately excluded from the bounds-fit
-  // calculation below: including a point that moves every ~25-30s would
-  // re-center/re-zoom the map on every update, which is jarring for someone
-  // just watching a pin approach rather than reviewing a static route.
+  // Host's live position during a started run (the driver's own GPS, or polled
+  // by a rider's page); this component only renders it.
   driverLocation?: LatLng | null;
+  // Which way the car faces (0 = north), drawn as a cone in front of it.
+  driverHeading?: number | null;
+  // During a run: the points to keep in view instead of the whole route (the
+  // driver's car; or the car and the rider's pickup), followed as they move.
+  follow?: LatLng[] | null;
   // Riders sharing their location with the driver before pickup (sub-project G).
   riderLocations?: (LatLng & { label: string })[];
   // Passing a handler makes that pin draggable. With onMeetingPointChange and
@@ -65,6 +67,21 @@ function Pin({ icon, inverted = false }: { icon: React.ReactNode; inverted?: boo
   );
 }
 
+// A soft wedge pointing up (north) from the centre; the marker rotates it.
+function HeadingCone() {
+  return (
+    <svg width="112" height="112" viewBox="0 0 112 112" aria-hidden className="pointer-events-none">
+      <defs>
+        <radialGradient id="rsu-heading-cone" cx="56" cy="56" r="56" gradientUnits="userSpaceOnUse">
+          <stop offset="0.2" stopColor="#800000" stopOpacity="0.7" />
+          <stop offset="1" stopColor="#800000" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <path d="M56 56 L32 4 A56 56 0 0 1 80 4 Z" fill="url(#rsu-heading-cone)" />
+    </svg>
+  );
+}
+
 // The map follows the app's light/dark toggle (<html data-theme>), live.
 function useDarkTheme(): boolean {
   // Read at once (this component is client-only): starting light and switching
@@ -87,6 +104,8 @@ export default function RouteMapView({
   routeWaypoints,
   overlap,
   driverLocation,
+  driverHeading = null,
+  follow = null,
   riderLocations = NO_RIDERS,
   onOriginChange,
   onMeetingPointChange,
@@ -185,7 +204,9 @@ export default function RouteMapView({
     return { sharedFC: toFC(shared), detourFC: toFC(det) };
   }, [overlap]);
 
+  const following = Boolean(follow && follow.length > 0);
   const allPoints = useMemo<LatLng[]>(() => {
+    if (follow && follow.length > 0) return follow;
     const pts: LatLng[] = [];
     if (origin) pts.push(origin);
     pts.push(dest);
@@ -196,7 +217,7 @@ export default function RouteMapView({
     if (driverLocation) pts.push(driverLocation);
     pts.push(...riderLocations);
     return pts;
-  }, [origin, dest, meetingPoint, roadLine, overlap, driverLocation, riderLocations]);
+  }, [follow, origin, dest, meetingPoint, roadLine, overlap, driverLocation, riderLocations]);
 
   const bounds = useMemo(() => {
     if (allPoints.length === 0) return null;
@@ -216,8 +237,12 @@ export default function RouteMapView({
     ] as [[number, number], [number, number]];
   }, [allPoints]);
 
+  // Following a moving car: glide there, closer in (a street view, like a
+  // navigation app). Otherwise jump to the whole route.
   const fitToBounds = () => {
-    if (bounds) mapRef.current?.fitBounds(bounds, { padding: 36, duration: 0, maxZoom: 15 });
+    if (!bounds) return;
+    if (following) mapRef.current?.fitBounds(bounds, { padding: 60, duration: 800, maxZoom: 16 });
+    else mapRef.current?.fitBounds(bounds, { padding: 36, duration: 0, maxZoom: 15 });
   };
   // Once the user pans or zooms, a moving car or rider pin no longer refits
   // the map; "Recenter" (or a change to the route or a fixed pin) does.
@@ -244,7 +269,8 @@ export default function RouteMapView({
     if (fixedChanged) markUserMoved(false);
     else if (userMovedRef.current) return;
     const view = mapRef.current?.getBounds();
-    if (view && allPoints.every((p) => view.contains([p.lng, p.lat]))) return;
+    // A followed car is re-centred on every move, not only when it leaves the view.
+    if (!following && view && allPoints.every((p) => view.contains([p.lng, p.lat]))) return;
     fitToBounds();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bounds]);
@@ -349,6 +375,20 @@ export default function RouteMapView({
               <Pin icon={<FaMapMarkerAlt />} inverted />
             </Marker>
           )}
+          {driverLocation && driverHeading != null && (
+            // The way the car faces, like the beam in front of you on a phone map.
+            // Turns with the map, so it stays true when the map is rotated.
+            <Marker
+              longitude={driverLocation.lng}
+              latitude={driverLocation.lat}
+              anchor="center"
+              rotation={driverHeading}
+              rotationAlignment="map"
+              pitchAlignment="map"
+            >
+              <HeadingCone />
+            </Marker>
+          )}
           {driverLocation && (
             <Marker longitude={driverLocation.lng} latitude={driverLocation.lat} anchor="center">
               <div className="w-7 h-7 rounded-full flex items-center justify-center shadow-md ring-2 ring-white text-xs bg-[#800000] text-white">
@@ -390,7 +430,7 @@ export default function RouteMapView({
           <button
             type="button"
             onClick={recenter}
-            aria-label="Recenter the map on the whole trip"
+            aria-label={following ? "Recenter the map on the car" : "Recenter the map on the whole trip"}
             className="absolute left-2 flex items-center gap-1.5 rounded-full bg-white/95 text-[#1f2937] shadow-md px-3 py-1.5 text-xs font-semibold hover:bg-[#ffffff]"
             style={{ top: fullScreen ? 'calc(env(safe-area-inset-top, 0px) + 12px)' : '8px' }}
           >
