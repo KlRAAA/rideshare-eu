@@ -47,7 +47,8 @@ export interface HostedTrip {
   matches: HostedMatch[];
   inProgress?: boolean;
   // When it last happened (cancellation, last driven day, or departure).
-  lastActiveAt: string;
+  // Optional: an API from before this field (mid-deploy) leaves it out.
+  lastActiveAt?: string;
 }
 
 export interface JoinedTrip extends HostedTrip {
@@ -88,7 +89,12 @@ const byDeparture = <T extends { departureTime: string }>(trips: T[]) =>
   [...trips].sort((a, b) => new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime());
 
 // A finished repeating trip says how it repeated and when it last ran.
-function whenLine(trip: HostedTrip, tab: Tab): string {
+// Fills a missing lastActiveAt with the departure, so the list still sorts.
+function withDate<T extends HostedTrip>(trip: T): T & { lastActiveAt: string } {
+  return { ...trip, lastActiveAt: trip.lastActiveAt ?? trip.departureTime };
+}
+
+function whenLine(trip: HostedTrip & { lastActiveAt: string }, tab: Tab): string {
   if (tab === 'upcoming' || trip.recurrenceType === 'ONE_TIME') return tripWhen(trip);
   return `${tripWhen(trip)} · last ${shortDay(trip.lastActiveAt)}`;
 }
@@ -138,10 +144,10 @@ export default function TripsListClient({ hosted, joined, currentUserId }: Trips
   joined.forEach((t) => counts[bucketJoined(t)]++);
 
   // Upcoming: soonest first. Past and Cancelled: newest first, within the span.
-  const arrange = <T extends HostedTrip>(trips: T[]) =>
+  const arrange = <T extends HostedTrip & { lastActiveAt: string }>(trips: T[]) =>
     tab === 'upcoming' ? byDeparture(trips) : newestFirst(trips.filter((t) => withinSpan(t.lastActiveAt, span)));
-  const visibleHosted = arrange(hosted.filter((t) => bucketHosted(t) === tab));
-  const visibleJoined = arrange(joined.filter((t) => bucketJoined(t) === tab));
+  const visibleHosted = arrange(hosted.filter((t) => bucketHosted(t) === tab).map(withDate));
+  const visibleJoined = arrange(joined.filter((t) => bucketJoined(t) === tab).map(withDate));
   const isEmpty = visibleHosted.length === 0 && visibleJoined.length === 0;
   const hiddenBySpan = tab !== 'upcoming' && span !== 'all' && isEmpty && counts[tab] > 0;
 
