@@ -27,3 +27,6 @@ CLAUDE.md
 
 # Private license photos (sub-project E), local only
 /storage/
+
+# Load test: generated IDs (results/ is kept as evidence)
+loadtest/fixture.json

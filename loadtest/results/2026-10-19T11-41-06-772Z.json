@@ -1,0 +1,358 @@
+{
+  "machine": {
+    "cpu": "Intel(R) Core(TM) i3-7100 CPU @ 3.90GHz",
+    "cores": 4,
+    "memoryGB": 16
+  },
+  "stageSeconds": 60,
+  "results": [
+    {
+      "users": 600,
+      "overall": {
+        "requests": 11888,
+        "perSecond": 198.1,
+        "p50": 10006,
+        "p95": 10016,
+        "p99": 10026,
+        "max": 10060,
+        "errorRate": 98.99
+      },
+      "endpoints": {
+        "page: my trips": {
+          "requests": 600,
+          "perSecond": 10,
+          "p50": 10006,
+          "p95": 10017,
+          "p99": 10027,
+          "max": 10045,
+          "errorRate": 100
+        },
+        "chat poll": {
+          "requests": 1635,
+          "perSecond": 27.3,
+          "p50": 10007,
+          "p95": 10016,
+          "p99": 10024,
+          "max": 10048,
+          "errorRate": 99.63
+        },
+        "riders nearby": {
+          "requests": 96,
+          "perSecond": 1.6,
+          "p50": 10006,
+          "p95": 10017,
+          "p99": 10025,
+          "max": 10025,
+          "errorRate": 98.96
+        },
+        "alerts feed": {
+          "requests": 6985,
+          "perSecond": 116.4,
+          "p50": 10006,
+          "p95": 10016,
+          "p99": 10027,
+          "max": 10048,
+          "errorRate": 98.55
+        },
+        "page: alerts": {
+          "requests": 589,
+          "perSecond": 9.8,
+          "p50": 10006,
+          "p95": 10017,
+          "p99": 10026,
+          "max": 10045,
+          "errorRate": 99.66
+        },
+        "send position": {
+          "requests": 288,
+          "perSecond": 4.8,
+          "p50": 10006,
+          "p95": 10016,
+          "p99": 10020,
+          "max": 10045,
+          "errorRate": 100
+        },
+        "page: trip": {
+          "requests": 144,
+          "perSecond": 2.4,
+          "p50": 10007,
+          "p95": 10016,
+          "p99": 10037,
+          "max": 10042,
+          "errorRate": 100
+        },
+        "driver position": {
+          "requests": 855,
+          "perSecond": 14.3,
+          "p50": 10006,
+          "p95": 10015,
+          "p99": 10022,
+          "max": 10060,
+          "errorRate": 99.88
+        },
+        "page: me": {
+          "requests": 577,
+          "perSecond": 9.6,
+          "p50": 10007,
+          "p95": 10017,
+          "p99": 10028,
+          "max": 10045,
+          "errorRate": 98.44
+        },
+        "search": {
+          "requests": 96,
+          "perSecond": 1.6,
+          "p50": 10007,
+          "p95": 10017,
+          "p99": 10029,
+          "max": 10029,
+          "errorRate": 100
+        },
+        "send chat": {
+          "requests": 23,
+          "perSecond": 0.4,
+          "p50": 10005,
+          "p95": 10014,
+          "p99": 10027,
+          "max": 10027,
+          "errorRate": 100
+        }
+      },
+      "apiCpuPercent": 28,
+      "apiMemoryMB": 1794,
+      "apiErrorLogLines": 0
+    },
+    {
+      "users": 800,
+      "overall": {
+        "requests": 15563,
+        "perSecond": 259.4,
+        "p50": 9,
+        "p95": 10024,
+        "p99": 10189,
+        "max": 10449,
+        "errorRate": 98.23
+      },
+      "endpoints": {
+        "chat poll": {
+          "requests": 2058,
+          "perSecond": 34.3,
+          "p50": 7,
+          "p95": 10027,
+          "p99": 10202,
+          "max": 10422,
+          "errorRate": 100
+        },
+        "alerts feed": {
+          "requests": 9243,
+          "perSecond": 154.1,
+          "p50": 9,
+          "p95": 10024,
+          "p99": 10192,
+          "max": 10449,
+          "errorRate": 97.25
+        },
+        "search": {
+          "requests": 114,
+          "perSecond": 1.9,
+          "p50": 5,
+          "p95": 10068,
+          "p99": 10216,
+          "max": 10239,
+          "errorRate": 100
+        },
+        "send position": {
+          "requests": 364,
+          "perSecond": 6.1,
+          "p50": 9,
+          "p95": 10027,
+          "p99": 10193,
+          "max": 10305,
+          "errorRate": 100
+        },
+        "page: me": {
+          "requests": 786,
+          "perSecond": 13.1,
+          "p50": 9,
+          "p95": 10029,
+          "p99": 10185,
+          "max": 10288,
+          "errorRate": 98.09
+        },
+        "page: my trips": {
+          "requests": 781,
+          "perSecond": 13,
+          "p50": 8,
+          "p95": 10023,
+          "p99": 10185,
+          "max": 10288,
+          "errorRate": 100
+        },
+        "page: alerts": {
+          "requests": 781,
+          "perSecond": 13,
+          "p50": 8,
+          "p95": 10018,
+          "p99": 10189,
+          "max": 10288,
+          "errorRate": 99.74
+        },
+        "driver position": {
+          "requests": 1101,
+          "perSecond": 18.4,
+          "p50": 9,
+          "p95": 10026,
+          "p99": 10152,
+          "max": 10419,
+          "errorRate": 99.55
+        },
+        "riders nearby": {
+          "requests": 120,
+          "perSecond": 2,
+          "p50": 5,
+          "p95": 10022,
+          "p99": 10083,
+          "max": 10113,
+          "errorRate": 100
+        },
+        "page: trip": {
+          "requests": 179,
+          "perSecond": 3,
+          "p50": 4,
+          "p95": 10018,
+          "p99": 10135,
+          "max": 10364,
+          "errorRate": 100
+        },
+        "send chat": {
+          "requests": 36,
+          "perSecond": 0.6,
+          "p50": 6,
+          "p95": 10004,
+          "p99": 10203,
+          "max": 10203,
+          "errorRate": 100
+        }
+      },
+      "apiCpuPercent": 26.6,
+      "apiMemoryMB": 2620,
+      "apiErrorLogLines": 0
+    },
+    {
+      "users": 1000,
+      "overall": {
+        "requests": 21100,
+        "perSecond": 351.7,
+        "p50": 10002,
+        "p95": 10099,
+        "p99": 10237,
+        "max": 10390,
+        "errorRate": 100
+      },
+      "endpoints": {
+        "chat poll": {
+          "requests": 2856,
+          "perSecond": 47.6,
+          "p50": 10002,
+          "p95": 10104,
+          "p99": 10272,
+          "max": 10390,
+          "errorRate": 100
+        },
+        "driver position": {
+          "requests": 1460,
+          "perSecond": 24.3,
+          "p50": 10002,
+          "p95": 10083,
+          "p99": 10232,
+          "max": 10351,
+          "errorRate": 100
+        },
+        "alerts feed": {
+          "requests": 12507,
+          "perSecond": 208.4,
+          "p50": 10003,
+          "p95": 10100,
+          "p99": 10242,
+          "max": 10384,
+          "errorRate": 100
+        },
+        "page: me": {
+          "requests": 1049,
+          "perSecond": 17.5,
+          "p50": 565,
+          "p95": 10109,
+          "p99": 10220,
+          "max": 10293,
+          "errorRate": 100
+        },
+        "page: my trips": {
+          "requests": 1050,
+          "perSecond": 17.5,
+          "p50": 520,
+          "p95": 10108,
+          "p99": 10220,
+          "max": 10292,
+          "errorRate": 100
+        },
+        "page: alerts": {
+          "requests": 1046,
+          "perSecond": 17.4,
+          "p50": 519,
+          "p95": 10096,
+          "p99": 10220,
+          "max": 10292,
+          "errorRate": 100
+        },
+        "page: trip": {
+          "requests": 245,
+          "perSecond": 4.1,
+          "p50": 209,
+          "p95": 10098,
+          "p99": 10278,
+          "max": 10386,
+          "errorRate": 100
+        },
+        "riders nearby": {
+          "requests": 171,
+          "perSecond": 2.9,
+          "p50": 639,
+          "p95": 10119,
+          "p99": 10340,
+          "max": 10369,
+          "errorRate": 100
+        },
+        "send position": {
+          "requests": 494,
+          "perSecond": 8.2,
+          "p50": 10001,
+          "p95": 10091,
+          "p99": 10176,
+          "max": 10352,
+          "errorRate": 100
+        },
+        "search": {
+          "requests": 188,
+          "perSecond": 3.1,
+          "p50": 153,
+          "p95": 10046,
+          "p99": 10225,
+          "max": 10316,
+          "errorRate": 100
+        },
+        "send chat": {
+          "requests": 34,
+          "perSecond": 0.6,
+          "p50": 674,
+          "p95": 10089,
+          "p99": 10221,
+          "max": 10221,
+          "errorRate": 100
+        }
+      },
+      "apiCpuPercent": 27.1,
+      "apiMemoryMB": 2612,
+      "apiErrorLogLines": 0
+    }
+  ]
+}
