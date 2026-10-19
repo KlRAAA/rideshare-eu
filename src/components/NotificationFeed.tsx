@@ -22,7 +22,9 @@ interface FeedResponse {
   cursor: string;
 }
 
-const POLL_MS = 5 * 1000;
+// Every 10 s while the page is visible (paused in the background, checked again
+// on return). Was 5 s: the feed was 60% of all API traffic in the load test.
+const POLL_MS = 10 * 1000;
 // Dispatched on window after the user reads notifications, so the badge updates at once.
 export const ALERTS_CHANGED = 'rsu:alerts-changed';
 const TOAST_MS = 7 * 1000;

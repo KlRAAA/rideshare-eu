@@ -68,12 +68,43 @@ raw numbers in `loadtest/results/`.
 - Website (Vercel) pages weren't included: they are served by Vercel and call
   the same API, so the API is the shared bottleneck.
 
-## Ways to raise the limit
+## After two fixes (same day, rerun)
 
-1. Check alerts every 10 s instead of 5 s, and not at all while the app is in
-   the background: about 30% fewer requests.
-2. Run one API process per CPU core on Railway (Node.js cluster), with the timed
+1. The alerts check runs every 10 s instead of 5 s (still paused while the app
+   is in the background, and checked again the moment you come back; loud
+   alerts still reach phones by push).
+2. Overload protection: when more than 80 requests are in progress, the API
+   answers new ones "busy, try again in a moment" (503, `Retry-After: 5`) at
+   once instead of queueing them.
+
+Same machine and mix, 1,000 accounts. Times are for requests that were served;
+"busy" answers are counted separately.
+
+| Simultaneous users | Requests/s (served) | Busy | Median | 95% under | 99% under | Errors | API memory |
+|---|---|---|---|---|---|---|---|
+| 200 | 47 (47) | 0% | 34 ms | 127 ms | 432 ms | 0% | 431 MB |
+| 400 | 96 (95) | 1.3% | 52 ms | 295 ms | 1,463 ms | 0% | 428 MB |
+| 500 | 119 (119) | 0% | 76 ms | 271 ms | 455 ms | 0% | 422 MB |
+| 600 | 143 (139) | 2.8% | 187 ms | 707 ms | 1,253 ms | 0% | 438 MB |
+| 800 | 190 (134) | 29% | 508 ms | 1,262 ms | 1,795 ms | 0% | 439 MB |
+| 1,000 | 238 (116) | 51% | 613 ms | 1,489 ms | 2,058 ms | 0% | 448 MB |
+
+- **500 people** went from 95% within 1.5 s to 95% within 0.27 s, with no
+  busy answers: the same people now send 30% fewer requests.
+- **600 people** went from a collapse (99% timed out) to working: 95% within
+  0.7 s, 2.8% asked to try again.
+- **800–1,000 people** no longer bring it down: it serves about 120–140
+  requests a second within 1.5–2 s and tells the rest to try again a few
+  seconds later. Nothing times out, and memory stays flat at about 440 MB
+  (it was 2.6 GB).
+- The small busy share at 400 (1.3%) is a short burst, most likely the timed
+  jobs that run every 5 minutes overlapping with a peak of requests.
+- **Comfortable capacity is now about 600 simultaneous users on this PC**
+  (up from about 400), and past that it slows down and sheds load instead of
+  failing.
+
+## Ways to raise the limit further
+
+1. Run one API process per CPU core on Railway (Node.js cluster), with the timed
    jobs in only one of them: roughly a multiple of the cores available.
-3. Refuse new requests quickly with "busy, try again" when overloaded, so the
-   app slows down instead of collapsing past the limit.
-4. Make My Trips cheaper (it re-checks every trip's day steps on each load).
+2. Make My Trips cheaper (it re-checks every trip's day steps on each load).

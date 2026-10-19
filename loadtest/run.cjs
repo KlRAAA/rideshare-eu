@@ -6,7 +6,8 @@
 //   STAGES=50,100 STAGE_SECONDS=30 node loadtest/run.cjs
 //
 // Who does what (the app's own intervals):
-//   everyone      alerts feed every 5 s; a page view (me, My Trips, Alerts) every 60 s
+//   everyone      alerts feed every 10 s (5 s before 19 Oct; FEED_SECONDS=5 to
+//                 repeat the first run); a page view (me, My Trips, Alerts) every 60 s
 //   browsers      half of them also search for a ride every 2 min
 //   live riders   driver's position every 10 s, chat every 7 s, trip page every 60 s
 //   live drivers  send position + ETA every 10 s, riders' locations every 30 s,
@@ -25,6 +26,7 @@ const ORIGIN_SECRET = crypto.randomBytes(24).toString('hex');
 const STAGES = (process.env.STAGES || '50,100,200,300,400,500').split(',').map(Number);
 const STAGE_SECONDS = Number(process.env.STAGE_SECONDS || 60);
 const WARMUP_SECONDS = 10; // after each step up, before measuring
+const FEED_MS = Number(process.env.FEED_SECONDS || 10) * 1000;
 const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture.json'), 'utf8'));
 
 // ---- the API under test ---------------------------------------------------
@@ -84,10 +86,11 @@ function sampleProcesses(apiPid) {
 
 // ---- recording --------------------------------------------------------------
 let stage = null;
-const records = []; // { stage, name, ms, ok }
+const records = []; // { stage, name, ms, ok, busy }
 const request = async (name, userId, method, url, body) => {
   const started = performance.now();
   let ok = false;
+  let busy = false;
   try {
     const r = await fetch(BASE + url, {
       method,
@@ -98,11 +101,12 @@ const request = async (name, userId, method, url, body) => {
     });
     const data = await r.json().catch(() => null);
     ok = r.ok;
+    busy = r.status === 503; // answered "busy, try again" at once
     return data;
   } catch {
     return null;
   } finally {
-    if (stage?.measuring) records.push({ stage: stage.users, name, ms: performance.now() - started, ok });
+    if (stage?.measuring) records.push({ stage: stage.users, name, ms: performance.now() - started, ok, busy });
   }
 };
 
@@ -119,7 +123,7 @@ const phToday = () => new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 
 
 function person(userId, mode) {
   let cursor = '';
-  every(5000, async () => {
+  every(FEED_MS, async () => {
     const data = await request('alerts feed', userId, 'GET', `/api/alerts/feed?mode=${mode}${cursor ? `&after=${encodeURIComponent(cursor)}` : ''}`);
     if (data?.cursor) cursor = data.cursor;
   });
@@ -192,12 +196,16 @@ function growTo(users) {
 
 // ---- results ------------------------------------------------------------------
 const pct = (sorted, p) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))] : 0);
+// Times are for requests that were served; "busy" answers are counted apart.
 function summarise(rows, seconds) {
-  const ms = rows.map((r) => r.ms).sort((a, b) => a - b);
-  const errors = rows.filter((r) => !r.ok).length;
+  const ms = rows.filter((r) => r.ok).map((r) => r.ms).sort((a, b) => a - b);
+  const busy = rows.filter((r) => r.busy).length;
+  const errors = rows.filter((r) => !r.ok && !r.busy).length;
   return {
     requests: rows.length,
     perSecond: +(rows.length / seconds).toFixed(1),
+    servedPerSecond: +(ms.length / seconds).toFixed(1),
+    busyRate: rows.length ? +((busy / rows.length) * 100).toFixed(2) : 0,
     p50: Math.round(pct(ms, 50)),
     p95: Math.round(pct(ms, 95)),
     p99: Math.round(pct(ms, 99)),
@@ -239,7 +247,7 @@ function summarise(rows, seconds) {
     results.push(result);
     const o = result.overall;
     console.log(
-      `${String(actual).padStart(4)} users | ${String(o.perSecond).padStart(6)} req/s | p50 ${o.p50} ms | p95 ${o.p95} ms | p99 ${o.p99} ms | max ${o.max} ms | errors ${o.errorRate}% | API CPU ${result.apiCpuPercent}% | API ${result.apiMemoryMB} MB`
+      `${String(actual).padStart(4)} users | ${String(o.perSecond).padStart(6)} req/s (${o.servedPerSecond} served) | busy ${o.busyRate}% | p50 ${o.p50} ms | p95 ${o.p95} ms | p99 ${o.p99} ms | max ${o.max} ms | errors ${o.errorRate}% | API CPU ${result.apiCpuPercent}% | API ${result.apiMemoryMB} MB`
     );
   }
 

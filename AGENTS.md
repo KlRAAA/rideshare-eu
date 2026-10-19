@@ -660,7 +660,7 @@ plan `docs/superpowers/plans/2026-10-09-loud-notifications.md`.
   within 1 km (`services/arrivalRules.js`) of the meeting point, else the
   origin; approved riders; once per trip and run day (`occurrenceDate`).
 - Web: `NotificationFeed` (in the `/auth` layout and `HelpShell`) polls every
-  5 s, on focus and on the window event `ALERTS_CHANGED` (fired by the Alerts
+  10 s while visible (was 5 s; see the load test), on focus and on the window event `ALERTS_CHANGED` (fired by the Alerts
   page after marking read); when anything new arrives it calls
   `router.refresh()` so server-rendered pages update without a reload. It feeds `useLiveUnread()` to `Header`/`BottomNav`, and for
   loud types shows a pop-up, plays a Web Audio chime (after the first tap) and
@@ -934,3 +934,17 @@ Rules for app screens:
 - Code: `server/services/rideOverlapService.js`; tests
   `server/__tests__/rideOverlap.test.js` (including the race). Not in Postman:
   it needs two licensed drivers at the same time, and the Postman set has one.
+
+## Load test and overload protection (Oct 2026)
+
+Write-up: `docs/evaluation/load-test.md`; scripts `loadtest/seed.cjs` (a
+separate `rideshare_load` database, `LOAD_USERS=1000`) and `loadtest/run.cjs`
+(starts the API in production mode, simulates drivers, riders and browsers with
+the app's timings, steps up the number of users; results in `loadtest/results/`).
+
+- One Node.js process tops out at about 170 requests/s on the test PC (one
+  core). The alerts feed was 60% of traffic, so it now polls every 10 s.
+- `server/middleware/loadShedding.js`: past `MAX_IN_FLIGHT` (default 80)
+  requests in progress, new ones get 503 `SERVER_BUSY` with `Retry-After: 5`
+  at once (never `/api/health`). Installed right after `requireOriginSecret`.
+  Without it the API collapsed at 600 users (backlog, timeouts, 2.6 GB).

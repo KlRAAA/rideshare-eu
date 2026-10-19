@@ -22,6 +22,7 @@ const { authenticate } = require('./middleware/authenticate');
 const { logAccessDenied } = require('./middleware/logAccessDenied');
 const { apiLimiter, geocodeLimiter, suggestLimiter } = require('./middleware/rateLimit');
 const { requireOriginSecret } = require('./middleware/requireOriginSecret');
+const { shedWhenBusy } = require('./middleware/loadShedding');
 const { UPLOADS_DIR } = require('./config/uploads');
 const prisma = require('./config/db');
 
@@ -72,6 +73,11 @@ app.get('/api/health', async (req, res) => {
 });
 
 app.use(requireOriginSecret());
+
+// Past ~80 requests in progress, answer 'busy' at once instead of queueing
+// (the load test collapsed at 600 users without it). Before sign-in checks
+// and body parsing, so a refused request costs almost nothing.
+app.use(shedWhenBusy);
 
 // Profile photos. File names are random and never reused, so they can be
 // cached for a long time.
