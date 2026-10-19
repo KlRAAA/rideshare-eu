@@ -45,7 +45,13 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: npx prisma db push
-      - run: npm run test:server
+      # Same as `npm run test:server`, plus the github-actions reporter: each
+      # failing test becomes an annotation on the run page, readable without
+      # signing in (the full log isn't).
+      - name: Server tests
+        run: |
+          npx jest server --testTimeout=15000 --testPathIgnorePatterns announcements --reporters=default --reporters=github-actions
+          npx jest server/__tests__/announcements.test.js --testTimeout=15000 --reporters=default --reporters=github-actions
       - run: npm run test:web
       - name: Type check
         run: |
