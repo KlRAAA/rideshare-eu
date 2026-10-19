@@ -169,7 +169,7 @@ export default async function DashboardPage() {
         )}
 
         <section className="dashboard-main-grid">
-          <div data-tour="upcoming-trips" className="space-y-3">
+          <div className="space-y-3">
             <div className="flex items-baseline justify-between">
               <h2 className={SECTION_TITLE}>{isDriver ? 'Your next trip' : 'Your next ride'}</h2>
               {upcoming.length > 0 && (
@@ -186,7 +186,6 @@ export default async function DashboardPage() {
                 <p className="text-gray-700">{isDriver ? 'You haven’t posted a trip yet.' : 'No rides yet.'}</p>
                 <Link
                   href={isDriver ? '/auth/post' : '/auth/search'}
-                  data-tour={isDriver ? 'post-ride' : 'find-ride'}
                   className="rsu-btn-primary"
                 >
                   {isDriver ? 'Post a trip' : 'Find a ride'}

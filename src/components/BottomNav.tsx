@@ -35,7 +35,7 @@ export default function BottomNav({ active, unreadCount: pageUnread = 0 }: Botto
         const Icon = ICONS[key];
         const isActive = key === active;
         return (
-          <Link key={key} href={href} className={isActive ? activeClass : 'text-gray-400 hover:text-gray-600'}>
+          <Link key={key} href={href} data-tour={`tab-${key}`} className={isActive ? activeClass : 'text-gray-400 hover:text-gray-600'}>
             {/* Every icon sits in the same 32 px slot, so the labels line up. */}
             <span className="relative flex h-8 items-center justify-center">
               {primary ? (

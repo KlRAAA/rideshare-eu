@@ -28,7 +28,6 @@ export default function Header({ active, unreadCount: pageUnread = 0 }: HeaderPr
   const navItems: { key: ActiveRoute; href: string; label: string }[] = [...tabsFor(mode), HELP];
   return (
     <header
-      data-tour="main-nav"
       className="rsu-header-bar bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm"
     >
       <div className="app-desktop h-14 md:h-16 flex items-center justify-between gap-4">
@@ -39,7 +38,7 @@ export default function Header({ active, unreadCount: pageUnread = 0 }: HeaderPr
 
         <nav className="rsu-topnav flex-1 min-w-0 justify-end hidden md:flex">
           {navItems.map((item) => (
-            <Link key={item.key} href={item.href} className={item.key === active ? 'active' : ''}>
+            <Link key={item.key} href={item.href} data-tour={`tab-${item.key}`} className={item.key === active ? 'active' : ''}>
               <span>{item.label}</span>
               {item.key === 'notifications' && unreadCount > 0 && (
                 <span className="ml-1 inline-flex items-center justify-center bg-red-600 text-white text-[10px] rounded-full px-2">

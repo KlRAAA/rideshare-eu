@@ -501,7 +501,11 @@ plan `docs/superpowers/plans/2026-10-09-driver-passenger-modes.md`.
   notifications nudge; `WrongModeNotice`
   on Find a Ride in Driver mode and Post a Trip in Passenger mode; the dashboard,
   My Trips/My Rides and Alerts show only the current mode. The onboarding tour
-  points at the mode switch.
+  (`OnboardingTour`, react-joyride; first visit, or "Show the tour again" in
+  Profile → `?tour=1`) has five steps in the current mode's words: the mode
+  switch, then the main action, My Trips/My Rides, Alerts and Profile. Tabs
+  carry `data-tour="tab-<key>"` in both the bottom bar and the header; each
+  step targets whichever copy is visible (`visible()`).
 - Demo: Juan, Miguel, Ana and Carlo start in Driver mode. Postman: folder
   "19. Modes and schedule conflicts".
 
