@@ -235,8 +235,21 @@ async function listMine(req, res) {
   const hostedMatchesWithOccurrence = await attachUnratedOccurrence(hosted.flatMap((t) => t.matches), userId);
   const occurrenceByMatchId = new Map(hostedMatchesWithOccurrence.map((m) => [m.id, m.unratedOccurrenceDate]));
 
+  // When each trip last happened, for sorting and filtering past trips: the
+  // cancellation, else a repeating trip's latest driven day, else departure.
+  // One grouped query for every trip on the page.
+  const tripIds = [...new Set([...hosted.map((t) => t.id), ...joinedMatches.map((m) => m.tripId)])];
+  const lastRuns = await prisma.tripRun.groupBy({
+    by: ['tripId'],
+    where: { tripId: { in: tripIds }, startedAt: { not: null } },
+    _max: { startedAt: true },
+  });
+  const lastRunAt = new Map(lastRuns.map((r) => [r.tripId, r._max.startedAt]));
+  const lastActiveAt = (t) =>
+    t.cancelledAt ?? (t.recurrenceType !== 'ONE_TIME' ? lastRunAt.get(t.id) : null) ?? t.departureTime;
+
   // A trip with an ongoing run shows "In progress" (sub-project B).
-  const withProgress = ({ runs, ...t }) => ({ ...t, inProgress: runs.length > 0 });
+  const withProgress = ({ runs, ...t }) => ({ ...t, inProgress: runs.length > 0, lastActiveAt: lastActiveAt(t) });
   const hostedWithRatings = hosted.map((t) => ({
     ...withProgress(decryptTripFields(t)),
     matches: t.matches.map((m) => ({

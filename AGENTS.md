@@ -876,6 +876,12 @@ Rules for app screens:
     rating prompts as "Rate Maria" under the row, one-time trips only for
     COMPLETED matches) and Find a Ride (time first; "You're on this ride" /
     "Requested" from the rider's own rides, passed in by the page).
+  - My Trips / My Rides: Upcoming soonest first; Past and Cancelled newest
+    first with "Last 7 days / Last 30 days (default) / All time"
+    (`src/lib/tripSpans.ts`). Sorted and filtered by `lastActiveAt` from
+    `GET /api/trips/mine`: the cancellation, else a repeating trip's latest
+    started run (one `tripRun.groupBy`), else the departure. A finished
+    repeating trip reads "Weekdays · last Oct 14".
   - Driver Home names the next trip day and, while riders wait, shows
     "Not confirmed" with `ConfirmDayButton` (the trip-day confirm route).
   - Post a Trip: one column; Route (with the map and meeting point under

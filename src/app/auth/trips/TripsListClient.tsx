@@ -7,6 +7,7 @@ import TripRow, { TRIP_LIST } from '@/components/TripRow';
 import { formatTime } from '@/lib/format';
 import { matchStatusBadge } from '@/lib/statusBadge';
 import { seatsLeft, tripRoute, tripWhen } from '@/lib/tripLine';
+import { SPANS, newestFirst, withinSpan, type Span } from '@/lib/tripSpans';
 
 interface Vehicle {
   make: string;
@@ -45,6 +46,8 @@ export interface HostedTrip {
   fuelSharePerSeat: number | null;
   matches: HostedMatch[];
   inProgress?: boolean;
+  // When it last happened (cancellation, last driven day, or departure).
+  lastActiveAt: string;
 }
 
 export interface JoinedTrip extends HostedTrip {
@@ -80,6 +83,15 @@ type Rating = { matchId: string; rateeId: string; rateeName: string; occurrenceD
 type RowStatus = React.ComponentProps<typeof TripRow>['status'];
 
 const firstName = (name: string) => name.split(' ')[0];
+const shortDay = (iso: string) => new Date(iso).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric' });
+const byDeparture = <T extends { departureTime: string }>(trips: T[]) =>
+  [...trips].sort((a, b) => new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime());
+
+// A finished repeating trip says how it repeated and when it last ran.
+function whenLine(trip: HostedTrip, tab: Tab): string {
+  if (tab === 'upcoming' || trip.recurrenceType === 'ONE_TIME') return tripWhen(trip);
+  return `${tripWhen(trip)} · last ${shortDay(trip.lastActiveAt)}`;
+}
 
 // Only what the tab doesn't already say: in progress, full, waiting, declined.
 function hostedStatus(trip: HostedTrip): RowStatus {
@@ -113,6 +125,8 @@ function RateButton({ r, done, onRate }: { r: Rating; done?: boolean; onRate: (r
 export default function TripsListClient({ hosted, joined, currentUserId }: TripsListClientProps) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('upcoming');
+  // Past and Cancelled reach back 30 days unless the user widens it.
+  const [span, setSpan] = useState<Span>('30d');
   const [rating, setRating] = useState<Rating | null>(null);
   // Matches rated in this session, before router.refresh() brings back the
   // server's `ratedByMe`. `hasRated` prefers the server flag when present.
@@ -123,9 +137,13 @@ export default function TripsListClient({ hosted, joined, currentUserId }: Trips
   hosted.forEach((t) => counts[bucketHosted(t)]++);
   joined.forEach((t) => counts[bucketJoined(t)]++);
 
-  const visibleHosted = hosted.filter((t) => bucketHosted(t) === tab);
-  const visibleJoined = joined.filter((t) => bucketJoined(t) === tab);
+  // Upcoming: soonest first. Past and Cancelled: newest first, within the span.
+  const arrange = <T extends HostedTrip>(trips: T[]) =>
+    tab === 'upcoming' ? byDeparture(trips) : newestFirst(trips.filter((t) => withinSpan(t.lastActiveAt, span)));
+  const visibleHosted = arrange(hosted.filter((t) => bucketHosted(t) === tab));
+  const visibleJoined = arrange(joined.filter((t) => bucketJoined(t) === tab));
   const isEmpty = visibleHosted.length === 0 && visibleJoined.length === 0;
+  const hiddenBySpan = tab !== 'upcoming' && span !== 'all' && isEmpty && counts[tab] > 0;
 
   // Who to rate under a trip you drove. A one-time trip rates its COMPLETED
   // riders; a repeating trip rates its last driven day (unratedOccurrenceDate).
@@ -172,7 +190,32 @@ export default function TripsListClient({ hosted, joined, currentUserId }: Trips
         ))}
       </div>
 
-      {isEmpty ? (
+      {tab !== 'upcoming' && (
+        <div role="group" aria-label="Time span" className="mb-4 flex flex-wrap gap-2">
+          {SPANS.map((s) => (
+            <button
+              key={s.value}
+              type="button"
+              onClick={() => setSpan(s.value)}
+              aria-pressed={span === s.value}
+              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold ${
+                span === s.value ? 'bg-[color:var(--rsu-color-primary)] text-white' : 'border border-gray-200 bg-white text-gray-700'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {hiddenBySpan ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-8 text-center">
+          <p className="text-sm text-gray-500">Nothing in the {SPANS.find((s) => s.value === span)?.label.toLowerCase()}.</p>
+          <button type="button" onClick={() => setSpan('all')} className="text-sm font-semibold text-[color:var(--rsu-color-primary)] hover:underline">
+            Show all time
+          </button>
+        </div>
+      ) : isEmpty ? (
         <p className="rounded-2xl border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">Nothing here yet.</p>
       ) : (
         <ul className={TRIP_LIST}>
@@ -184,7 +227,7 @@ export default function TripsListClient({ hosted, joined, currentUserId }: Trips
                 href={`/auth/trips/${trip.id}`}
                 time={formatTime(trip.departureTime)}
                 title={tripRoute(trip)}
-                detail={tab === 'upcoming' ? `${tripWhen(trip)} · ${seatsLeft(trip)}` : tripWhen(trip)}
+                detail={tab === 'upcoming' ? `${tripWhen(trip)} · ${seatsLeft(trip)}` : whenLine(trip, tab)}
                 status={hostedStatus(trip)}
               >
                 {ratings.length > 0 ? ratings : null}
@@ -197,7 +240,7 @@ export default function TripsListClient({ hosted, joined, currentUserId }: Trips
               href={`/auth/trips/${trip.id}`}
               time={formatTime(trip.departureTime)}
               title={tripRoute(trip)}
-              detail={`${tripWhen(trip)} · ${firstName(trip.host.fullName)} drives`}
+              detail={`${whenLine(trip, tab)} · ${firstName(trip.host.fullName)} drives`}
               status={joinedStatus(trip)}
             >
               {joinedRating(trip)}
