@@ -122,7 +122,7 @@ describe('POST /api/trips', () => {
     [{ recurrenceType: 'CUSTOM', customDays: [] }, 'customDays'],
     [{ recurrenceType: 'CUSTOM', customDays: [1, 7] }, 'customDays'],
     [{ totalSeats: 0 }, 'totalSeats'],
-    [{ totalSeats: 7 }, 'totalSeats'],
+    [{ totalSeats: 5 }, 'totalSeats'],
     [{ totalSeats: '3' }, 'totalSeats'],
     [{ totalSeats: 2.5 }, 'totalSeats'],
     [{ genderPreference: 'MALE_ONLY' }, 'genderPreference'],
@@ -298,6 +298,15 @@ describe('PATCH /api/trips/:id (edit) — ownership', () => {
     const fresh = await prisma.trip.findUnique({ where: { id } });
     expect(fresh.originLat).not.toBe(10.31);
     expect(fresh.destinationLat).not.toBe(10.31);
+  });
+
+  test('raising seats above 4 → 400 INVALID_TRIP on totalSeats; 4 is fine', async () => {
+    if (guard()) return;
+    const id = (await (await json('POST', '/api/trips', host.id, tripBody())).json()).trip.id;
+    const res = await json('PATCH', `/api/trips/${id}`, host.id, { totalSeats: 5 });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'INVALID_TRIP', field: 'totalSeats' });
+    expect((await json('PATCH', `/api/trips/${id}`, host.id, { totalSeats: 4 })).status).toBe(200);
   });
 });
 

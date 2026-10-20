@@ -5,7 +5,9 @@
 const MAX_ADDRESS_LENGTH = 200;
 const MAX_NOTES_LENGTH = 500;
 const MIN_SEATS = 1;
-const MAX_SEATS = 6;
+// A car, not a van: more than 4 riders overloads it, and a van carrying
+// paying riders can count as colorum (adviser's recommendation).
+const MAX_SEATS = 4;
 const MAX_FLEX_WINDOW_MINUTES = 120;
 const RECURRENCE_TYPES = ['ONE_TIME', 'DAILY', 'WEEKDAYS', 'CUSTOM'];
 const { GENDER_PREFERENCES } = require('./riderRules');

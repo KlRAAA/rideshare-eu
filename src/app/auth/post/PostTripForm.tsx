@@ -24,7 +24,8 @@ import DraftRestoredBar from '@/components/DraftRestoredBar';
 import { useCurrentLocationAddress } from '@/lib/useCurrentLocationAddress';
 import { WHO_CAN_JOIN_OPTIONS, type GenderPreference } from '@/lib/riderRules';
 
-const SEAT_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({ value: n, label: `${n} seat${n > 1 ? 's' : ''}` }));
+// A car's back seat, not a van (adviser): the server caps it at 4 too.
+const SEAT_OPTIONS = [1, 2, 3, 4].map((n) => ({ value: n, label: `${n} seat${n > 1 ? 's' : ''}` }));
 
 type Recurrence = 'ONE_TIME' | 'DAILY' | 'WEEKDAYS' | 'CUSTOM';
 
@@ -43,7 +44,7 @@ const INVALID_TRIP_MESSAGES: Record<string, string> = {
   destinationLng: 'We couldn’t place your destination on the map. Check the address.',
   departureTime: 'Pick a departure date and time in the future.',
   customDays: 'Pick at least one day for a custom schedule.',
-  totalSeats: 'Offer between 1 and 6 seats.',
+  totalSeats: 'Offer between 1 and 4 seats.',
   driverNotes: 'Keep driver notes under 500 characters.',
   meetingPointLat: 'Set the meeting point again on the map.',
   meetingPointLng: 'Set the meeting point again on the map.',

@@ -18,7 +18,7 @@ const { encryptField, decryptUserFields, decryptTripFields } = require('../servi
 
 const { MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER, getOfficialFuelPrice } = require('../services/fuelPriceService');
 const { cancelWholeTrip, cancelPassengerMatch, ACTIVE_MATCH_STATUSES } = require('../services/tripCancellationService');
-const { validateNewTrip } = require('../services/tripValidation');
+const { validateNewTrip, MAX_SEATS } = require('../services/tripValidation');
 const { GENDER_PREFERENCES, canHostWomenPlus, isWomenPlusEligible } = require('../services/riderRules');
 const { riderFacts } = require('../services/riderFacts');
 
@@ -568,6 +568,14 @@ async function updateTrip(req, res) {
 
   const outside = pointOutsideLuzon(trip, incoming);
   if (outside) return res.status(400).json({ error: 'INVALID_TRIP', field: outside });
+  if ('totalSeats' in incoming) {
+    const seats = Number(incoming.totalSeats);
+    // Raising seats above the cap is refused; a trip posted before the cap may
+    // keep (or lower) its old count.
+    if (!Number.isInteger(seats) || seats < 1 || (seats > MAX_SEATS && seats > trip.totalSeats)) {
+      return res.status(400).json({ error: 'INVALID_TRIP', field: 'totalSeats' });
+    }
+  }
 
   if (['departureTime', 'recurrenceType', 'customDays', 'durationSeconds'].some((k) => k in incoming)) {
     const candidate = {

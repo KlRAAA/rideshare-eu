@@ -433,6 +433,10 @@ Roadmap and decisions: `docs/superpowers/specs/2026-10-08-panel-revisions-roadma
 - After a password reset the page shows "Password changed", and
   `sendPasswordChangedEmail` tells the owner, with the admin contact
   (`REPORT_APPEAL_EMAIL`). A failed send is logged; the reset still succeeds.
+- Seats for riders: 1 to 4 (`MAX_SEATS` in `services/tripValidation.js`, the
+  Post a Trip picker). The adviser: more overloads a car, and a van carrying
+  paying riders can count as colorum. Edits can't raise a trip above 4; a trip
+  posted before the cap keeps its count.
 - The host's cancel dialog says "No one has joined yet" (and hides the reason
   box) when the trip has no approved or pending passengers.
 
