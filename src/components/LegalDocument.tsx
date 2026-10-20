@@ -5,7 +5,7 @@ import BackButton from '@/components/BackButton';
 // Version shown on /terms and /privacy. Change it whenever either text changes
 // materially, together with CURRENT_TERMS_VERSION in
 // server/controllers/authController.js (stamped on each new account).
-export const LEGAL_VERSION = '7 October 2026';
+export const LEGAL_VERSION = '20 October 2026';
 
 interface LegalDocumentProps {
   title: string;

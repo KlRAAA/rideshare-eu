@@ -51,15 +51,31 @@ export default async function TermsPage() {
       <LegalSection title="3. If you drive">
         <ul className="list-disc pl-5 space-y-1">
           <li>Hold a valid driver&rsquo;s license and drive a registered, roadworthy car covered as the law requires.</li>
+          <li>
+            Submit a clear photo of your own license, taken in the app, with its details typed correctly. You can post
+            trips only while your verified license is valid.
+          </li>
           <li>Enter your car&rsquo;s details and plate number accurately.</li>
           <li>Obey traffic laws. Never drive under the influence of alcohol or drugs, and do not smoke during a ride.</li>
-          <li>Leave on time, or tell your riders early if plans change.</li>
+          <li>
+            Confirm each trip day when asked, or skip it early if you won&rsquo;t drive. Tap Start Trip when you leave
+            and End Trip when you arrive; while the trip runs, your position is shared with your approved riders.
+          </li>
+          <li>
+            Leave on time, or tell your riders early if plans change. A trip you don&rsquo;t start within an hour of
+            departure is recorded as a no-show, and repeated no-shows may lead to a warning.
+          </li>
         </ul>
       </LegalSection>
 
       <LegalSection title="4. If you ride">
         <ul className="list-disc pl-5 space-y-1">
           <li>Be at the meeting point on time, and cancel early if you can&rsquo;t make it.</li>
+          <li>
+            You may request several trips, but you can be approved for only one at a time: when a driver approves you,
+            your other requests at the same time are withdrawn.
+          </li>
+          <li>Sharing your location with the driver before pickup is optional.</li>
           <li>Wear your seatbelt and respect the driver, the car and the other riders.</li>
           <li>Settle the fuel share as agreed.</li>
         </ul>
@@ -90,8 +106,10 @@ export default async function TermsPage() {
           .
         </p>
         <p>
-          RideShareEU checks that each account has an MSEUF email address. It does not check driver&rsquo;s
-          licenses, vehicle registration or insurance, and it does not run background checks. Use your own judgment
+          RideShareEU checks that each account has an MSEUF email address, and checks each driver&rsquo;s license
+          photo against the details the driver typed (automatically, or by an admin). It cannot confirm with the LTO
+          that a license is genuine, it does not check vehicle registration or insurance, and it does not run
+          background checks. Use your own judgment
           about whom you ride with, and tell someone you trust about your trip.
         </p>
       </LegalSection>
@@ -117,7 +135,8 @@ export default async function TermsPage() {
 
       <LegalSection title="9. A pilot, provided as is">
         <p>
-          RideShareEU is a research pilot. Features may change, it may be unavailable at times, and it may close when
+          RideShareEU is a research pilot. During user testing, trips may be test trips that nobody is required to
+          drive or ride. Features may change, it may be unavailable at times, and it may close when
           the study ends. To the extent the law allows, the research team is not responsible for what happens during
           rides arranged between users, or for any loss from the app being unavailable. Each user is responsible for
           their own conduct.
