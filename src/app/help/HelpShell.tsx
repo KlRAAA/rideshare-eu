@@ -10,13 +10,15 @@ import { getCurrentUser } from '@/lib/session';
 
 interface HelpShellProps {
   signedIn: boolean;
+  // Always the plain top bar, even when signed in (the /test guide).
+  plain?: boolean;
   children: React.ReactNode;
 }
 
 // The Help pages are public, so a signed-out visitor gets a plain top bar
 // instead of the app's navigation.
-export default async function HelpShell({ signedIn, children }: HelpShellProps) {
-  if (signedIn) {
+export default async function HelpShell({ signedIn, plain = false, children }: HelpShellProps) {
+  if (signedIn && !plain) {
     // Outside /auth, so it provides the mode itself (sub-project C).
     const user = await getCurrentUser();
     return (
@@ -39,8 +41,11 @@ export default async function HelpShell({ signedIn, children }: HelpShellProps) 
             <Logo size={36} />
             <Wordmark height={16} className="text-gray-900" />
           </Link>
-          <Link href="/login" className="text-sm font-semibold text-[color:var(--rsu-color-primary)] hover:underline">
-            Sign in
+          <Link
+            href={signedIn ? '/auth/dashboard' : '/login'}
+            className="text-sm font-semibold text-[color:var(--rsu-color-primary)] hover:underline"
+          >
+            {signedIn ? 'Open app' : 'Sign in'}
           </Link>
         </div>
       </header>

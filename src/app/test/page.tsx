@@ -67,7 +67,7 @@ const PROBLEMS: [string, React.ReactNode][] = [
 export default async function TestPage() {
   const user = await getCurrentUser();
   return (
-    <HelpShell signedIn={Boolean(user)}>
+    <HelpShell signedIn={Boolean(user)} plain>
       <div className="mx-auto flex max-w-2xl flex-col gap-4 pb-10">
         <header className="flex flex-col gap-3 pt-2">
           <h1 className="text-3xl font-bold text-gray-900">Test RideShareEU</h1>
