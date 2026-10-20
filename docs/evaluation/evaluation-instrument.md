@@ -1,24 +1,44 @@
 # RideShareEU evaluation instrument (UAT)
 
-The Google Form made by `forms/create-evaluation-form.gs`. Testers follow the
-public guide at `/test` (QR code: `rideshareeu-test-qr.png`), then answer it.
-Anonymous: no name or email is collected.
+The Google Form made by `forms/create-evaluation-form.gs`, modeled on the
+structure other CCMS thesis groups use (intro page, consent, profile, feature
+usability, interface, SUS, open feedback). Testers follow the public guide at
+`/test` (QR code: `rideshareeu-test-qr.png`), then answer it. Anonymous: no
+name or email is collected. Contact on the form: thesis013xvn@gmail.com. No
+token of appreciation.
 
-## Respondent groups and what each answers
+## Pages
 
-| Group | Group section | Then everyone answers |
+| Page | Who | Content |
 |---|---|---|
-| Students, faculty, non-teaching staff (end users) | none | Tasks, Usability (U1–U10), SUS (S1–S10), comments |
-| ICTD (IT evaluators) | ISO/IEC 25010 product quality (Q1–Q20) | same |
-| Sustainability office, Transportation office (domain evaluators) | Campus mobility and sustainability (D1–D10) | same |
+| Intro | everyone | Study title and purpose, Data Privacy Notice (RA 10173), objectives, researchers, contact |
+| I. Informed Consent and Tester Verification | everyone | Consent ("I do not consent" ends the form); "I created an account and used RideShareEU" check |
+| II. Respondent Profile | everyone | Group (decides the next page), age group, used as passenger / driver / both, device, added to home screen |
+| III-A. Software Quality (ISO/IEC 25010) | ICTD only | Q1–Q20 |
+| III-B. Campus Mobility and Sustainability | Sustainability and Transportation offices only | D1–D10 |
+| IV. Core Feature Usability and Task Performance | everyone | F1–F11 in one grid, Strongly disagree … Strongly agree or "Did not try" |
+| V. Usability and User Interface (ISO/IEC 25010) | everyone | U1–U10 |
+| VI. System Usability Scale | everyone | S1–S10 |
+| VII. Feedback and Recommendations | everyone | Feature highlights, issues and frustrations, suggestions |
 
-Profile questions for all: group, used as passenger / driver / both, device,
-added to home screen. Consent comes first; "I do not agree" ends the form.
+Students, faculty and non-teaching staff go from II straight to IV.
+
+As in the ISO/IEC 25010 questionnaires of other groups, the ICTD, domain and
+usability items are answered in grids (one grid per characteristic for the
+ICTD), each row written as "Sub-characteristic — statement" with the columns
+Strongly disagree, Disagree, Neutral, Agree, Strongly agree (scored 1–5). The
+SUS keeps its standard ten separate 1–5 items.
 
 ## Scales
 
 All rated items use a 5-point Likert scale: 1 Strongly disagree, 2 Disagree,
 3 Neutral, 4 Agree, 5 Strongly agree.
+
+**Core features (F1–F11):** account creation, ride search and results, join
+request and approval status, posting a trip, approving riders, running a trip
+(start, pickups, end), live map, notifications, chat, fuel share, help and
+safety. "Did not try" answers are left out of that item's mean and counted
+separately as the share of testers who tried each feature.
 
 **Usability (ISO/IEC 25010 sub-characteristics):** U1–U2 appropriateness
 recognizability, U3–U4 learnability, U5–U6 operability, U7–U8 user error
@@ -53,9 +73,6 @@ with this interpretation:
 (5 − answer); the sum × 2.5 gives 0–100. Report the mean and standard
 deviation. The acceptance threshold is a mean of **68 or higher**; classify it
 with the SUS adjective scale (e.g. 68 OK/Good, 80.3 Excellent).
-
-**Tasks:** the share of respondents who completed each task, from the
-checklist; the "couldn't finish" answers explain the gaps.
 
 Results are descriptive (no statistical significance claimed), reported by
 group, as in the manuscript's evaluation plan.

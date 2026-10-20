@@ -181,8 +181,8 @@ export default async function TestPage() {
         <Section id="evaluate" title="5. Send your evaluation">
           <Note>
             After you’ve tried RideShareEU, please answer the form. It asks which group you’re answering for (student,
-            faculty, staff, ICTD, Sustainability or Transportation) and takes about 10 minutes. It doesn’t record your name
-            or email.
+            faculty, staff, ICTD, Sustainability or Transportation) and takes about 10 to 15 minutes. It doesn’t record your
+            name or email.
           </Note>
           {EVALUATION_FORM_URL ? (
             <a href={EVALUATION_FORM_URL} className="rsu-btn-primary inline-flex w-fit items-center gap-2 px-5">

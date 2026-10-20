@@ -15,8 +15,42 @@
  * docs/evaluation/evaluation-instrument.md; keep the two in step.
  */
 
+const SCALE = '1 – Strongly disagree, 2 – Disagree, 3 – Neutral, 4 – Agree, 5 – Strongly agree';
 const LIKERT_LOW = 'Strongly disagree';
 const LIKERT_HIGH = 'Strongly agree';
+const CONTACT_EMAIL = 'thesis013xvn@gmail.com';
+const TEST_PAGE = 'https://rideshare-eu.vercel.app/test';
+
+const INTRO = [
+  'Good day! You are invited to take part in this evaluation as part of our study, "RideShareEU: A Priority-Scored ' +
+    'Greedy Matching Algorithm for Optimizing Schedule-Based University Carpooling."',
+  '',
+  'RideShareEU is a carpool web app for the Manuel S. Enverga University Foundation community. Drivers post the trips ' +
+    'they already make, passengers find rides that go their way, and the suggested fuel share is split per seat. This ' +
+    'evaluation assesses how well the app works, how easy it is to use, and how satisfied testers are with it. Please ' +
+    'try the app first, following the guide at ' + TEST_PAGE + ', then answer this form. It takes about 10 to 15 minutes.',
+  '',
+  'DATA PRIVACY NOTICE',
+  'In compliance with the Data Privacy Act of 2012 (Republic Act No. 10173), this form does not collect your name or ' +
+    'email address. Your answers are used only for academic research, system evaluation, and documentation, are ' +
+    'reported only as group results, and are accessible only to the research team. Test accounts and test trips in the ' +
+    'app are deleted after the evaluation period. Taking part is voluntary, and you may stop at any time.',
+  '',
+  'OBJECTIVES OF THE EVALUATION',
+  '1. To evaluate the functional suitability, usability, and user experience of RideShareEU in its key tasks: signing ' +
+    'up, finding and requesting rides, posting and running trips, and staying in touch through chat and notifications.',
+  '2. To determine user satisfaction with the ride matching (the Priority-Scored Greedy Algorithm), the fuel share, ' +
+    'and the safety features.',
+  '3. To gather feedback, identify problems, and form recommendations for improving the system.',
+  '',
+  'RESEARCHERS',
+  'De Asis, Von Altair R.',
+  'Dimacali, Xyrus Lorenz M.',
+  'Sayat, Nash Adriane D.',
+  '',
+  'For questions or concerns about this evaluation, email us at ' + CONTACT_EMAIL + '. To report a problem in the ' +
+    'app while testing, use Help → Contact admin in RideShareEU.',
+].join('\n');
 
 // Who is answering. The three office groups get their own section first.
 const GROUPS = {
@@ -27,20 +61,6 @@ const GROUPS = {
   sustainability: 'Sustainability office',
   transport: 'Transportation office',
 };
-
-// ISO/IEC 25010 usability sub-characteristics (everyone), mapped to the tasks.
-const USABILITY = [
-  ['Appropriateness recognizability', 'I could tell what RideShareEU is for and whether it fits my commute.'],
-  ['Appropriateness recognizability', 'Each screen made it clear what I could do there.'],
-  ['Learnability', 'I learned to find a ride or post a trip without anyone helping me.'],
-  ['Learnability', 'The steps to request a ride, approve a rider and rate a trip were easy to remember.'],
-  ['Operability', 'Buttons, menus and forms were easy to use on my phone.'],
-  ['Operability', 'I could finish each task I tried without getting stuck.'],
-  ['User error protection', 'The app asked me to confirm before actions that can’t be undone, like cancelling.'],
-  ['User error protection', 'When something went wrong, the message told me what to do next.'],
-  ['User interface aesthetics', 'The app looks clean and pleasant to use.'],
-  ['Accessibility', 'Text size, contrast and button sizes were comfortable for me.'],
-];
 
 // ISO/IEC 25010 product quality, for the ICTD evaluators.
 const ICTD = [
@@ -80,6 +100,37 @@ const DOMAIN = [
   ['Adoption', 'I would recommend that the university pilot RideShareEU.'],
 ];
 
+// Everyone: one statement per main task, answered in a grid with "Did not try".
+const CORE_FEATURES = [
+  'Creating an account with my school email and the emailed code was straightforward.',
+  'Searching for a ride and understanding the results (time, match %, fuel share) was easy.',
+  'Requesting to join a trip, and seeing whether the driver approved it, was clear.',
+  'Posting a trip (route, meeting point, schedule, car and seats) was easy to complete.',
+  'Approving or declining a rider’s request was easy.',
+  'Starting a trip, marking riders as picked up, and ending the trip worked as expected.',
+  'Following the car on the live map, with its arrival time, was clear and useful.',
+  'Notifications told me about requests, approvals and trip updates on time.',
+  'The trip chat made it easy to coordinate with the driver or riders.',
+  'The suggested fuel share per seat was clear and reasonable.',
+  'Help, reporting a problem, and the safety information were easy to find.',
+];
+const AGREEMENT = ['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree'];
+const GRID_COLUMNS = [...AGREEMENT, 'Did not try'];
+
+// ISO/IEC 25010 usability sub-characteristics (everyone).
+const USABILITY = [
+  ['Appropriateness recognizability', 'I could tell what RideShareEU is for and whether it fits my commute.'],
+  ['Appropriateness recognizability', 'Each screen made it clear what I could do there.'],
+  ['Learnability', 'I learned to find a ride or post a trip without anyone helping me.'],
+  ['Learnability', 'The steps to request a ride, approve a rider and rate a trip were easy to remember.'],
+  ['Operability', 'Buttons, menus and forms were easy to use on my phone.'],
+  ['Operability', 'I could finish each task I tried without getting stuck.'],
+  ['User error protection', 'The app asked me to confirm before actions that can’t be undone, like cancelling.'],
+  ['User error protection', 'When something went wrong, the message told me what to do next.'],
+  ['User interface aesthetics', 'The layout, colors and text are clean and pleasant to look at.'],
+  ['Accessibility', 'Text size, contrast and button sizes were comfortable for me.'],
+];
+
 // System Usability Scale (Brooke, 1996), wording unchanged except the name.
 const SUS = [
   'I think that I would like to use RideShareEU frequently.',
@@ -94,112 +145,93 @@ const SUS = [
   'I needed to learn a lot of things before I could get going with RideShareEU.',
 ];
 
-const TASKS = [
-  'Create an account with my school email',
-  'Find a ride and request to join',
-  'Post a trip (as a driver)',
-  'Approve or decline a rider',
-  'Chat with the driver or riders',
-  'Start a trip and follow it on the live map',
-  'Rate a driver or rider after a trip',
-  'Use Help or report a problem',
-];
-
-function addScales(form, rows, prefix) {
-  rows.forEach(([aspect, statement], i) => {
-    form
-      .addScaleItem()
-      .setTitle(`${prefix}${i + 1}. ${statement}`)
-      .setHelpText(aspect)
-      .setBounds(1, 5)
-      .setLabels(LIKERT_LOW, LIKERT_HIGH)
-      .setRequired(true);
-  });
-}
-
 function createRideShareEUEvaluation() {
-  const form = FormApp.create('RideShareEU Evaluation');
+  const form = FormApp.create('RideShareEU: User Acceptance and Usability Evaluation');
   form
-    .setDescription(
-      'Thank you for testing RideShareEU, the MSEUF carpool web app, for our thesis. ' +
-        'This form takes about 10 minutes. Answer after you have tried the app at https://rideshare-eu.vercel.app/test.'
-    )
+    .setTitle('RideShareEU: User Acceptance and Usability Evaluation')
+    .setDescription(INTRO)
     .setCollectEmail(false)
     .setProgressBar(true)
     .setAllowResponseEdits(false)
     .setConfirmationMessage('Thank you! Your answers help us improve RideShareEU and complete our thesis evaluation.');
 
-  // 1. Consent (RA 10173). "I do not agree" ends the form.
+  // I. Consent and tester check. "I do not agree" ends the form.
+  addSection(form, 'I. Informed Consent and Tester Verification',
+    'Please confirm your consent and that you tried RideShareEU before answering.');
   const consent = form
     .addMultipleChoiceItem()
-    .setTitle('Consent')
-    .setHelpText(
-      'Your answers are anonymous: this form does not record your name or email. They are used only for the ' +
-        'RideShareEU thesis evaluation and reported as group results. Test accounts and test trips in the app are ' +
-        'deleted after the evaluation period, as required by the Data Privacy Act of 2012 (RA 10173). ' +
-        'You may stop at any time.'
-    )
+    .setTitle('Informed consent')
+    .setHelpText('I have read the study overview and the Data Privacy Notice.')
+    .setRequired(true);
+  form
+    .addCheckboxItem()
+    .setTitle('Testing participation check')
+    .setChoiceValues(['Yes, I created an account and used RideShareEU during the testing session.'])
     .setRequired(true);
 
-  // 2. About you. The group decides the next section.
-  const aboutPage = form.addPageBreakItem().setTitle('About you');
+  // II. Profile. The group decides the next section.
+  const profilePage = addSection(form, 'II. Respondent Profile',
+    'This helps us report results by group. We do not ask for your name.');
   const group = form.addMultipleChoiceItem().setTitle('Which group are you answering for?').setRequired(true);
+  form.addMultipleChoiceItem().setTitle('Age group').setChoiceValues(['18 – 21', '22 – 25', '26 – 30', '31 – 40', '41 and above']).setRequired(true);
   form.addMultipleChoiceItem().setTitle('How did you use RideShareEU?').setChoiceValues(['As a passenger', 'As a driver', 'Both']).setRequired(true);
   form.addMultipleChoiceItem().setTitle('Which device did you mainly use?').setChoiceValues(['Android phone', 'iPhone', 'Tablet', 'Computer']).setRequired(true);
   form.addMultipleChoiceItem().setTitle('Did you add RideShareEU to your home screen?').setChoiceValues(['Yes', 'No']).setRequired(true);
 
-  // 3a. ICTD.
-  const ictdPage = form
-    .addPageBreakItem()
-    .setTitle('Software quality (ISO/IEC 25010)')
-    .setHelpText('For ICTD evaluators. 1 = Strongly disagree, 5 = Strongly agree.');
-  addScales(form, ICTD, 'Q');
+  // III-A. ICTD.
+  const ictdPage = addSection(form, 'III-A. Software Quality (ISO/IEC 25010)',
+    'For ICTD evaluators. Rate each statement based on your testing.');
+  addGrids(form, ICTD, 'Q', byCharacteristic);
 
-  // 3b. Sustainability and Transportation.
-  const domainPage = form
-    .addPageBreakItem()
-    .setTitle('Campus mobility and sustainability')
-    .setHelpText('For the Sustainability and Transportation offices. 1 = Strongly disagree, 5 = Strongly agree.');
-  addScales(form, DOMAIN, 'D');
+  // III-B. Sustainability and Transportation.
+  const domainPage = addSection(form, 'III-B. Campus Mobility and Sustainability',
+    'For the Sustainability and Transportation offices. Rate each statement based on your testing.');
+  addGrids(form, DOMAIN, 'D', (aspect) => ['Campus mobility and sustainability', byCharacteristic(aspect).join(': ').replace(/: $/, '')]);
 
-  // 4. Everyone: tasks, usability, SUS, comments.
-  const tasksPage = form.addPageBreakItem().setTitle('What you tried');
-  form.addCheckboxItem().setTitle('Which tasks did you complete?').setHelpText('Check all that apply.').setChoiceValues(TASKS).setRequired(true);
-  form.addParagraphTextItem().setTitle('Was there a task you couldn’t finish? What happened?');
-
-  form.addPageBreakItem().setTitle('Usability (ISO/IEC 25010)').setHelpText('1 = Strongly disagree, 5 = Strongly agree.');
-  addScales(form, USABILITY, 'U');
-
+  // IV. Everyone: core features.
+  const corePage = addSection(form, 'IV. Core Feature Usability and Task Performance',
+    'Rate how well each of RideShareEU’s main functions worked for you. Choose "Did not try" for anything you ' +
+      'didn’t do (for example, driver tasks if you only rode).');
   form
-    .addPageBreakItem()
-    .setTitle('System Usability Scale')
-    .setHelpText('Answer quickly, with your first impression. 1 = Strongly disagree, 5 = Strongly agree.');
-  SUS.forEach((statement, i) => {
-    form.addScaleItem().setTitle(`S${i + 1}. ${statement}`).setBounds(1, 5).setLabels(LIKERT_LOW, LIKERT_HIGH).setRequired(true);
-  });
+    .addGridItem()
+    .setTitle('Core features')
+    .setRows(CORE_FEATURES.map((s, i) => `F${i + 1}. ${s}`))
+    .setColumns(GRID_COLUMNS)
+    .setRequired(true);
 
-  form.addPageBreakItem().setTitle('Your comments');
-  form.addParagraphTextItem().setTitle('What did you like most about RideShareEU?');
-  form.addParagraphTextItem().setTitle('What was confusing or didn’t work?');
-  form.addParagraphTextItem().setTitle('What would you add or change?');
+  // V. Usability and interface.
+  addSection(form, 'V. Usability and User Interface (ISO/IEC 25010)',
+    'Rate each statement based on your experience using the app.');
+  addGrids(form, USABILITY, 'U', (aspect) => ['Usability', aspect]);
+
+  // VI. SUS.
+  addSection(form, 'VI. System Usability Scale (SUS)',
+    'Answer quickly, with your first impression.\nRating scale: ' + SCALE);
+  addScales(form, SUS, 'S');
+
+  // VII. Comments.
+  addSection(form, 'VII. Feedback and Recommendations',
+    'Tell us what worked, what didn’t, and what would make RideShareEU better.');
+  form.addParagraphTextItem().setTitle('Feature highlights').setHelpText('What feature did you find most useful or well designed?');
+  form.addParagraphTextItem().setTitle('Issues and frustrations').setHelpText('Did you run into bugs, confusing steps, slow pages, or a task you couldn’t finish? What happened?');
+  form.addParagraphTextItem().setTitle('Suggestions for improvement').setHelpText('What would you add or change before RideShareEU is used on campus?');
 
   // Navigation: consent, then by group. A page break's "go to" applies to the
-  // page before it, so the break before the Sustainability/Transportation page
-  // sends ICTD evaluators straight on to the common part; that page itself
-  // continues to it anyway.
+  // page before it: the break before III-B sends ICTD evaluators on to IV,
+  // and the break before IV does the same for III-B (the default anyway).
   consent.setChoices([
-    consent.createChoice('I agree to take part', aboutPage),
-    consent.createChoice('I do not agree', FormApp.PageNavigationType.SUBMIT),
+    consent.createChoice('I voluntarily consent to take part in this evaluation.', profilePage),
+    consent.createChoice('I do not consent.', FormApp.PageNavigationType.SUBMIT),
   ]);
   group.setChoices([
-    group.createChoice(GROUPS.student, tasksPage),
-    group.createChoice(GROUPS.faculty, tasksPage),
-    group.createChoice(GROUPS.staff, tasksPage),
+    group.createChoice(GROUPS.student, corePage),
+    group.createChoice(GROUPS.faculty, corePage),
+    group.createChoice(GROUPS.staff, corePage),
     group.createChoice(GROUPS.ictd, ictdPage),
     group.createChoice(GROUPS.sustainability, domainPage),
     group.createChoice(GROUPS.transport, domainPage),
   ]);
-  domainPage.setGoToPage(tasksPage);
+  domainPage.setGoToPage(corePage);
 
   const sheet = SpreadsheetApp.create('RideShareEU Evaluation (responses)');
   form.setDestination(FormApp.DestinationType.SPREADSHEET, sheet.getId());
@@ -207,4 +239,39 @@ function createRideShareEUEvaluation() {
   Logger.log('Share this link with evaluators: ' + form.shortenFormUrl(form.getPublishedUrl()));
   Logger.log('Edit the form: ' + form.getEditUrl());
   Logger.log('Responses spreadsheet: ' + sheet.getUrl());
+}
+
+function addScales(form, statements, prefix) {
+  statements.forEach((statement, i) => {
+    form
+      .addScaleItem()
+      .setTitle(`${prefix}${i + 1}. ${statement}`)
+      .setBounds(1, 5)
+      .setLabels(LIKERT_LOW, LIKERT_HIGH)
+      .setRequired(true);
+  });
+}
+
+// One grid per characteristic, each row "Q1. Sub-characteristic — statement",
+// as in the ISO/IEC 25010 questionnaires other CCMS groups use.
+function addGrids(form, rows, prefix, groupOf) {
+  const groups = [];
+  rows.forEach(([aspect, statement], i) => {
+    const [name, sub] = groupOf(aspect);
+    let g = groups.find((x) => x.name === name);
+    if (!g) groups.push((g = { name, rows: [] }));
+    g.rows.push(`${prefix}${i + 1}. ${sub ? sub + ' — ' : ''}${statement}`);
+  });
+  groups.forEach((g) => {
+    form.addGridItem().setTitle(g.name).setRows(g.rows).setColumns(AGREEMENT).setRequired(true);
+  });
+}
+
+const byCharacteristic = (aspect) => {
+  const [name, sub] = aspect.split(': ');
+  return [name, sub ? sub.charAt(0).toUpperCase() + sub.slice(1) : ''];
+};
+
+function addSection(form, title, help) {
+  return form.addPageBreakItem().setTitle(title).setHelpText(help);
 }
