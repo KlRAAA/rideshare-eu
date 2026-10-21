@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaSpinner } from 'react-icons/fa';
 import RouteMap from '@/components/RouteMap';
@@ -233,6 +234,8 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 409 RATING_REQUIRED: the last trip, whose riders the driver rates first.
+  const [rateTripId, setRateTripId] = useState<string | null>(null);
   // Server's CONFIRMATION_REQUIRED payload, shown in the modal before a second submit.
   const [confirmData, setConfirmData] = useState<{
     changeSummary: string;
@@ -347,6 +350,7 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
   async function submitTrip(confirmStructural: boolean) {
     if (isSubmittingRef.current) return;
     setError(null);
+    setRateTripId(null);
     // The message at the bottom of the form, and the same message on the field.
     const fail = (message: string, fieldId?: string) => {
       setError(message);
@@ -523,6 +527,10 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
         setError('This trip can no longer be edited.');
       } else if (err instanceof ApiError && err.code === 'DRIVING_NOW') {
         setError('You’re driving a trip right now. End it before you post your next trip.');
+      } else if (err instanceof ApiError && err.code === 'RATING_REQUIRED') {
+        const riders = Array.isArray(err.body?.riders) ? (err.body.riders as { rateeName: string }[]).map((r) => r.rateeName) : [];
+        setError(`Rate the riders from your last trip first${riders.length ? `: ${riders.join(', ')}` : ''}.`);
+        setRateTripId(typeof err.body?.tripId === 'string' ? err.body.tripId : null);
       } else if (err instanceof ApiError && err.code === 'SCHEDULE_CONFLICT') {
         fail(conflictMessage(String(err.body?.conflictDepartureTime)), 'trip-time');
       } else if (err instanceof ApiError && err.code === 'INVALID_TRIP') {
@@ -907,6 +915,14 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
       {error && (
         <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-600">
           {error}
+          {rateTripId && (
+            <>
+              {' '}
+              <Link href={`/auth/trips/${rateTripId}`} className="underline">
+                Open that trip to rate them
+              </Link>
+            </>
+          )}
         </p>
       )}
 

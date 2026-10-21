@@ -146,6 +146,27 @@ export default function TripDetailClient({
   const hasRated = (matchId: string) =>
     ratedThisSession.has(matchId) || (trip.matches.find((m) => m.id === matchId)?.ratedByMe ?? false);
 
+  // A rider who opens a finished ride they haven't rated gets the rating dialog
+  // straight away (once per page load; closing it leaves the Rate button).
+  const [askedToRate, setAskedToRate] = useState(false);
+  useEffect(() => {
+    if (askedToRate || isHost) return;
+    if (myCompletedMatch && !hasRated(myCompletedMatch.id)) {
+      setRating({ matchId: myCompletedMatch.id, rateeId: trip.host.id, rateeName: trip.host.fullName });
+    } else if (myRatableRecurringMatch && !ratedThisSession.has(myRatableRecurringMatch.id)) {
+      setRating({
+        matchId: myRatableRecurringMatch.id,
+        rateeId: trip.host.id,
+        rateeName: trip.host.fullName,
+        occurrenceDate: myRatableRecurringMatch.unratedOccurrenceDate,
+      });
+    } else {
+      return;
+    }
+    setAskedToRate(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when something becomes ratable
+  }, [myCompletedMatch?.id, myRatableRecurringMatch?.id, askedToRate, isHost]);
+
   const tripIsActive = trip.status === 'OPEN' || trip.status === 'FULL';
   // Nobody cancels a trip that's on the road (sub-project B; the server refuses too).
   // Group chat: host + every APPROVED passenger, only while the trip is

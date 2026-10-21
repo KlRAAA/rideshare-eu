@@ -6,6 +6,7 @@ import { apiFetch, ApiError } from '@/lib/api';
 import { conflictMessage } from '@/lib/modeNav';
 import { needsOpenTripWarning, type GenderPreference } from '@/lib/riderRules';
 import OpenTripWarning from './OpenTripWarning';
+import RatingModal from './RatingModal';
 
 // PSGA scores from the search result. The fuel share is NOT here — the server
 // snapshots it from the trip's persisted per-seat value, never from the client.
@@ -53,9 +54,16 @@ export default function RequestToJoinModal({
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 409 RATING_REQUIRED: the driver of the rider's last ride, to rate first.
+  const [ratingDue, setRatingDue] = useState<{ matchId: string; rateeId: string; rateeName: string; occurrenceDate: string | null } | null>(null);
+  const [rating, setRating] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    send();
+  }
+
+  async function send() {
     setLoading(true);
     setError(null);
     try {
@@ -72,6 +80,13 @@ export default function RequestToJoinModal({
       const code = err instanceof ApiError ? err.code : undefined;
       if (err instanceof ApiError && code === 'SCHEDULE_CONFLICT') {
         setError(conflictMessage(String(err.body?.conflictDepartureTime)));
+      } else if (err instanceof ApiError && code === 'RATING_REQUIRED') {
+        setRatingDue({
+          matchId: String(err.body?.matchId),
+          rateeId: String(err.body?.rateeId),
+          rateeName: String(err.body?.rateeName),
+          occurrenceDate: typeof err.body?.occurrenceDate === 'string' ? err.body.occurrenceDate : null,
+        });
       } else {
         setError((code && ERROR_COPY[code]) || 'Couldn’t send that request. Try again in a moment.');
       }
@@ -80,6 +95,7 @@ export default function RequestToJoinModal({
   }
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="rsu-card w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-1">
@@ -112,13 +128,41 @@ export default function RequestToJoinModal({
 
               {error && <p className="text-xs text-red-600">{error}</p>}
 
-              <button type="submit" disabled={loading} className="rsu-btn-primary w-full disabled:opacity-60">
-                {loading ? 'Sending…' : 'Send request'}
-              </button>
+              {ratingDue ? (
+                <div role="alert" className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-sm text-amber-900">
+                    Rate {ratingDue.rateeName} from your last ride first. It takes a few seconds and helps every rider choose.
+                  </p>
+                  <button type="button" onClick={() => setRating(true)} className="rsu-btn-primary w-full">
+                    Rate {ratingDue.rateeName}
+                  </button>
+                </div>
+              ) : (
+                <button type="submit" disabled={loading} className="rsu-btn-primary w-full disabled:opacity-60">
+                  {loading ? 'Sending…' : 'Send request'}
+                </button>
+              )}
             </form>
           </>
         )}
       </div>
     </div>
+    {/* Outside the join dialog, so a tap on its backdrop doesn't close both. */}
+    {ratingDue && rating && (
+      <RatingModal
+        matchId={ratingDue.matchId}
+        raterId={passengerId}
+        rateeId={ratingDue.rateeId}
+        rateeName={ratingDue.rateeName}
+        occurrenceDate={ratingDue.occurrenceDate}
+        onClose={() => setRating(false)}
+        onSubmitted={() => {
+          setRating(false);
+          setRatingDue(null);
+          send(); // rated: send the request they were making
+        }}
+      />
+    )}
+    </>
   );
 }

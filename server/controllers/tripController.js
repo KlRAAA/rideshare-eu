@@ -2,6 +2,7 @@ const prisma = require('../config/db');
 const { inLuzon } = require('../config/serviceArea');
 const { ongoingRun, finishRun, MAX_END_NOTE_LENGTH } = require('../services/tripRunService');
 const { isPickedUp } = require('../services/riderLocationRules');
+const { driverRatingDue } = require('../services/ratingDueService');
 const { conflictWithRides, conflictWithHosted, conflictBody } = require('../services/scheduleConflicts');
 const { nextDeparture, plannedArrival } = require('../services/tripRunRules');
 const { phDateOnly } = require('../services/recurrenceMath');
@@ -109,6 +110,10 @@ async function createTrip(req, res) {
     select: { tripId: true },
   });
   if (driving) return res.status(409).json({ error: 'DRIVING_NOW', tripId: driving.tripId });
+
+  // Rate the riders of the last ride first (for 24 hours after it ended).
+  const ratingDue = await driverRatingDue(req.user.id);
+  if (ratingDue) return res.status(409).json({ error: 'RATING_REQUIRED', ...ratingDue });
 
   // Nobody drives while riding someone else's trip, or drives two trips, at the same time.
   const candidate = {
