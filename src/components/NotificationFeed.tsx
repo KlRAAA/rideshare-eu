@@ -83,6 +83,8 @@ export default function NotificationFeed({ children }: { children: React.ReactNo
   }, []);
 
   const announce = useCallback((n: FeedNotification) => {
+    // The admin console stays free of ride pop-ups; the count still updates.
+    if (pathRef.current?.startsWith('/auth/admin')) return;
     setToast(n);
     if (!soundEnabled()) return;
     if (audio.current?.state === 'running') chime(audio.current);
