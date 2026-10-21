@@ -165,15 +165,16 @@ export default function ProfileClient({ user, initialPreference, license, notifi
             ★ {user.trustScore.toFixed(1)} · {isDriver ? `${user.tripsHosted} trips driven` : `${user.tripsJoined} rides`}
           </p>
           <p className="truncate text-xs text-gray-500">{user.email}</p>
+          {/* Under the name, not beside it, so a long name isn't cut short on a phone. */}
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="mt-2 min-h-9 rounded-lg border border-red-200 px-4 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
+          >
+            {loggingOut ? 'Logging out…' : 'Log out'}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleLogout}
-          disabled={loggingOut}
-          className="shrink-0 self-start rounded-lg border border-red-200 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
-        >
-          {loggingOut ? 'Logging out…' : 'Log out'}
-        </button>
       </header>
       {avatarError && (
         <p role="alert" className="-mt-4 text-sm text-red-600">
