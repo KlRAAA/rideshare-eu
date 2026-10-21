@@ -10,6 +10,7 @@ import { reportCategoryLabel } from '@/lib/format';
 import { BAN_DURATION_OPTIONS, formatDateTime } from '@/lib/admin';
 import { WARNING_REASONS } from '@/lib/warnings';
 import Select from '@/components/Select';
+import { useAppDialog } from '@/components/AppDialog';
 
 interface Person {
   id: string;
@@ -51,9 +52,21 @@ export default function ReportCard({ report }: { report: AdminReport }) {
   const [warnReason, setWarnReason] = useState('');
   const warning = banDuration === WARN;
   const [busy, setBusy] = useState(false);
+  const { confirm, dialog } = useAppDialog();
   const [error, setError] = useState<string | null>(null);
 
   async function resolve(status: 'REVIEWED' | 'DISMISSED') {
+    const who = report.reportedUser?.fullName ?? 'this user';
+    const ok = await confirm(
+      status === 'DISMISSED'
+        ? { title: 'Dismiss this report?', message: 'No action is taken against the reported user.', confirmLabel: 'Dismiss' }
+        : warning
+          ? { title: `Warn ${who}?`, message: `${who} gets an official warning and an email.`, confirmLabel: 'Warn' }
+          : banDuration
+            ? { title: `Ban ${who}?`, message: `${who} loses access right away and gets an email.`, confirmLabel: 'Ban', danger: true }
+            : { title: 'Mark this report reviewed?', confirmLabel: 'Mark reviewed' }
+    );
+    if (!ok) return;
     setBusy(true);
     setError(null);
     try {
@@ -147,6 +160,7 @@ export default function ReportCard({ report }: { report: AdminReport }) {
             </Select>
           )}
           {error && <p className="text-xs text-red-600">{error}</p>}
+          {dialog}
           <div className="flex gap-2">
             <button
               type="button"

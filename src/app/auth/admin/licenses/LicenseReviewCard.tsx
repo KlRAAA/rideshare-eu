@@ -8,6 +8,7 @@ import { formatDateTime } from '@/lib/admin';
 import LicenseChecks from './LicenseChecks';
 import { ClosedLicense, useReveal } from './Reveal';
 import { LICENSE_TYPE_OPTIONS, REJECT_REASON_OPTIONS, longDate, type LicenseType, type RejectReason } from '@/lib/license';
+import { useAppDialog } from '@/components/AppDialog';
 
 export interface PendingLicense {
   id: string;
@@ -34,9 +35,13 @@ export default function LicenseReviewCard({ license }: { license: PendingLicense
   const [reason, setReason] = useState<RejectReason>('UNREADABLE');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const { confirm, dialog } = useAppDialog();
   const [error, setError] = useState<string | null>(null);
 
   async function decide(action: 'approve' | 'reject') {
+    if (action === 'approve' && !(await confirm({ title: 'Approve this license?', message: 'The driver can post trips right away. The photo and full number are deleted.', confirmLabel: 'Approve' }))) {
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -62,6 +67,7 @@ export default function LicenseReviewCard({ license }: { license: PendingLicense
   }
   return (
     <article className="rsu-card grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      {dialog}
       {/* Served only to admins, only while under review, never cached. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

@@ -6,6 +6,7 @@ import Tip from './Tip';
 import { apiFetch } from '@/lib/api';
 import { LOCATION_POLL_INTERVAL_MS } from '@/lib/constants';
 import { riderStatusLine, sharingState, type RiderLocation } from '@/lib/riderLocation';
+import { useAppDialog } from '@/components/AppDialog';
 
 interface RidersNearbyCardProps {
   tripId: string;
@@ -18,6 +19,7 @@ interface RidersNearbyCardProps {
 // The driver's view of approved riders before pickup (sub-project G).
 export default function RidersNearbyCard({ tripId, departure, runOngoing, onRiders }: RidersNearbyCardProps) {
   const [riders, setRiders] = useState<RiderLocation[] | null>(null);
+  const { confirm, dialog } = useAppDialog();
   const [now, setNow] = useState(() => new Date());
   const open = runOngoing || sharingState(departure, now).state === 'open';
   const [busy, setBusy] = useState<string | null>(null);
@@ -44,7 +46,17 @@ export default function RidersNearbyCard({ tripId, departure, runOngoing, onRide
     };
   }, [open, load, onRiders]);
 
-  async function setPickedUp(matchId: string, pickedUp: boolean) {
+  async function setPickedUp(matchId: string, pickedUp: boolean, firstName: string) {
+    if (
+      pickedUp &&
+      !(await confirm({
+        title: `${firstName} is in the car?`,
+        message: `${firstName} stops sharing their location and can no longer cancel this ride.`,
+        confirmLabel: 'Picked up',
+      }))
+    ) {
+      return;
+    }
     setBusy(matchId);
     setError(null);
     try {
@@ -81,7 +93,7 @@ export default function RidersNearbyCard({ tripId, departure, runOngoing, onRide
                 <button
                   type="button"
                   disabled={busy === r.matchId}
-                  onClick={() => setPickedUp(r.matchId, !r.pickedUp)}
+                  onClick={() => setPickedUp(r.matchId, !r.pickedUp, firstName)}
                   aria-label={r.pickedUp ? `Undo pickup for ${firstName}` : `Mark ${firstName} picked up`}
                   className={`${r.pickedUp ? 'rsu-btn-secondary' : 'rsu-btn-primary'} shrink-0 px-3 py-1.5 text-xs disabled:opacity-60`}
                 >
@@ -93,6 +105,7 @@ export default function RidersNearbyCard({ tripId, departure, runOngoing, onRide
         })}
       </ul>
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+      {dialog}
       <p className="flex items-center gap-1.5 text-xs text-gray-500">
         Riders who share appear on the map until pickup.
         <Tip label="Their positions are erased when you mark them picked up, and when the trip ends.">

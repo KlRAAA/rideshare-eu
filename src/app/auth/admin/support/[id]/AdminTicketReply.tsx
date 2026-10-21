@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api';
 import { BODY_MAX } from '@/lib/support';
+import { useAppDialog } from '@/components/AppDialog';
 
 const ERRORS: Record<string, string> = {
   TICKET_CLOSED: 'This request was closed in the meantime.',
@@ -15,6 +16,7 @@ export default function AdminTicketReply({ ticketId }: { ticketId: string }) {
   const router = useRouter();
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
+  const { confirm, dialog } = useAppDialog();
   const [error, setError] = useState<string | null>(null);
 
   async function run(action: () => Promise<unknown>) {
@@ -55,6 +57,7 @@ export default function AdminTicketReply({ ticketId }: { ticketId: string }) {
       />
       <p className="text-[11px] text-gray-400">The user gets a notification. Your reply is recorded in the activity log.</p>
       {error && <p className="text-sm text-red-600">{error}</p>}
+      {dialog}
       <div className="flex gap-2">
         <button type="submit" disabled={busy} className="rsu-btn-primary flex-1 disabled:opacity-60">
           Send reply
@@ -62,7 +65,10 @@ export default function AdminTicketReply({ ticketId }: { ticketId: string }) {
         <button
           type="button"
           disabled={busy}
-          onClick={() => run(() => apiFetch(`/api/admin/support/${ticketId}/close`, { method: 'PATCH' }))}
+          onClick={async () => {
+            if (!(await confirm({ title: 'Close this request?', message: 'The user can reopen it by replying.', confirmLabel: 'Close request' }))) return;
+            run(() => apiFetch(`/api/admin/support/${ticketId}/close`, { method: 'PATCH' }));
+          }}
           className="rsu-btn-secondary disabled:opacity-60"
         >
           Close request

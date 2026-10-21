@@ -6,6 +6,7 @@ import Card from '@/components/Card';
 import { apiFetch, ApiError } from '@/lib/api';
 import { formatDateTimeAgo } from '@/lib/format';
 import { BODY_MAX, type SupportTicket } from '@/lib/support';
+import { useAppDialog } from '@/components/AppDialog';
 
 // The conversation on one of your requests, with a reply box and Close.
 export default function TicketThread({ ticket }: { ticket: SupportTicket }) {
@@ -14,6 +15,8 @@ export default function TicketThread({ ticket }: { ticket: SupportTicket }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const closed = ticket.status === 'CLOSED';
+
+  const { confirm, dialog } = useAppDialog();
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -35,6 +38,7 @@ export default function TicketThread({ ticket }: { ticket: SupportTicket }) {
   }
 
   async function close() {
+    if (!(await confirm({ title: 'Close this request?', message: 'Close it if your problem is solved. Replying later opens it again.', confirmLabel: 'Close request' }))) return;
     setBusy(true);
     setError(null);
     try {
@@ -49,6 +53,7 @@ export default function TicketThread({ ticket }: { ticket: SupportTicket }) {
 
   return (
     <div className="space-y-4">
+      {dialog}
       <Card>
         <ol className="space-y-3" aria-label="Conversation">
           {(ticket.messages ?? []).map((m) => (

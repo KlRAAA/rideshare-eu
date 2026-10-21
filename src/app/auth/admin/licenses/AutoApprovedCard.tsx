@@ -8,6 +8,7 @@ import { longDate, type LicenseCheckResults } from '@/lib/license';
 import LicenseChecks from './LicenseChecks';
 import RevokeLicense from './RevokeLicense';
 import { ClosedLicense, useReveal } from './Reveal';
+import { useAppDialog } from '@/components/AppDialog';
 
 export interface AutoApproved {
   id: string;
@@ -29,9 +30,11 @@ export default function AutoApprovedCard({ license: l }: { license: AutoApproved
   const router = useRouter();
   const [open, setOpen] = useReveal();
   const [busy, setBusy] = useState(false);
+  const { confirm, dialog } = useAppDialog();
   const [error, setError] = useState<string | null>(null);
 
   async function looksRight() {
+    if (!(await confirm({ title: 'Photo matches the details?', message: 'The photo and full number are deleted now, for every admin.', confirmLabel: 'Looks right' }))) return;
     setBusy(true);
     setError(null);
     try {
@@ -55,6 +58,7 @@ export default function AutoApprovedCard({ license: l }: { license: AutoApproved
   }
   return (
     <div className="rsu-card grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      {dialog}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={`${API_BASE}/api/admin/licenses/${l.id}/photo`}

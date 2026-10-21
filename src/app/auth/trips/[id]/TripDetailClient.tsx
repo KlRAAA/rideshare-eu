@@ -213,7 +213,18 @@ export default function TripDetailClient({
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [highlightRequestId]);
 
-  async function respond(matchId: string, action: 'APPROVED' | 'DECLINED') {
+  async function respond(matchId: string, action: 'APPROVED' | 'DECLINED', riderName: string) {
+    const seatsAfter = trip.totalSeats - trip.filledSeats - 1;
+    const ok = await confirm(
+      action === 'APPROVED'
+        ? {
+            title: `Approve ${riderName}?`,
+            message: `${riderName} gets a seat and is told right away. ${seatsAfter <= 0 ? 'That fills your car.' : `${seatsAfter} seat${seatsAfter === 1 ? '' : 's'} left after this.`}`,
+            confirmLabel: 'Approve',
+          }
+        : { title: `Decline ${riderName}?`, message: `${riderName} is told the request was declined.`, confirmLabel: 'Decline', danger: true }
+    );
+    if (!ok) return;
     setBusyMatchId(matchId);
     setRespondError(null);
     try {
@@ -435,7 +446,7 @@ export default function TripDetailClient({
                           <button
                             type="button"
                             disabled={busyMatchId === m.id}
-                            onClick={() => respond(m.id, 'APPROVED')}
+                            onClick={() => respond(m.id, 'APPROVED', m.passenger.fullName)}
                             className="rsu-btn-primary flex-1 disabled:opacity-50"
                           >
                             Approve
@@ -443,7 +454,7 @@ export default function TripDetailClient({
                           <button
                             type="button"
                             disabled={busyMatchId === m.id}
-                            onClick={() => respond(m.id, 'DECLINED')}
+                            onClick={() => respond(m.id, 'DECLINED', m.passenger.fullName)}
                             className="rsu-btn-danger flex-1 disabled:opacity-50"
                           >
                             Decline

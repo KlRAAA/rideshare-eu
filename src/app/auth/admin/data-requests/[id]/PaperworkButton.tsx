@@ -3,13 +3,16 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { useAppDialog } from '@/components/AppDialog';
 
 export default function PaperworkButton({ requestId }: { requestId: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const { confirm, dialog } = useAppDialog();
   const [error, setError] = useState<string | null>(null);
 
   async function markReceived() {
+    if (!(await confirm({ title: 'Written request received?', message: 'This is recorded in the audit log and can’t be undone.', confirmLabel: 'Confirm' }))) return;
     setBusy(true);
     setError(null);
     try {
@@ -28,6 +31,7 @@ export default function PaperworkButton({ requestId }: { requestId: string }) {
         {busy ? 'Saving...' : 'Written request received'}
       </button>
       {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+      {dialog}
     </div>
   );
 }

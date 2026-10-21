@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { FaBell, FaTimes } from 'react-icons/fa';
 import { pushState, turnOffPush, turnOnPush, type PushState } from '@/lib/push';
 import { setSoundEnabled, soundEnabled } from '@/lib/loudNotifications';
+import { useAppDialog } from '@/components/AppDialog';
 
 const DISMISS_KEY = 'rsu.pushCardDismissed';
 
@@ -42,12 +43,14 @@ export default function PushCard({ placement }: PushCardProps) {
     pushState().then(setState, () => setState('unsupported'));
   }, []);
 
+  const { confirm, dialog } = useAppDialog();
   if (state === null) return null;
   // Home shows the card only when there's something to tap; a blocked browser's
   // explanation lives in Profile (adviser feedback: less text on Home).
   if (placement === 'dashboard' && (dismissed || state === 'on' || state === 'off-server' || state === 'unsupported' || state === 'blocked')) return null;
 
   async function toggle(on: boolean) {
+    if (!on && !(await confirm({ title: 'Turn off phone notifications?', message: 'This phone stops getting alerts for ride requests, approvals and trip updates.', confirmLabel: 'Turn off', danger: true }))) return;
     setBusy(true);
     setError(null);
     try {
@@ -71,6 +74,7 @@ export default function PushCard({ placement }: PushCardProps) {
 
   return (
     <section aria-label="Notifications" className="rsu-card space-y-3">
+      {dialog}
       <div className="flex items-start gap-2">
         <FaBell className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--rsu-color-primary)]" aria-hidden />
         <div className="min-w-0 flex-1 space-y-1">

@@ -3,13 +3,16 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { useAppDialog } from '@/components/AppDialog';
 
 export default function EndAnnouncementButton({ id }: { id: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const { confirm, dialog } = useAppDialog();
   const [failed, setFailed] = useState(false);
 
   async function end() {
+    if (!(await confirm({ title: 'End this announcement now?', message: 'It disappears from everyone’s Home screen.', confirmLabel: 'End now' }))) return;
     setBusy(true);
     setFailed(false);
     try {
@@ -33,6 +36,7 @@ export default function EndAnnouncementButton({ id }: { id: string }) {
         {busy ? 'Ending…' : 'End now'}
       </button>
       {failed && <p className="text-[11px] text-red-600">Couldn’t end it. Try again.</p>}
+      {dialog}
     </div>
   );
 }
