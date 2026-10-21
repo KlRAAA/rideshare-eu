@@ -93,6 +93,7 @@ export interface TripDetail {
   cancelReason: string | null;
   // Sub-project G: the caller's own sharing switch (approved riders), else null.
   myLocationSharing?: boolean | null;
+  myPickedUp?: boolean;
 }
 
 interface TripDetailClientProps {
@@ -147,7 +148,6 @@ export default function TripDetailClient({
 
   const tripIsActive = trip.status === 'OPEN' || trip.status === 'FULL';
   // Nobody cancels a trip that's on the road (sub-project B; the server refuses too).
-  const canCancel = trip.currentRun?.status !== 'ONGOING' && ((isHost && tripIsActive) || (!isHost && Boolean(myActiveMatch)));
   // Group chat: host + every APPROVED passenger, only while the trip is
   // still active — a hard cutoff, so this simply stops rendering once the
   // trip ends rather than showing a closed/archived state; the server
@@ -166,6 +166,10 @@ export default function TripDetailClient({
     [riders]
   );
   const [pickedUp, setPickedUp] = useState(false);
+  // The driver can't cancel once the trip is moving; a rider can until they're picked up.
+  const canCancel = isHost
+    ? tripIsActive && trip.currentRun?.status !== 'ONGOING'
+    : Boolean(myActiveMatch) && !(trip.currentRun?.status === 'ONGOING' && (trip.myPickedUp || pickedUp));
   // An approved rider's own position while sharing: their map shows the car and themselves.
   const [selfPosition, setSelfPosition] = useState<{ lat: number; lng: number } | null>(null);
   const selfPin = useMemo(() => (selfPosition ? [{ ...selfPosition, label: 'You' }] : undefined), [selfPosition]);

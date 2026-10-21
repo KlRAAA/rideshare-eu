@@ -66,15 +66,29 @@ describe('starting a run', () => {
 });
 
 describe('cancelling while a run is ongoing', () => {
-  test('neither the host nor an approved rider can cancel', async () => {
+  test('the host cannot cancel; a rider can until picked up, and the seat opens again', async () => {
     if (guard()) return;
-    const { host, rider, trip } = await seedTrip();
+    const { host, rider, trip, match } = await seedTrip({ filledSeats: 1 });
     await req('POST', `/api/trips/${trip.id}/start`, host.id, {});
-    for (const who of [host, rider]) {
-      const res = await req('PATCH', `/api/trips/${trip.id}/cancel`, who.id, {});
-      expect(res.status).toBe(409);
-      expect((await res.json()).error).toBe('TRIP_IN_PROGRESS');
-    }
+    const hostTry = await req('PATCH', `/api/trips/${trip.id}/cancel`, host.id, {});
+    expect(hostTry.status).toBe(409);
+    expect((await hostTry.json()).error).toBe('TRIP_IN_PROGRESS');
+
+    expect((await req('PATCH', `/api/trips/${trip.id}/cancel`, rider.id, { reason: 'Got a lift' })).status).toBe(200);
+    expect((await prisma.match.findUnique({ where: { id: match.id } })).status).toBe('CANCELLED');
+    expect((await prisma.trip.findUnique({ where: { id: trip.id } })).filledSeats).toBe(0);
+  });
+
+  test('a rider the driver has picked up cannot cancel; the trip page says so', async () => {
+    if (guard()) return;
+    const { host, rider, trip, match } = await seedTrip();
+    await req('POST', `/api/trips/${trip.id}/start`, host.id, {});
+    expect((await req('POST', `/api/matches/${match.id}/picked-up`, host.id, {})).status).toBe(200);
+    const res = await req('PATCH', `/api/trips/${trip.id}/cancel`, rider.id, {});
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe('TRIP_IN_PROGRESS');
+    const details = await (await req('GET', `/api/trips/${trip.id}`, rider.id)).json();
+    expect(details.trip.myPickedUp).toBe(true);
   });
 });
 

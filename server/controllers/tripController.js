@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const { inLuzon } = require('../config/serviceArea');
 const { ongoingRun, finishRun, MAX_END_NOTE_LENGTH } = require('../services/tripRunService');
+const { isPickedUp } = require('../services/riderLocationRules');
 const { conflictWithRides, conflictWithHosted, conflictBody } = require('../services/scheduleConflicts');
 const { nextDeparture, plannedArrival } = require('../services/tripRunRules');
 const { phDateOnly } = require('../services/recurrenceMath');
@@ -327,7 +328,7 @@ async function getById(req, res) {
   // sharesLocation is omitted from the matches above, so read only the viewer's.
   const mine = await prisma.match.findFirst({
     where: { tripId: tripRaw.id, passengerId: userId, status: 'APPROVED' },
-    select: { sharesLocation: true },
+    select: { sharesLocation: true, pickedUpAt: true },
   });
   trip.myLocationSharing = mine ? mine.sharesLocation : null;
 
@@ -355,6 +356,8 @@ async function getById(req, res) {
     latestRun && (latestRun.status === 'ONGOING' || latestRun.runDate.getTime() === phDateOnly(now).getTime())
       ? { status: latestRun.status, startedAt: latestRun.startedAt, plannedArrivalAt: latestRun.plannedArrivalAt, etaAt: latestRun.etaAt }
       : null;
+  // The viewer is in the car on today's ongoing run: they can no longer cancel.
+  trip.myPickedUp = Boolean(mine && latestRun?.status === 'ONGOING' && isPickedUp(mine.pickedUpAt, latestRun));
   const active = ['OPEN', 'FULL'].includes(trip.status);
   // Sub-project D: the next 7 run days, with what the driver said about each.
   const upcoming = active ? upcomingDays(tripRaw, now, 7) : [];
@@ -463,9 +466,13 @@ async function cancelTrip(req, res) {
   if (trip.status === 'CANCELLED' || trip.status === 'COMPLETED') {
     return res.status(409).json({ error: 'TRIP_NOT_CANCELLABLE' });
   }
-  if (await ongoingRun(trip.id)) return res.status(409).json({ error: 'TRIP_IN_PROGRESS' });
+  // Once the trip is moving the driver can't cancel it, and a rider can't once
+  // the driver has marked them picked up (they're in the car). Before pickup a
+  // rider may still cancel and free the seat.
+  const run = await ongoingRun(trip.id);
 
   if (userId === trip.hostId) {
+    if (run) return res.status(409).json({ error: 'TRIP_IN_PROGRESS' });
     // Host cancels: whole trip + every active match, notify every affected passenger.
     const affectedMatches = await prisma.$transaction((tx) => cancelWholeTrip(tx, trip, { reason: reason || undefined }));
     return res.json({ status: 'TRIP_CANCELLED', affectedMatches });
@@ -473,6 +480,7 @@ async function cancelTrip(req, res) {
 
   const myMatch = trip.matches.find((m) => m.passengerId === userId && ACTIVE_MATCH_STATUSES.includes(m.status));
   if (!myMatch) return res.status(403).json({ error: 'NOT_AUTHORIZED' });
+  if (run && isPickedUp(myMatch.pickedUpAt, run)) return res.status(409).json({ error: 'TRIP_IN_PROGRESS' });
 
   const passengerRaw = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
   const passenger = decryptUserFields(passengerRaw);

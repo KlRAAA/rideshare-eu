@@ -40,7 +40,11 @@ async function cancelWholeTrip(tx, trip, { reason, byAdmin = false }) {
 // Cancels one passenger's request. An approved passenger held a seat, so the
 // seat is given back and a full trip reopens for search.
 async function cancelPassengerMatch(tx, match) {
-  await tx.match.update({ where: { id: match.id }, data: { status: 'CANCELLED' } });
+  // A rider's location is only for pickup: gone with the ride.
+  await tx.match.update({
+    where: { id: match.id },
+    data: { status: 'CANCELLED', sharesLocation: false, riderLat: null, riderLng: null, riderLocatedAt: null },
+  });
   if (match.status !== 'APPROVED') return;
   const { count } = await tx.trip.updateMany({
     where: { id: match.tripId, filledSeats: { gt: 0 } },
