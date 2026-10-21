@@ -68,8 +68,6 @@ function assertDemoDatabase() {
 const MODELS = require('../../scripts/backupModels.cjs');
 const { LICENSE_DIR } = require('../config/uploads');
 const { submitLicense } = require('../services/licenseService');
-const { finishRun } = require('../services/tripRunService');
-const { phDateOnly } = require('../services/recurrenceMath');
 
 // A made-up license-shaped picture for the admin queue (no real details):
 // a pale card with a dark header band, a photo box and grey text lines.
@@ -258,23 +256,15 @@ async function join(api, passengerId, trip, { from, message, wantOffset = 0 }) {
 
 // A finished ride from earlier in the week, rated by both sides.
 async function pastRide(api, { hostId, vehicleId, from, daysAgo, riders }) {
-  const trip = await postTrip(api, hostId, vehicleId, { from, to: CAMPUS, departureTime: nextWeekdayAt('04:00') }); // moved to the past below; 4 AM avoids clashing with the demo's real trips
+  const trip = await postTrip(api, hostId, vehicleId, { from, to: CAMPUS, departureTime: nextWeekdayAt('06:45') });
   const matches = [];
   for (const r of riders) {
     const match = await join(api, r.user.id, trip, { from: r.from, message: r.message, wantOffset: r.wantOffset });
     await api(hostId, 'PATCH', `/api/matches/${match.id}`, { status: 'APPROVED' });
     matches.push({ ...r, match });
   }
-  const departure = daysAgoAt(daysAgo, '06:45');
-  await prisma.trip.update({ where: { id: trip.id }, data: { departureTime: departure } });
-  // A trip is completed only by ending a run (Start Trip, then End Trip).
-  const run = await prisma.tripRun.create({
-    data: {
-      tripId: trip.id, runDate: phDateOnly(departure), status: 'ONGOING', startedAt: departure,
-      plannedArrivalAt: new Date(departure.getTime() + 35 * 60 * 1000),
-    },
-  });
-  await finishRun(run, 'DRIVER', new Date(departure.getTime() + 40 * 60 * 1000));
+  await prisma.trip.update({ where: { id: trip.id }, data: { departureTime: daysAgoAt(daysAgo, '06:45') } });
+  await api(hostId, 'POST', `/api/trips/${trip.id}/complete`);
   for (const r of matches) {
     await api(r.user.id, 'POST', `/api/matches/${r.match.id}/ratings`, {
       rateeId: hostId, score: r.stars, comment: r.comment, anonymous: Boolean(r.anonymous),
