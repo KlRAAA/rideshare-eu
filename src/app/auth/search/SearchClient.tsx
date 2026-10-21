@@ -17,6 +17,7 @@ import TimePicker from '@/components/TimePicker';
 import RequestToJoinModal from '@/components/RequestToJoinModal';
 import Skeleton from '@/components/Skeleton';
 import { apiFetch } from '@/lib/api';
+import { flagField } from '@/lib/fieldError';
 import { formatTime, phTimeToUtcMinutes, getPhTodayDateString, getPhNowTimeString } from '@/lib/format';
 import { tripRoute, tripWhen } from '@/lib/tripLine';
 import { placeName } from '@/lib/places';
@@ -273,6 +274,7 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
       setSearched(true);
       setIsFallback(false);
       setError('Choose a preferred departure time.');
+      flagField('search-time', 'Preferred time is required.');
       return;
     }
     setLoading(true);
@@ -321,6 +323,7 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
     if (!searchGeo) return;
     if (!TIME_RE.test(time)) {
       setError('Choose a preferred departure time.');
+      flagField('search-time', 'Preferred time is required.');
       return;
     }
     setLoading(true);
@@ -475,10 +478,11 @@ export default function SearchClient({ passengerId, initial, canUseWomenPlus, pr
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+          <label htmlFor="search-time" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
             Preferred Time <span className="text-[color:var(--rsu-color-primary)]" aria-hidden="true">*</span>
           </label>
           <TimePicker
+            id="search-time"
             min={date === getPhTodayDateString() ? getPhNowTimeString() : undefined}
             value={time}
             onChange={setTime}

@@ -7,12 +7,13 @@ import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import VehicleFields from '@/components/VehicleFields';
 import { apiFetch } from '@/lib/api';
+import { flagField } from '@/lib/fieldError';
 import {
   EMPTY_VEHICLE_FIELDS,
   MAX_SAVED_VEHICLES,
   toFieldValues,
   toVehiclePayload,
-  vehicleFieldsError,
+  vehicleFieldProblem,
   vehicleSummary,
   type SavedVehicle,
   type VehicleFieldValues,
@@ -64,9 +65,10 @@ export default function MyCarsCard() {
   }
 
   function save() {
-    const problem = vehicleFieldsError(form);
+    const problem = vehicleFieldProblem(form);
     if (problem) {
-      setError(problem);
+      setError(problem.message);
+      flagField(`my-car-${problem.field}`, problem.message);
       return;
     }
     const body = JSON.stringify(toVehiclePayload(form));

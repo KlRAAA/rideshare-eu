@@ -65,12 +65,18 @@ export function toVehiclePayload(v: VehicleFieldValues) {
 
 // Returns a user-facing message, or null when the fields are complete and valid.
 export function vehicleFieldsError(v: VehicleFieldValues): string | null {
-  if (!v.make.trim() || !v.model.trim() || !v.color.trim() || !v.fuelEfficiency.trim()) {
-    return 'Fill in your car’s make, model, color and fuel efficiency.';
-  }
+  return vehicleFieldProblem(v)?.message ?? null;
+}
+
+// The first car field that needs fixing, with the suffix of its input id
+// (VehicleFields uses `${idPrefix}-${field}`), so the form can point at it.
+export function vehicleFieldProblem(v: VehicleFieldValues): { field: 'make' | 'model' | 'color' | 'efficiency'; message: string } | null {
+  if (!v.make.trim()) return { field: 'make', message: 'Make is required, like Toyota.' };
+  if (!v.model.trim()) return { field: 'model', message: 'Model is required, like Vios.' };
+  if (!v.color.trim()) return { field: 'color', message: 'Color is required.' };
   const efficiency = Number(v.fuelEfficiency);
-  if (!Number.isFinite(efficiency) || efficiency < MIN_FUEL_EFFICIENCY_KM_L || efficiency > MAX_FUEL_EFFICIENCY_KM_L) {
-    return `Enter a fuel efficiency between ${MIN_FUEL_EFFICIENCY_KM_L} and ${MAX_FUEL_EFFICIENCY_KM_L} km/L.`;
+  if (!v.fuelEfficiency.trim() || !Number.isFinite(efficiency) || efficiency < MIN_FUEL_EFFICIENCY_KM_L || efficiency > MAX_FUEL_EFFICIENCY_KM_L) {
+    return { field: 'efficiency', message: `Enter a fuel efficiency between ${MIN_FUEL_EFFICIENCY_KM_L} and ${MAX_FUEL_EFFICIENCY_KM_L} km/L.` };
   }
   return null;
 }

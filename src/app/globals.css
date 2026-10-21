@@ -344,6 +344,28 @@ h2 { font-size: 1.125rem; font-weight: 700; color: var(--color-text); }
 	-moz-appearance: textfield;
 }
 
+/* A field that needs fixing (InvalidFieldHint, flagField): red box and a short
+   flash, so a missed field is seen where it is, not only in a message at the
+   bottom of the form. */
+input[aria-invalid='true'],
+textarea[aria-invalid='true'],
+select[aria-invalid='true'],
+button[aria-invalid='true'] {
+	border-color: #dc2626 !important;
+	background-color: color-mix(in srgb, #dc2626 7%, var(--color-surface, #fff)) !important;
+	box-shadow: 0 0 0 3px color-mix(in srgb, #dc2626 25%, transparent);
+	outline: none;
+}
+.rsu-flash {
+	animation: rsu-flash 0.45s ease-in-out 3;
+}
+@keyframes rsu-flash {
+	50% { box-shadow: 0 0 0 6px color-mix(in srgb, #dc2626 45%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+	.rsu-flash { animation: none; }
+}
+
 /* Badge - small pill used for status/role labels */
 .rsu-badge {
 	display: inline-flex;

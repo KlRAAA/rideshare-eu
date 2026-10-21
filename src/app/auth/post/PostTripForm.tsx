@@ -14,7 +14,8 @@ import { fetchRoute, type FetchedRoute } from '@/lib/directions';
 import { FUEL_PRICE_PER_LITER, MIN_FUEL_PRICE_PER_LITER, MAX_FUEL_PRICE_PER_LITER } from '@/lib/constants';
 import ConfirmStructuralEditModal from '@/components/ConfirmStructuralEditModal';
 import VehicleFields from '@/components/VehicleFields';
-import { EMPTY_VEHICLE_FIELDS, toVehiclePayload, vehicleFieldsError, type VehicleFieldValues } from '@/lib/vehicles';
+import { EMPTY_VEHICLE_FIELDS, toVehiclePayload, vehicleFieldProblem, type VehicleFieldValues } from '@/lib/vehicles';
+import { flagField } from '@/lib/fieldError';
 import { DEFAULT_FUEL_TYPE, FUEL_TYPE_SHORT_LABELS, isFuelType, type FuelType, type OfficialFuelPrices } from '@/lib/fuelTypes';
 import VehicleSection from './VehicleSection';
 import { useGeocodedAddress, reverseGeocodeLabel } from '@/lib/useGeocodedAddress';
@@ -51,6 +52,23 @@ const INVALID_TRIP_MESSAGES: Record<string, string> = {
   origin: 'Your starting point must be in Luzon. Pick a place in Luzon.',
   destination: 'Your destination must be in Luzon. Pick a place in Luzon.',
   meetingPoint: 'The meeting point must be in Luzon. Move it to a place in Luzon.',
+};
+
+// The form field each INVALID_TRIP `field` points at, so the error shows on it.
+const INVALID_TRIP_FIELD_IDS: Record<string, string> = {
+  originAddress: 'trip-origin',
+  originLat: 'trip-origin',
+  originLng: 'trip-origin',
+  origin: 'trip-origin',
+  destinationAddress: 'trip-destination',
+  destinationLat: 'trip-destination',
+  destinationLng: 'trip-destination',
+  destination: 'trip-destination',
+  departureTime: 'trip-date',
+  driverNotes: 'trip-notes',
+  meetingPointLat: 'trip-meeting-point',
+  meetingPointLng: 'trip-meeting-point',
+  meetingPoint: 'trip-meeting-point',
 };
 
 function samePoint(a: Coords | null, b: Coords | null): boolean {
@@ -329,13 +347,26 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
   async function submitTrip(confirmStructural: boolean) {
     if (isSubmittingRef.current) return;
     setError(null);
+    // The message at the bottom of the form, and the same message on the field.
+    const fail = (message: string, fieldId?: string) => {
+      setError(message);
+      if (fieldId) flagField(fieldId, message);
+    };
 
-    if (!originCoords || !destinationCoords) {
-      setError('Enter an origin and destination we can find on the map before saving.');
+    if (!originCoords) {
+      fail('Enter where you’re leaving from: pick a suggestion or a place on the map.', 'trip-origin');
       return;
     }
-    if (!date || !time) {
-      setError('Pick a date and departure time.');
+    if (!destinationCoords) {
+      fail('Enter where you’re going: pick a suggestion or a place on the map.', 'trip-destination');
+      return;
+    }
+    if (!date) {
+      fail('Date is required.', 'trip-date');
+      return;
+    }
+    if (!time) {
+      fail('Departure time is required.', 'trip-time');
       return;
     }
     // Defense in depth alongside the date/time fields' `min` attributes —
@@ -343,12 +374,12 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
     // between page load and submit), so re-check here in the same PH-anchored
     // way the actual departureTime below is computed.
     if (new Date(`${date}T${time}:00+08:00`) < new Date()) {
-      setError('That departure time has already passed. Pick a time in the future.');
+      fail('That departure time has already passed. Pick a time in the future.', 'trip-time');
       return;
     }
-    const vehicleError = vehicleFieldsError(vehicle);
-    if (vehicleError) {
-      setError(vehicleError);
+    const vehicleProblem = vehicleFieldProblem(vehicle);
+    if (vehicleProblem) {
+      fail(vehicleProblem.message, `post-vehicle-${vehicleProblem.field}`);
       return;
     }
     // Empty is caught here rather than disabling the submit button live — an
@@ -357,11 +388,11 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
     // the button (fuelPriceError); this re-check is defense in depth for the
     // same reason the departure-time one above exists.
     if (!isEdit && !fuelPriceIsValidNumber) {
-      setError('Enter today’s fuel price before posting.');
+      fail('Enter today’s fuel price before posting.', 'trip-fuel-price');
       return;
     }
     if (!isEdit && fuelPriceError) {
-      setError(fuelPriceError);
+      fail(fuelPriceError, 'trip-fuel-price');
       return;
     }
 
@@ -493,14 +524,15 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
       } else if (err instanceof ApiError && err.code === 'DRIVING_NOW') {
         setError('You’re driving a trip right now. End it before you post your next trip.');
       } else if (err instanceof ApiError && err.code === 'SCHEDULE_CONFLICT') {
-        setError(conflictMessage(String(err.body?.conflictDepartureTime)));
+        fail(conflictMessage(String(err.body?.conflictDepartureTime)), 'trip-time');
       } else if (err instanceof ApiError && err.code === 'INVALID_TRIP') {
-        setError(INVALID_TRIP_MESSAGES[String(err.body?.field)] ?? 'Some trip details aren’t valid. Check the fields above and try again.');
+        const field = String(err.body?.field);
+        fail(INVALID_TRIP_MESSAGES[field] ?? 'Some trip details aren’t valid. Check the fields above and try again.', INVALID_TRIP_FIELD_IDS[field]);
       } else if (err instanceof ApiError && err.code === 'FUEL_PRICE_ABOVE_OFFICIAL') {
         const cap = Number(err.body?.officialPrice);
         const type = isFuelType(err.body?.fuelType) ? err.body.fuelType : carFuelType;
         setOfficialFuelPrices((prev) => ({ ...prev, [type]: cap }));
-        setError(`The official ${FUEL_TYPE_SHORT_LABELS[type]} price is now ₱${cap.toFixed(2)}/L. Lower your price and post again.`);
+        fail(`The official ${FUEL_TYPE_SHORT_LABELS[type]} price is now ₱${cap.toFixed(2)}/L. Lower your price and post again.`, 'trip-fuel-price');
       } else {
         setError(isEdit ? 'Couldn’t save those changes. Try again in a moment.' : 'Couldn’t publish that trip. Check the fields above and try again.');
       }
@@ -701,8 +733,11 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
             <DatePicker id="trip-date" min={getPhTodayDateString()} value={date} onChange={setDate} className={FIELD} />
           </div>
           <div>
-            <span className={LABEL}>Leaves at</span>
+            <label htmlFor="trip-time" className={LABEL}>
+              Leaves at
+            </label>
             <TimePicker
+              id="trip-time"
               min={date === getPhTodayDateString() ? getPhNowTimeString() : undefined}
               value={time}
               onChange={setTime}
@@ -870,7 +905,7 @@ export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: Pos
       </section>
 
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-600">
           {error}
         </p>
       )}

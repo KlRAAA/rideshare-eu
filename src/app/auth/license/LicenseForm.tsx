@@ -9,6 +9,7 @@ import DatePicker from '@/components/DatePicker';
 import LicenseCamera from '@/components/LicenseCamera';
 import { API_BASE } from '@/lib/api';
 import { getPhTodayDateString } from '@/lib/format';
+import { flagField } from '@/lib/fieldError';
 import { LICENSE_TYPE_OPTIONS, licenseErrorMessage, type LicenseType } from '@/lib/license';
 
 const inputClass = 'w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[color:var(--rsu-color-primary)]';
@@ -19,6 +20,13 @@ const MAX_LICENSE_YEARS = 10;
 function yearsFrom(date: string, years: number): string {
   return `${Number(date.slice(0, 4)) + years}${date.slice(4)}`;
 }
+
+// The form field each INVALID_LICENSE `field` points at.
+const LICENSE_FIELD_IDS: Record<string, string> = {
+  licenseNumber: 'license-number',
+  licenseType: 'license-type',
+  expiresOn: 'license-expiry',
+};
 
 export default function LicenseForm({ renewal }: { renewal: boolean }) {
   const router = useRouter();
@@ -38,6 +46,7 @@ export default function LicenseForm({ renewal }: { renewal: boolean }) {
     }
     if (!expiresOn) {
       setError('Pick the expiry date printed on your license.');
+      flagField('license-expiry', 'Expiry date is required.');
       return;
     }
     setBusy(true);
@@ -51,7 +60,10 @@ export default function LicenseForm({ renewal }: { renewal: boolean }) {
       const res = await fetch(`${API_BASE}/api/users/me/license`, { method: 'POST', body: form, credentials: 'include' });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError(licenseErrorMessage(body.error, body.field));
+        const message = licenseErrorMessage(body.error, body.field);
+        setError(message);
+        const fieldId = LICENSE_FIELD_IDS[String(body.field)] ?? (body.error === 'LICENSE_EXPIRED' ? 'license-expiry' : undefined);
+        if (fieldId) flagField(fieldId, message);
         return;
       }
       router.refresh();
@@ -119,7 +131,7 @@ export default function LicenseForm({ renewal }: { renewal: boolean }) {
           Only admins see the photo. It’s deleted once your license is decided, or 7 days after an automatic approval (so an admin can spot-check it). We keep the expiry date and the last 4 characters of the number.
         </p>
         {error && (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-600">
             {error}
           </p>
         )}

@@ -40,6 +40,7 @@ interface TimePickerProps {
   onChange: (value: string) => void;
   min?: string; // HH:MM 24h — only meaningful for "today"; caller decides when to pass it
   disabled?: boolean;
+  id?: string;
   className?: string;
 }
 
@@ -47,7 +48,7 @@ const DEFAULT_HOUR12 = 7;
 const DEFAULT_MINUTE = 0;
 const DEFAULT_PERIOD: Period = 'AM';
 
-export default function TimePicker({ value, onChange, min, disabled = false, className = '' }: TimePickerProps) {
+export default function TimePicker({ value, onChange, min, disabled = false, id, className = '' }: TimePickerProps) {
   const [open, setOpen] = useState(false);
   const [pendingHour12, setPendingHour12] = useState(DEFAULT_HOUR12);
   const [pendingMinute, setPendingMinute] = useState(DEFAULT_MINUTE);
@@ -109,6 +110,7 @@ export default function TimePicker({ value, onChange, min, disabled = false, cla
   return (
     <div ref={ref} className={`relative ${disabled ? 'opacity-60' : ''}`}>
       <button
+        id={id}
         type="button"
         onClick={openPicker}
         disabled={disabled}
