@@ -152,7 +152,7 @@ export default function ProfileClient({ user, initialPreference, license, notifi
             {avatarUploading ? <FaSpinner className="h-3 w-3 animate-spin" aria-hidden /> : <FaCamera className="h-3 w-3" aria-hidden />}
           </span>
         </button>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 text-xl font-bold text-gray-900">
             <span className="truncate">{user.fullName}</span>
             {user.verified && (
@@ -166,6 +166,14 @@ export default function ProfileClient({ user, initialPreference, license, notifi
           </p>
           <p className="truncate text-xs text-gray-500">{user.email}</p>
         </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="shrink-0 self-start rounded-lg border border-red-200 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
+        >
+          {loggingOut ? 'Logging out…' : 'Log out'}
+        </button>
       </header>
       {avatarError && (
         <p role="alert" className="-mt-4 text-sm text-red-600">
@@ -299,14 +307,6 @@ export default function ProfileClient({ user, initialPreference, license, notifi
           <div className="px-4">
             <DeleteAccountPanel />
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
-          >
-            {loggingOut ? 'Logging out…' : 'Log out'}
-          </button>
         </div>
       </Section>
 
