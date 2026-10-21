@@ -32,13 +32,15 @@ describe('sharesADay', () => {
 });
 
 describe('overlaps and findConflict', () => {
-  test('back-to-back trips do not overlap; a 15-minute overlap does', () => {
-    const at730 = trip({ id: 'b', departureTime: new Date('2026-06-01T23:30:00Z') });
+  test('trips 10 minutes apart do not overlap; back-to-back or overlapping trips do', () => {
+    const at740 = trip({ id: 'b', departureTime: new Date('2026-06-01T23:40:00Z') }); // 10 min after 7:30
+    const at730 = trip({ id: 'd', departureTime: new Date('2026-06-01T23:30:00Z') }); // back-to-back
     const at715 = trip({ id: 'c', departureTime: new Date('2026-06-01T23:15:00Z') });
-    expect(overlaps(trip(), at730)).toBe(false);
+    expect(overlaps(trip(), at740)).toBe(false);
+    expect(overlaps(trip(), at730)).toBe(true);
     expect(overlaps(trip(), at715)).toBe(true);
-    expect(findConflict(trip(), [at730, at715])).toBe(at715);
-    expect(findConflict(trip(), [at730])).toBeNull();
+    expect(findConflict(trip(), [at740, at715])).toBe(at715);
+    expect(findConflict(trip(), [at740])).toBeNull();
   });
   test('a span past midnight overlaps an early-morning trip the next day only if it is the same run day', () => {
     const late = trip({ recurrenceType: 'DAILY', departureTime: new Date('2026-06-01T15:30:00Z'), durationSeconds: 3600 }); // 11:30 PM–12:30 AM
