@@ -288,6 +288,10 @@ export default function ProfileClient({ user, initialPreference, license, notifi
 
       <Section title="Help and safety">
         <div className={ROWS}>
+          <Link href="/about" className={LINK_ROW}>
+            How RideShareEU works: fuel share, matching, rules
+            <FaChevronRight className="h-3 w-3 text-gray-400" aria-hidden />
+          </Link>
           <Link href="/help" className={LINK_ROW}>
             Help, emergency numbers and admins
             <FaChevronRight className="h-3 w-3 text-gray-400" aria-hidden />
