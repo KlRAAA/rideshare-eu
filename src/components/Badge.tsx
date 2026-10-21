@@ -1,6 +1,6 @@
 import React from 'react';
 
-type Tone = 'success' | 'warning' | 'neutral' | 'primary' | 'info';
+type Tone = 'success' | 'warning' | 'neutral' | 'primary' | 'info' | 'danger';
 
 interface BadgeProps {
   tone?: Tone;
@@ -14,6 +14,7 @@ const TONE_CLASS: Record<Tone, string> = {
   neutral: 'rsu-badge-neutral',
   primary: 'rsu-badge-primary',
   info: 'rsu-badge-info',
+  danger: 'rsu-badge-danger',
 };
 
 export default function Badge({ tone = 'neutral', children, className = '' }: BadgeProps) {

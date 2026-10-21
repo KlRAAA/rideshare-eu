@@ -89,7 +89,7 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-lg font-bold text-gray-900">{user.fullName}</h2>
           {user.isSuperAdmin ? <Badge tone="primary">Superadmin</Badge> : user.isAdmin && <Badge tone="primary">Admin</Badge>}
-          {banned && <Badge tone="warning">Banned until {formatDateTime(user.bannedUntil!)}</Badge>}
+          {banned && <Badge tone="danger">Banned until {formatDateTime(user.bannedUntil!)}</Badge>}
         </div>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm mt-2">
           <dt className="text-gray-500">Email</dt>

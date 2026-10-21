@@ -20,7 +20,7 @@ const STATUS: Record<DoeImport['status'], { label: string; tone: string }> = {
   APPLIED: { label: 'Applied', tone: 'rsu-badge-success' },
   HELD: { label: 'Waiting for you', tone: 'rsu-badge-warning' },
   DISMISSED: { label: 'Kept current prices', tone: 'rsu-badge-neutral' },
-  FAILED: { label: 'Couldn’t read', tone: 'border border-red-200 bg-red-50 text-red-600' },
+  FAILED: { label: 'Couldn’t read', tone: 'rsu-badge-danger' },
 };
 
 const doePrice = (row: DoeImport, type: FuelType) => ({ REGULAR: row.regular, PREMIUM: row.premium, DIESEL: row.diesel })[type];

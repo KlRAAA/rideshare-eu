@@ -25,7 +25,8 @@ import { tripStatusBadge } from '../statusBadge';
 
 describe('trip status badge', () => {
   test('a trip on the road reads "In progress" whatever its seat status', () => {
-    expect(tripStatusBadge('FULL', true)).toEqual({ label: 'In progress', tone: 'primary' });
+    expect(tripStatusBadge('FULL', true)).toEqual({ label: 'In progress', tone: 'info' });
+    expect(tripStatusBadge('CANCELLED')).toEqual({ label: 'Cancelled', tone: 'danger' });
     expect(tripStatusBadge('OPEN')).toEqual({ label: 'Open', tone: 'success' });
   });
 });

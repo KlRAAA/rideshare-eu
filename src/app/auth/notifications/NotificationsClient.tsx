@@ -69,6 +69,34 @@ const TYPE_ICON: Record<NotificationItem['type'], React.ComponentType<{ classNam
   FUEL_PRICE_CHECK: FaGasPump,
 };
 
+// The icon's color says what kind of news it is (globals.css .rsu-tone-*).
+// APPROVAL covers approved, declined and "the trip filled up", so its color
+// follows the message.
+type IconTone = 'success' | 'warning' | 'danger' | 'info' | 'primary';
+const TYPE_TONE: Partial<Record<NotificationItem['type'], IconTone>> = {
+  TRIP_STARTED: 'info',
+  DRIVER_ARRIVING: 'info',
+  MESSAGE: 'info',
+  TRIP_UPDATED: 'info',
+  REMINDER: 'info',
+  LICENSE_APPROVED: 'success',
+  CANCELLATION: 'danger',
+  DRIVER_NO_SHOW: 'danger',
+  LICENSE_REJECTED: 'danger',
+  WARNING: 'danger',
+  DRIVER_LATE: 'warning',
+  DRIVER_UNCONFIRMED: 'warning',
+  CONFIRM_REQUEST: 'warning',
+  TRIP_SKIPPED: 'warning',
+  LICENSE_EXPIRING: 'warning',
+  LICENSE_REQUIRED: 'warning',
+  FUEL_PRICE_CHECK: 'warning',
+};
+function iconTone(n: NotificationItem): IconTone {
+  if (n.type === 'APPROVAL') return /declin|full|withdr/i.test(n.message) ? 'danger' : 'success';
+  return TYPE_TONE[n.type] ?? 'primary';
+}
+
 interface NotificationsClientProps {
   initialNotifications: NotificationItem[];
   initialNextCursor: string | null;
@@ -182,7 +210,7 @@ export default function NotificationsClient({
                 <span
                   aria-hidden
                   className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                    n.isRead ? 'bg-gray-100 text-gray-400' : 'bg-[color:var(--rsu-color-primary)]/10 text-[color:var(--rsu-color-primary)]'
+                    n.isRead ? 'bg-gray-100 text-gray-400' : `rsu-tone-${iconTone(n)}`
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />

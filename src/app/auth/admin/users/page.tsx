@@ -53,7 +53,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                   </span>
                   <span className="flex flex-wrap justify-end gap-1 shrink-0">
                     {u.isSuperAdmin ? <Badge tone="primary">Superadmin</Badge> : u.isAdmin && <Badge tone="primary">Admin</Badge>}
-                    {u.isBanned && <Badge tone="warning">Banned</Badge>}
+                    {u.isBanned && <Badge tone="danger">Banned</Badge>}
                     <Badge tone="neutral">{u.role.toLowerCase()}</Badge>
                   </span>
                 </Link>
