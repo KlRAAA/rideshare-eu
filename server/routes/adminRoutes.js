@@ -8,7 +8,8 @@ const { cancelTripAsAdmin } = require('../controllers/admin/tripController');
 const support = require('../controllers/admin/supportController');
 const announcements = require('../controllers/announcementController');
 const { requireSuperAdmin } = require('../middleware/requireSuperAdmin');
-const { authAttemptLimiter } = require('../middleware/rateLimit');
+const { authAttemptLimiter, adminSearchLimiter } = require('../middleware/rateLimit');
+const { search } = require('../controllers/admin/searchController');
 const dataRequests = require('../controllers/admin/dataRequestController');
 const { strictBody } = require('../middleware/strictBody');
 const licenses = require('../controllers/admin/licenseController');
@@ -17,6 +18,7 @@ const router = express.Router();
 router.use(requireAdmin);
 
 router.get('/overview', overview);
+router.get('/search', adminSearchLimiter(), search);
 router.get('/nav-counts', navCounts);
 router.get('/actions', listActions);
 router.get('/watchlist', watchlist);

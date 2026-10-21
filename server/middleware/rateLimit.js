@@ -59,6 +59,8 @@ const apiLimiter = () => createLimiter({ limit: API_LIMIT_PER_MINUTE, windowMs: 
 const geocodeLimiter = () => createLimiter({ limit: GEOCODE_LIMIT_PER_MINUTE, windowMs: ONE_MINUTE_MS, perUser: true });
 const suggestLimiter = () => createLimiter({ limit: SUGGEST_LIMIT_PER_MINUTE, windowMs: ONE_MINUTE_MS, perUser: true });
 const reportLimiter = () => createLimiter({ limit: REPORT_LIMIT_PER_HOUR, windowMs: ONE_HOUR_MS, perUser: true });
+const ADMIN_SEARCH_LIMIT_PER_MINUTE = 30;
+const adminSearchLimiter = () => createLimiter({ limit: ADMIN_SEARCH_LIMIT_PER_MINUTE, windowMs: ONE_MINUTE_MS, perUser: true });
 
 module.exports = {
   emailSendLimiter,
@@ -67,6 +69,7 @@ module.exports = {
   geocodeLimiter,
   reportLimiter,
   suggestLimiter,
+  adminSearchLimiter,
   EMAIL_SEND_LIMIT,
   AUTH_ATTEMPT_LIMIT,
   API_LIMIT_PER_MINUTE,
