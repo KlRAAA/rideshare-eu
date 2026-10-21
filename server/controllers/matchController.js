@@ -2,6 +2,7 @@ const prisma = require('../config/db');
 const { setSharing, setPickedUp } = require('../services/riderLocationService');
 const { conflictWithHosted, conflictWithRides, conflictBody } = require('../services/scheduleConflicts');
 const { riderRatingDue } = require('../services/ratingDueService');
+const { joinCooldownFor } = require('../services/joinCooldownService');
 const { lockRider, sameTimeRequests, withdrawSameTime } = require('../services/rideOverlapService');
 const { runPSGA, runShowAllFallback, computeRouteOverlapDetail, tripRunsOnSearchDate } = require('../services/psgaService');
 const { settleTrips, phDay } = require('../services/tripDayService');
@@ -254,6 +255,11 @@ async function create(req, res) {
   if (!rider) return res.status(404).json({ error: 'USER_NOT_FOUND' });
   const blocked = joinBlockReason(trip, rider);
   if (blocked) return res.status(403).json({ error: blocked });
+
+  // Join-then-cancel loops: a pause before rejoining the same trip, and after
+  // several cancellations in a day.
+  const cooldown = await joinCooldownFor(passengerId, tripId);
+  if (cooldown) return res.status(cooldown.status).json(cooldown.body);
 
   // Rate the driver of your last ride before asking for the next one.
   const ratingDue = await riderRatingDue(passengerId);

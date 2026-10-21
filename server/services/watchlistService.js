@@ -1,6 +1,8 @@
 const prisma = require('../config/db');
 const { decryptField } = require('./encryptionService');
 const { NO_SHOW_CANCEL_REASON } = require('./tripCancellationService');
+const { riderCancellations } = require('./joinCooldownService');
+const { hasBurst, BURST_MIN } = require('./joinCooldownRules');
 
 // Patterns worth an admin's look. These only flag users; nothing happens
 // automatically. Starting values the adviser can tune.
@@ -48,6 +50,14 @@ async function hostCancellations(since) {
   return new Map([...counts].filter(([, n]) => n >= HOST_CANCEL_MIN));
 }
 
+// Riders who cancelled BURST_MIN of their own requests within 24 hours (the
+// join-then-cancel loop that also pauses their new requests).
+async function cancellationBursts(since) {
+  const timesBy = new Map();
+  for (const c of await riderCancellations(since)) timesBy.set(c.passengerId, [...(timesBy.get(c.passengerId) || []), c.at]);
+  return new Set([...timesBy].filter(([, times]) => hasBurst(times)).map(([id]) => id));
+}
+
 async function driverNoShows(since) {
   const runs = await prisma.tripRun.findMany({
     where: { status: 'NO_SHOW', endedAt: { gte: since } },
@@ -78,12 +88,13 @@ async function warningsReceived(since) {
 
 // [{ userId, fullName, reasons: [plain sentences] }], most reasons first.
 async function buildWatchlist(since) {
-  const [passenger, host, reports, warnings, noShows] = await Promise.all([
+  const [passenger, host, reports, warnings, noShows, bursts] = await Promise.all([
     passengerCancellations(since),
     hostCancellations(since),
     reportsReceived(since),
     warningsReceived(since),
     driverNoShows(since),
+    cancellationBursts(since),
   ]);
   const reasonsById = new Map();
   const add = (id, text) => reasonsById.set(id, [...(reasonsById.get(id) || []), text]);
@@ -92,6 +103,7 @@ async function buildWatchlist(since) {
   for (const [id, n] of reports) add(id, `${n} reports received`);
   for (const [id, n] of warnings) add(id, `${n} warnings`);
   for (const [id, n] of noShows) add(id, `${n} no-shows as driver`);
+  for (const id of bursts) add(id, `Cancelled ${BURST_MIN} or more ride requests within 24 hours`);
   if (reasonsById.size === 0) return [];
 
   const users = await prisma.user.findMany({

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { FaTimes } from 'react-icons/fa';
 import { apiFetch, ApiError } from '@/lib/api';
 import { conflictMessage } from '@/lib/modeNav';
+import { clockLabel } from '@/lib/tripRun';
 import { needsOpenTripWarning, type GenderPreference } from '@/lib/riderRules';
 import OpenTripWarning from './OpenTripWarning';
 import RatingModal from './RatingModal';
@@ -57,6 +58,8 @@ export default function RequestToJoinModal({
   // 409 RATING_REQUIRED: the driver of the rider's last ride, to rate first.
   const [ratingDue, setRatingDue] = useState<{ matchId: string; rateeId: string; rateeName: string; occurrenceDate: string | null } | null>(null);
   const [rating, setRating] = useState(false);
+  // 409 REJOIN_COOLDOWN / 429 JOIN_COOLDOWN: when the rider can ask again.
+  const [pause, setPause] = useState<string | null>(null);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,6 +69,7 @@ export default function RequestToJoinModal({
   async function send() {
     setLoading(true);
     setError(null);
+    setPause(null);
     try {
       await apiFetch('/api/matches', {
         method: 'POST',
@@ -80,6 +84,13 @@ export default function RequestToJoinModal({
       const code = err instanceof ApiError ? err.code : undefined;
       if (err instanceof ApiError && code === 'SCHEDULE_CONFLICT') {
         setError(conflictMessage(String(err.body?.conflictDepartureTime)));
+      } else if (err instanceof ApiError && (code === 'REJOIN_COOLDOWN' || code === 'JOIN_COOLDOWN')) {
+        const at = clockLabel(String(err.body?.retryAt));
+        setPause(
+          code === 'REJOIN_COOLDOWN'
+            ? `You cancelled this ride recently. You can ask again at ${at}.`
+            : `You’ve cancelled several rides today, so new requests are paused until ${at}.`
+        );
       } else if (err instanceof ApiError && code === 'RATING_REQUIRED') {
         setRatingDue({
           matchId: String(err.body?.matchId),
@@ -127,6 +138,11 @@ export default function RequestToJoinModal({
               </div>
 
               {error && <p className="text-xs text-red-600">{error}</p>}
+              {pause && (
+                <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+                  {pause}
+                </p>
+              )}
 
               {ratingDue ? (
                 <div role="alert" className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
