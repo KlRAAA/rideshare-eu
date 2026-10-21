@@ -1,6 +1,7 @@
 const prisma = require('../../config/db');
 const { withNames, redactDataActions } = require('../../services/adminActionService');
-const { decryptField } = require('../../services/encryptionService');
+const { decryptField, decryptTripFields } = require('../../services/encryptionService');
+const { record } = require('../../services/adminActionService');
 const { tripRunsOnSearchDate } = require('../../services/psgaService');
 const { securityCounts, accountsWithFailedLogins } = require('../../services/securityEventStore');
 const { buildWatchlist } = require('../../services/watchlistService');
@@ -19,8 +20,9 @@ function phToday(now) {
   return { date, start, end: new Date(start.getTime() + DAY_MS) };
 }
 
-// Trips with an occurrence today (one-time trips dated today, recurring trips that run today).
-async function countRidesToday(now) {
+// Trips with an occurrence today (one-time trips dated today, recurring trips
+// that run today). `select` must include departureTime, recurrenceType and customDays.
+async function ridesToday(now, select = { departureTime: true, recurrenceType: true, customDays: true }) {
   const { date, start, end } = phToday(now);
   const trips = await prisma.trip.findMany({
     where: {
@@ -28,10 +30,17 @@ async function countRidesToday(now) {
       departureTime: { lt: end },
       OR: [{ recurrenceType: { not: 'ONE_TIME' } }, { departureTime: { gte: start } }],
     },
-    select: { departureTime: true, recurrenceType: true, customDays: true },
+    select,
+    orderBy: { departureTime: 'asc' },
   });
-  return trips.filter((t) => tripRunsOnSearchDate(t, date)).length;
+  return trips.filter((t) => tripRunsOnSearchDate(t, date));
 }
+const countRidesToday = async (now) => (await ridesToday(now)).length;
+
+// The same filters the overview counts with, so a tile and its list agree.
+const OPEN_TRIPS_WHERE = { status: { in: ['OPEN', 'FULL'] } };
+const signupsWhere = (now) => ({ createdAt: { gte: new Date(now.getTime() - DAY_MS) } });
+const activeBansWhere = (now) => ({ bannedUntil: { gt: now } });
 
 const AVERAGE_DAYS = 7;
 const HIGH_ALERT_CATEGORIES = ['HARASSMENT', 'SAFETY'];
@@ -101,18 +110,18 @@ async function overview(req, res) {
   const [users, admins, openTrips, completedTrips, pendingRequests, openReports, activeBans, recent] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { isAdmin: true } }),
-    prisma.trip.count({ where: { status: { in: ['OPEN', 'FULL'] } } }),
+    prisma.trip.count({ where: OPEN_TRIPS_WHERE }),
     prisma.trip.count({ where: { status: 'COMPLETED' } }),
     prisma.match.count({ where: { status: 'PENDING' } }),
     prisma.report.count({ where: { status: 'OPEN' } }),
-    prisma.user.count({ where: { bannedUntil: { gt: now } } }),
+    prisma.user.count({ where: activeBansWhere(now) }),
     prisma.adminAction.findMany({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: RECENT_ACTIONS }),
   ]);
   const [queueInfo, ridesToday, ridesAvg7d, newUsers24h, securityInfo, watchlist] = await Promise.all([
     queues(),
     countRidesToday(now),
     ridesAverage7d(now),
-    prisma.user.count({ where: { createdAt: { gte: new Date(now.getTime() - DAY_MS) } } }),
+    prisma.user.count({ where: signupsWhere(now) }),
     security(now),
     buildWatchlist(new Date(now.getTime() - WATCH_WINDOW_DAYS * DAY_MS)),
   ]);
@@ -130,6 +139,84 @@ async function overview(req, res) {
     errorsUrl: process.env.ADMIN_ERRORS_URL || null,
     recentActions: redactDataActions(await withNames(recent), req.user.isSuperAdmin),
   });
+}
+
+// GET /api/admin/overview/:kind — what's behind each "Platform today" tile.
+// Trips show the host and how many seats are taken; who the riders are is
+// shown only to the superadmin (superadmin spec: regular admins don't see
+// riders' trips), and that look is recorded in the audit log.
+const LIST_KINDS = ['rides-today', 'open-trips', 'signups', 'active-bans'];
+const LIST_LIMIT = 100;
+const TRIP_LIST_SELECT = {
+  id: true,
+  hostId: true,
+  originAddress: true,
+  destinationAddress: true,
+  departureTime: true,
+  recurrenceType: true,
+  customDays: true,
+  status: true,
+  filledSeats: true,
+  totalSeats: true,
+  host: { select: { fullName: true } },
+};
+
+async function tripRows(trips, withRiders) {
+  const riders = withRiders && trips.length
+    ? await prisma.match.findMany({
+        where: { tripId: { in: trips.map((t) => t.id) }, status: 'APPROVED' },
+        select: { tripId: true, passenger: { select: { id: true, fullName: true } } },
+      })
+    : [];
+  return trips.map((t) => {
+    const { originAddress, destinationAddress } = decryptTripFields(t);
+    return {
+      id: t.id,
+      hostId: t.hostId,
+      hostName: decryptField(t.host.fullName),
+      originAddress,
+      destinationAddress,
+      departureTime: t.departureTime,
+      recurrenceType: t.recurrenceType,
+      status: t.status,
+      filledSeats: t.filledSeats,
+      totalSeats: t.totalSeats,
+      ...(withRiders && {
+        riders: riders.filter((m) => m.tripId === t.id).map((m) => ({ id: m.passenger.id, fullName: decryptField(m.passenger.fullName) })),
+      }),
+    };
+  });
+}
+
+async function overviewList(req, res) {
+  const { kind } = req.params;
+  if (!LIST_KINDS.includes(kind)) return res.status(404).json({ error: 'NOT_FOUND' });
+  const now = new Date();
+  const superAdmin = req.user.isSuperAdmin === true;
+
+  if (kind === 'rides-today' || kind === 'open-trips') {
+    const trips =
+      kind === 'rides-today'
+        ? await ridesToday(now, TRIP_LIST_SELECT)
+        : await prisma.trip.findMany({ where: OPEN_TRIPS_WHERE, orderBy: { departureTime: 'asc' }, take: LIST_LIMIT, select: TRIP_LIST_SELECT });
+    const rows = await tripRows(trips.slice(0, LIST_LIMIT), superAdmin);
+    if (superAdmin && rows.some((r) => r.riders.length > 0)) {
+      await record(prisma, { actorId: req.user.id, action: 'DATA_RELEASE_VIEWED', details: { source: 'overview', list: kind } });
+    }
+    return res.json({ kind, total: trips.length, trips: rows, ridersShown: superAdmin });
+  }
+
+  const where = kind === 'signups' ? signupsWhere(now) : activeBansWhere(now);
+  const [total, users] = await Promise.all([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      where,
+      orderBy: kind === 'signups' ? { createdAt: 'desc' } : { bannedUntil: 'asc' },
+      take: LIST_LIMIT,
+      select: { id: true, fullName: true, role: true, createdAt: true, bannedUntil: true, banReason: true },
+    }),
+  ]);
+  res.json({ kind, total, users: users.map((u) => ({ ...u, fullName: decryptField(u.fullName) })) });
 }
 
 // GET /api/admin/nav-counts — the sidebar badges, read on every admin page, so
@@ -165,4 +252,4 @@ async function listActions(req, res) {
   res.json({ actions: redactDataActions(await withNames(page), req.user.isSuperAdmin), nextCursor: hasMore ? page[page.length - 1].id : null });
 }
 
-module.exports = { overview, listActions, watchlist, navCounts, averageRidesPerDay };
+module.exports = { overviewList, overview, listActions, watchlist, navCounts, averageRidesPerDay };

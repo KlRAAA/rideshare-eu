@@ -88,7 +88,10 @@ export function describeAction(a: AdminAction): string {
     const about = a.targetUserName ? ` about ${a.targetUserName}` : '';
     return `${actor} released records${about} for data request ${ref} (${a.details?.agency}, ${basisLabel(String(a.details?.legalBasis))})`;
   }
-  if (a.action === 'DATA_RELEASE_VIEWED') return `${actor} reopened the release for data request ${ref}`;
+  if (a.action === 'DATA_RELEASE_VIEWED') {
+    if (a.details?.source === 'overview') return `${actor} viewed the riders on ${a.details?.list === 'open-trips' ? 'open trips' : 'today’s trips'}`;
+    return `${actor} reopened the release for data request ${ref}`;
+  }
   if (a.action === 'DATA_PAPERWORK_RECEIVED') return `${actor} recorded the written request for data request ${ref}`;
   if (a.action === 'WARNING_ISSUED') {
     return `${actor} warned ${a.targetUserName ?? 'a deleted user'} (${warningReasonLabel(String(a.details?.reason))})`;

@@ -1,6 +1,6 @@
 const express = require('express');
 const { requireAdmin } = require('../middleware/requireAdmin');
-const { overview, listActions, watchlist, navCounts } = require('../controllers/admin/overviewController');
+const { overview, overviewList, listActions, watchlist, navCounts } = require('../controllers/admin/overviewController');
 const { setOfficial, history, doeImports, checkDoe, applyDoe, dismissDoe } = require('../controllers/fuelPriceController');
 const users = require('../controllers/admin/userController');
 const reports = require('../controllers/admin/reportController');
@@ -18,6 +18,7 @@ const router = express.Router();
 router.use(requireAdmin);
 
 router.get('/overview', overview);
+router.get('/overview/:kind', overviewList);
 router.get('/search', adminSearchLimiter(), search);
 router.get('/nav-counts', navCounts);
 router.get('/actions', listActions);

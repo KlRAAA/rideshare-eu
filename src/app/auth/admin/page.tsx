@@ -68,13 +68,14 @@ function ActionCard({
   );
 }
 
-function Stat({ label, value, note }: { label: string; value: number; note?: string }) {
+// A "Platform today" figure; tapping it opens the list behind it.
+function Stat({ label, value, note, href }: { label: string; value: number; note?: string; href: string }) {
   return (
-    <div className="rounded-xl bg-white border border-gray-200 p-3">
+    <Link href={href} className="block rounded-xl bg-white border border-gray-200 p-3 hover:shadow-sm hover:border-gray-300 transition-shadow">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
       <p className="text-2xl font-extrabold text-gray-900 tabular-nums">{value}</p>
-      {note && <p className="text-xs text-gray-500">{note}</p>}
-    </div>
+      <p className="text-xs text-gray-500">{note ?? 'View list'}</p>
+    </Link>
   );
 }
 
@@ -142,10 +143,10 @@ export default async function AdminOverviewPage() {
       <section>
         <p className={SECTION_LABEL}>Platform today</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Stat label="Rides today" value={today.ridesToday} note={`7-day average ${today.ridesAvg7d}`} />
-          <Stat label="Open trips" value={counts.openTrips} />
-          <Stat label="New sign-ups" value={today.newUsers24h} note="last 24 hours" />
-          <Stat label="Active bans" value={today.activeBans} />
+          <Stat label="Rides today" value={today.ridesToday} note={`7-day average ${today.ridesAvg7d}`} href="/auth/admin/today/rides-today" />
+          <Stat label="Open trips" value={counts.openTrips} href="/auth/admin/today/open-trips" />
+          <Stat label="New sign-ups" value={today.newUsers24h} note="last 24 hours" href="/auth/admin/today/signups" />
+          <Stat label="Active bans" value={today.activeBans} href="/auth/admin/today/active-bans" />
         </div>
       </section>
 

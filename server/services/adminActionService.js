@@ -26,7 +26,8 @@ async function withNames(actions) {
 // superadmin sees that; other admins see that a release happened (agency,
 // reference, legal basis) and nothing else (superadmin spec D11).
 const DATA_ACTIONS = new Set(['DATA_RELEASED', 'DATA_RELEASE_VIEWED', 'DATA_PAPERWORK_RECEIVED']);
-const VISIBLE_DATA_DETAILS = ['agency', 'referenceNumber', 'legalBasis'];
+// `source`/`list`: the superadmin looked at riders on the overview's trip lists.
+const VISIBLE_DATA_DETAILS = ['agency', 'referenceNumber', 'legalBasis', 'source', 'list'];
 
 function redactDataActions(actions, isSuperAdmin) {
   if (isSuperAdmin) return actions;
