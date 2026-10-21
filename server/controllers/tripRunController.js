@@ -1,5 +1,5 @@
 const prisma = require('../config/db');
-const { ongoingRun, startRun, endRun } = require('../services/tripRunService');
+const { ongoingRun, startRun, endRun, MAX_END_NOTE_LENGTH } = require('../services/tripRunService');
 const { confirmDay, skipDay, unskipDay } = require('../services/tripDayService');
 const { isNearPickup } = require('../services/arrivalRules');
 const { saveRiderLocation, riderLocationsFor } = require('../services/riderLocationService');
@@ -106,7 +106,9 @@ async function start(req, res) {
   return reply(res, await startRun(req.params.id, req.user.id));
 }
 async function end(req, res) {
-  return reply(res, await endRun(req.params.id, req.user.id, 'DRIVER'));
+  const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+  if (note.length > MAX_END_NOTE_LENGTH) return res.status(400).json({ error: 'NOTE_TOO_LONG', max: MAX_END_NOTE_LENGTH });
+  return reply(res, await endRun(req.params.id, req.user.id, 'DRIVER', new Date(), { note: note || undefined }));
 }
 // Called by the driver's phone near campus. Only an ongoing run can end this
 // way, so it can never complete a trip that hasn't started.

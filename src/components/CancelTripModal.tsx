@@ -20,6 +20,8 @@ export default function CancelTripModal({ tripId, userId, role, activePassengers
   const [error, setError] = useState<string | null>(null);
 
   const isHost = role === 'host';
+  // A rider always has a driver to tell; a host only when someone has joined.
+  const showReason = !isHost || activePassengers > 0;
 
   async function handleConfirm() {
     setLoading(true);
@@ -27,7 +29,7 @@ export default function CancelTripModal({ tripId, userId, role, activePassengers
     try {
       await apiFetch(`/api/trips/${tripId}/cancel`, {
         method: 'PATCH',
-        body: JSON.stringify({ reason: isHost && reason ? reason : undefined }),
+        body: JSON.stringify({ reason: showReason && reason.trim() ? reason.trim() : undefined }),
       });
       onCancelled();
     } catch (err) {
@@ -55,19 +57,21 @@ export default function CancelTripModal({ tripId, userId, role, activePassengers
               : 'No one has joined yet. The trip will be removed from search and can’t be joined.'}
         </p>
 
-        {isHost && activePassengers > 0 && (
+        {showReason && (
           <div className="mb-4">
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-              Reason (optional)
+            <label htmlFor="cancel-reason" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+              Why are you cancelling? (optional)
             </label>
             <input
+              id="cancel-reason"
               type="text"
+              maxLength={200}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g., Vehicle trouble, schedule conflict"
+              placeholder={isHost ? 'e.g., Vehicle trouble, schedule conflict' : 'e.g., Class cancelled, found another ride'}
               className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-300"
             />
-            <p className="text-[11px] text-gray-400 mt-1">Shared with passengers in their cancellation notice.</p>
+            <p className="text-[11px] text-gray-500 mt-1">{isHost ? 'Your riders see this in their cancellation notice.' : 'Your driver sees this.'}</p>
           </div>
         )}
 

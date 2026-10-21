@@ -39,7 +39,7 @@ export default function TripRunPanel({ tripId, isHost, currentRun, nextDeparture
   const [now, setNow] = useState(() => new Date());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { confirm, dialog } = useAppDialog();
+  const { ask, dialog } = useAppDialog();
   const ongoing = currentRun?.status === 'ONGOING';
 
   useEffect(() => {
@@ -47,11 +47,11 @@ export default function TripRunPanel({ tripId, isHost, currentRun, nextDeparture
     return () => clearInterval(id);
   }, []);
 
-  async function act(path: 'start' | 'end') {
+  async function act(path: 'start' | 'end', note?: string) {
     setBusy(true);
     setError(null);
     try {
-      await apiFetch(`/api/trips/${tripId}/${path}`, { method: 'POST', body: JSON.stringify({}) });
+      await apiFetch(`/api/trips/${tripId}/${path}`, { method: 'POST', body: JSON.stringify(note ? { note } : {}) });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Couldn’t reach the server. Try again in a moment.');
     } finally {
@@ -79,8 +79,16 @@ export default function TripRunPanel({ tripId, isHost, currentRun, nextDeparture
               type="button"
               disabled={busy}
               onClick={async () => {
-                const ok = await confirm({ title: 'End this trip?', message: 'Your riders will be asked to rate it.', confirmLabel: 'End trip', cancelLabel: 'Keep going' });
-                if (ok) act('end');
+                const note = await ask({
+                  title: 'End this trip?',
+                  message: 'Your riders will be asked to rate it.',
+                  label: 'Note to your riders (optional)',
+                  placeholder: 'e.g., Thanks! Same pickup tomorrow.',
+                  maxLength: 200,
+                  confirmLabel: 'End trip',
+                  cancelLabel: 'Keep going',
+                });
+                if (note !== null) act('end', note.trim() || undefined);
               }}
               className="rsu-btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-60"
             >

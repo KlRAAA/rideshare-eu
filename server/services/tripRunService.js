@@ -7,6 +7,8 @@ const { completeTrip, completeRecurringOccurrence } = require('./tripCompletionS
 const { clearTripRiderLocations } = require('./riderLocationService');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+// End Trip's optional note to the riders (sent as its own notification).
+const MAX_END_NOTE_LENGTH = 200;
 const NOT_STARTED = ['CONFIRMED', 'SKIPPED'];
 
 function ongoingRun(tripId) {
@@ -58,7 +60,7 @@ async function startRun(tripId, userId, now = new Date()) {
 // Ends the run once (a second caller finds nothing to update), then completes
 // the trip as before: the whole trip for one-time trips, that day for
 // recurring ones.
-async function finishRun(run, reason, now = new Date()) {
+async function finishRun(run, reason, now = new Date(), { note } = {}) {
   const trip = await prisma.trip.findUnique({ where: { id: run.tripId }, include: { matches: true } });
   // Sub-project H: who rode that day and their fuel share, for the driver's summary.
   const riders = trip ? trip.matches.filter((m) => m.status === 'APPROVED') : [];
@@ -72,15 +74,28 @@ async function finishRun(run, reason, now = new Date()) {
   if (count === 0 || !trip) return;
   if (trip.recurrenceType === 'ONE_TIME') await completeTrip(trip);
   else await completeRecurringOccurrence(trip, run.runDate);
+  if (note && riders.length > 0) {
+    const { destinationAddress } = decryptTripFields(trip);
+    await prisma.notification.createMany({
+      data: riders.map((m) => ({
+        userId: m.passengerId,
+        type: 'TRIP_UPDATED',
+        message: `Note from your driver about the trip to ${destinationAddress}: ${note}`,
+        relatedMatchId: m.id,
+        relatedTripId: trip.id,
+        occurrenceDate: run.runDate,
+      })),
+    });
+  }
 }
 
-async function endRun(tripId, userId, reason, now = new Date()) {
+async function endRun(tripId, userId, reason, now = new Date(), { note } = {}) {
   const trip = await prisma.trip.findUnique({ where: { id: tripId }, select: { hostId: true } });
   if (!trip) return { status: 404, body: { error: 'TRIP_NOT_FOUND' } };
   if (trip.hostId !== userId) return { status: 403, body: { error: 'NOT_AUTHORIZED' } };
   const run = await ongoingRun(tripId);
   if (!run) return { status: 409, body: { error: 'NO_ONGOING_RUN' } };
-  await finishRun(run, reason, now);
+  await finishRun(run, reason, now, { note });
   return { status: 200, body: { status: 'RUN_ENDED' } };
 }
 
@@ -92,4 +107,4 @@ async function endOverdueRuns(now = new Date()) {
   return overdue.length;
 }
 
-module.exports = { ongoingRun, startRun, finishRun, endRun, endOverdueRuns };
+module.exports = { ongoingRun, startRun, finishRun, endRun, endOverdueRuns, MAX_END_NOTE_LENGTH };

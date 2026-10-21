@@ -78,6 +78,19 @@ describe('cancelling while a run is ongoing', () => {
   });
 });
 
+describe('cancellation reasons', () => {
+  test('a rider’s reason reaches the driver; over 200 characters is refused', async () => {
+    if (guard()) return;
+    const { host, rider, trip } = await seedTrip({ departureTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) });
+    const tooLong = await req('PATCH', `/api/trips/${trip.id}/cancel`, rider.id, { reason: 'x'.repeat(201) });
+    expect(tooLong.status).toBe(400);
+    expect((await tooLong.json()).error).toBe('REASON_TOO_LONG');
+    expect((await req('PATCH', `/api/trips/${trip.id}/cancel`, rider.id, { reason: 'Class cancelled' })).status).toBe(200);
+    const told = await prisma.notification.findFirst({ where: { userId: host.id, type: 'CANCELLATION', relatedTripId: trip.id } });
+    expect(told.message).toMatch(/Reason: Class cancelled$/);
+  });
+});
+
 describe('ending a run', () => {
   test('End Trip completes a one-time trip and its approved rider', async () => {
     if (guard()) return;
@@ -100,6 +113,27 @@ describe('ending a run', () => {
     // Sub-project H: the day keeps who rode and their fuel share (25 per seat in the fixture).
     const run = await prisma.tripRun.findFirst({ where: { tripId: trip.id } });
     expect(run).toMatchObject({ riderCount: 1, fuelShareTotal: 25 });
+  });
+
+  test('the driver’s optional note on End Trip reaches each rider; an over-long note is refused', async () => {
+    if (guard()) return;
+    const { host, rider, trip } = await seedTrip();
+    await req('POST', `/api/trips/${trip.id}/start`, host.id, {});
+    const tooLong = await req('POST', `/api/trips/${trip.id}/end`, host.id, { note: 'x'.repeat(201) });
+    expect(tooLong.status).toBe(400);
+    expect((await tooLong.json()).error).toBe('NOTE_TOO_LONG');
+    expect((await req('POST', `/api/trips/${trip.id}/end`, host.id, { note: '  Same pickup tomorrow.  ' })).status).toBe(200);
+    const notes = await prisma.notification.findMany({ where: { userId: rider.id, type: 'TRIP_UPDATED', relatedTripId: trip.id } });
+    expect(notes).toHaveLength(1);
+    expect(notes[0].message).toMatch(/Same pickup tomorrow\.$/);
+  });
+
+  test('End Trip without a note sends no note', async () => {
+    if (guard()) return;
+    const { host, rider, trip } = await seedTrip();
+    await req('POST', `/api/trips/${trip.id}/start`, host.id, {});
+    expect((await req('POST', `/api/trips/${trip.id}/end`, host.id, {})).status).toBe(200);
+    expect(await prisma.notification.count({ where: { userId: rider.id, type: 'TRIP_UPDATED', relatedTripId: trip.id } })).toBe(0);
   });
 
   test('arriving near campus before the trip started does nothing (early-completion bug)', async () => {

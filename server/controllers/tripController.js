@@ -1,6 +1,6 @@
 const prisma = require('../config/db');
 const { inLuzon } = require('../config/serviceArea');
-const { ongoingRun, finishRun } = require('../services/tripRunService');
+const { ongoingRun, finishRun, MAX_END_NOTE_LENGTH } = require('../services/tripRunService');
 const { conflictWithRides, conflictWithHosted, conflictBody } = require('../services/scheduleConflicts');
 const { nextDeparture, plannedArrival } = require('../services/tripRunRules');
 const { phDateOnly } = require('../services/recurrenceMath');
@@ -389,9 +389,11 @@ async function markCompleted(req, res) {
 
   // A trip is completed by ending its run, never on its own: a trip nobody
   // started would hand riders rating prompts for a ride that never happened.
+  const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+  if (note.length > MAX_END_NOTE_LENGTH) return res.status(400).json({ error: 'NOTE_TOO_LONG', max: MAX_END_NOTE_LENGTH });
   const run = await ongoingRun(id);
   if (!run) return res.status(409).json({ error: 'NO_ONGOING_RUN' });
-  await finishRun(run, 'DRIVER');
+  await finishRun(run, 'DRIVER', new Date(), { note: note || undefined });
   res.json({ trip: await prisma.trip.findUnique({ where: { id } }) });
 }
 
@@ -437,14 +439,20 @@ async function suggestAddress(req, res) {
   res.json({ suggestions: await suggestAddresses(q) });
 }
 
+const MAX_CANCEL_REASON_LENGTH = 200;
+
 // Role-aware cancellation: role is resolved from the real DB relationship
 // (hostId match, or an active Match row), never from a client-asserted role
 // field. Host cancels the whole trip; a passenger only withdraws their own
 // match. See Task 12 in the plan doc for the full rationale.
 async function cancelTrip(req, res) {
   const { id } = req.params;
-  const { reason } = req.body;
   const userId = req.user.id;
+  // Optional, from either side; the other side reads it in their notification.
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (reason.length > MAX_CANCEL_REASON_LENGTH) {
+    return res.status(400).json({ error: 'REASON_TOO_LONG', max: MAX_CANCEL_REASON_LENGTH });
+  }
 
   const tripRaw = await prisma.trip.findUnique({
     where: { id },
@@ -459,7 +467,7 @@ async function cancelTrip(req, res) {
 
   if (userId === trip.hostId) {
     // Host cancels: whole trip + every active match, notify every affected passenger.
-    const affectedMatches = await prisma.$transaction((tx) => cancelWholeTrip(tx, trip, { reason }));
+    const affectedMatches = await prisma.$transaction((tx) => cancelWholeTrip(tx, trip, { reason: reason || undefined }));
     return res.json({ status: 'TRIP_CANCELLED', affectedMatches });
   }
 
@@ -475,7 +483,7 @@ async function cancelTrip(req, res) {
       data: {
         userId: trip.hostId,
         type: 'CANCELLATION',
-        message: `${passenger.fullName} cancelled their spot on your trip to ${trip.destinationAddress}.`,
+        message: `${passenger.fullName} cancelled their spot on your trip to ${trip.destinationAddress}.${reason ? ` Reason: ${reason}` : ''}`,
         relatedMatchId: myMatch.id,
         relatedTripId: trip.id,
       },
