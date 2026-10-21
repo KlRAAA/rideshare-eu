@@ -459,7 +459,8 @@ plan `docs/superpowers/plans/2026-10-08-trip-lifecycle.md`.
   complete an unstarted trip any more (it used to, via `/complete`). The 5-min
   cron runs `endOverdueRuns` (`AUTO`, 60 min after `plannedArrivalAt`).
   (`applyLazyCompletion` is gone since D: see below.)
-- Host and passenger cancel → 409 `TRIP_IN_PROGRESS` while a run is ongoing.
+- Host cancel → 409 `TRIP_IN_PROGRESS` while a run is ongoing; a rider may still
+  cancel until the driver taps Picked up (pre-defense fixes, below).
 - Location lives on the run: `POST /location { lat, lng, etaSeconds? }` needs an
   ongoing run; `GET` returns `{ location, etaAt }`, location only while ongoing
   and under 90 s old, to the host and APPROVED riders. `Trip.lastKnown*` and
@@ -485,10 +486,12 @@ plan `docs/superpowers/plans/2026-10-09-driver-passenger-modes.md`.
 - Overlap rule (`services/scheduleRules.js`, pure; DB side in
   `services/scheduleConflicts.js`): two trips clash when they share a PH day
   (one-time dates, `recurrenceRunsOnDay`, or shared weekdays) and their spans
-  (departure time of day + `durationSeconds`, 60 min when unknown) intersect;
-  back-to-back is fine. 409 `SCHEDULE_CONFLICT` (`conflictTripId`,
-  `conflictDepartureTime`) on join (vs trips you host), post and schedule edits
-  (vs rides you have PENDING/APPROVED), and approve (vs the rider's hosted trips).
+  (departure time of day + `durationSeconds`, 60 min when unknown) come closer
+  than `TRIP_BUFFER_MIN` (10): a 20-minute trip at 7:00 keeps 6:50–7:30 free;
+  back-to-back clashes. 409 `SCHEDULE_CONFLICT` (`conflictTripId`,
+  `conflictDepartureTime`) on join (vs trips you host and rides you're APPROVED
+  on), post and schedule edits (vs rides you have PENDING/APPROVED), and approve
+  (vs the rider's hosted trips).
 - `GET /api/alerts?mode=driver|passenger`: notifications about trips you host
   are Driver mode, about other trips Passenger mode, ones without a trip show in
   both; adds `otherModeUnread`. Without `mode` it's unchanged.
@@ -952,3 +955,58 @@ the app's timings, steps up the number of users; results in `loadtest/results/`)
   requests in progress, new ones get 503 `SERVER_BUSY` with `Retry-After: 5`
   at once (never `/api/health`). Installed right after `requireOriginSecret`.
   Without it the API collapsed at 600 users (backlog, timeouts, 2.6 GB).
+
+## Pre-defense fixes (Oct 2026)
+
+Plan: `docs/superpowers/plans/2026-10-21-pre-defense-fixes.md` (Phase 4 waits
+for after UAT: it needs schema changes).
+
+- **Fields that need fixing:** `flagField(id, message)` (`src/lib/fieldError.ts`)
+  shows the same red box, short flash (off under reduced motion), scroll to the
+  middle and hint under the field that `InvalidFieldHint` shows for the
+  browser's required check. Use it for custom pickers (`DatePicker`,
+  `TimePicker` now take an `id`, `Select`) and server errors with a `field`.
+  `vehicleFieldProblem` names the car field. Post a Trip, license, My cars and
+  Find a Ride use it.
+- **Colors:** one meaning each (`.rsu-tone-*`, `Badge` tone `danger`): green
+  confirmed/open, amber waiting, red cancelled/declined/banned, blue happening
+  now, grey finished/neutral, maroon the app's own actions. Alerts color their
+  icon by type (`APPROVAL` by its wording: declined or full is red).
+- **Confirmations:** Approve/Decline a rider, Picked up, report decisions,
+  license approve and spot-check, ending an announcement, data-request
+  paperwork, closing a support request and turning off phone notifications ask
+  first (`useAppDialog`).
+- **Cancel reasons and End Trip note:** `PATCH /api/trips/:id/cancel { reason }`
+  from either side (≤200, 400 `REASON_TOO_LONG`); a rider's reason is added to
+  the driver's `CANCELLATION`. `POST /end` and `/complete` take `{ note }`
+  (≤200, 400 `NOTE_TOO_LONG`), sent to that day's riders as `TRIP_UPDATED`.
+- **Cancel until pickup:** while a run is ONGOING a rider can cancel until
+  picked up (`isPickedUp`); then 409 `TRIP_IN_PROGRESS`. Cancelling erases the
+  rider's location. `GET /api/trips/:id` adds `myPickedUp`.
+- **Rate before the next ride** (`services/ratingDueService.js`, from
+  RATING_PROMPTs and `Rating` rows, no schema): join → 409 `RATING_REQUIRED`
+  `{ tripId, matchId, rateeId, rateeName, occurrenceDate }` until the rider rated
+  the driver of their latest prompted ride; post → 409 `RATING_REQUIRED`
+  `{ tripId, riders: [...] }` until the driver rated that ride's riders, for 24 h
+  after the prompt. The Join dialog opens the rating and resends; the trip page
+  opens the rating dialog for a rider with an unrated finished ride.
+- **Join-then-cancel loops** (`services/joinCooldownRules.js`,
+  `joinCooldownService.js`): a rider's cancel time is the driver's
+  `CANCELLATION` notification about that request (Match has no `cancelledAt`).
+  Same trip again within 2 h → 409 `REJOIN_COOLDOWN`; 3 cancels in 24 h → 429
+  `JOIN_COOLDOWN` for an hour after the latest (`retryAt` on both). The watch
+  list flags 3 within 24 h. Trips the driver or an admin cancelled don't count.
+- **Admin console:** its own top bar (`AdminBar`: search, Back to app, Log out;
+  no ride tabs or bottom bar; `NotificationFeed` shows no pop-ups under
+  `/auth/admin`). `GET /api/admin/search?q=` (2+ letters, 30/min per account):
+  users, open trips only, reports, support requests, pending licenses, 5 each.
+  "Platform today" tiles open `/auth/admin/today/<kind>`
+  (`GET /api/admin/overview/:kind`: `rides-today`, `open-trips`, `signups`,
+  `active-bans`), from the same queries as the counts. Riders' names only for
+  the superadmin, logged as `DATA_RELEASE_VIEWED` with `details.source:
+  'overview'`.
+- **Profile:** Log out sits next to the name. `/about` (public) explains the
+  fuel share with a worked example, matching and the trip rules.
+- Postman: folders 8 and 18 rate both ways after each driven trip; folder 12's
+  report now comes from a rated rider, so it suspends the host (first strike)
+  and an admin lifts it.
