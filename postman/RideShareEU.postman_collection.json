@@ -1750,6 +1750,106 @@
               }
             },
             {
+              "name": "The host must rate the rider before posting the next trip",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('rateDepartureTime', new Date(Date.now() + 10 * 60 * 1000).toISOString());"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 409', () => pm.response.to.have.status(409));",
+                      "const json = pm.response.json();",
+                      "pm.test('error is RATING_REQUIRED, naming the rider', () => {",
+                      "  pm.expect(json.error).to.eql('RATING_REQUIRED');",
+                      "  pm.expect(json.riders.map((r) => r.rateeId)).to.include(pm.collectionVariables.get('passengerId'));",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/trips",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"originAddress\": \"Sariaya, Quezon\",\n  \"originLat\": 13.9629837,\n  \"originLng\": 121.5243402,\n  \"destinationAddress\": \"Manuel S. Enverga University Foundation, Lucena City\",\n  \"destinationLat\": 13.9490188,\n  \"destinationLng\": 121.6202904,\n  \"departureTime\": \"{{rateDepartureTime}}\",\n  \"recurrenceType\": \"WEEKDAYS\",\n  \"customDays\": [],\n  \"totalSeats\": 3,\n  \"driverNotes\": \"Leaving in a few minutes.\",\n  \"genderPreference\": \"ANY\",\n  \"flexibleDeparture\": true,\n  \"flexWindowMinutes\": 15,\n  \"familiarRidersOnly\": false,\n  \"fuelPricePerLiter\": {{tripFuelPrice}},\n  \"routeWaypoints\": [\n    { \"lat\": 13.9629837, \"lng\": 121.5243402 },\n    { \"lat\": 13.9566, \"lng\": 121.5720 },\n    { \"lat\": 13.9490188, \"lng\": 121.6202904 }\n  ],\n  \"distanceMeters\": 12500,\n  \"durationSeconds\": 1200\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Host rates the passenger",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/matches/{{rateMatchId}}/ratings",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rateeId\": \"{{passengerId}}\",\n  \"score\": 5\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
               "name": "Host posts a weekday trip",
               "event": [
                 {
@@ -2513,14 +2613,16 @@
               }
             },
             {
-              "name": "Host is not banned by an unqualified reporter",
+              "name": "A rated rider’s report suspends the host for 24 hours (first strike)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                      "// The passenger was rated in folder 8 (rating is required before the next trip), so their report qualifies.",
+                      "pm.test('status is 403', () => pm.response.to.have.status(403));",
+                      "pm.test('error is ACCOUNT_SUSPENDED', () => pm.expect(pm.response.json().error).to.eql('ACCOUNT_SUSPENDED'));"
                     ]
                   }
                 }
@@ -2538,6 +2640,49 @@
                       "type": "string"
                     }
                   ]
+                }
+              }
+            },
+            {
+              "name": "Admin lifts the host’s strike (clean-up for the next folders)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/admin/users/{{hostId}}/unban",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{adminToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"note\": \"Postman: lift the report strike\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 }
               }
             }
@@ -5464,6 +5609,92 @@
                       "type": "string"
                     }
                   ]
+                }
+              }
+            },
+            {
+              "name": "Passenger rates the host (needed before the next request)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/matches/{{runMatchId}}/ratings",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{passengerToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rateeId\": \"{{hostId}}\",\n  \"score\": 5\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Host rates the passenger (needed before the next trip)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 201', () => pm.response.to.have.status(201));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/matches/{{runMatchId}}/ratings",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{hostToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rateeId\": \"{{passengerId}}\",\n  \"score\": 5\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 }
               }
             }
