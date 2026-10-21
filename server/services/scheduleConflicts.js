@@ -10,9 +10,12 @@ async function conflictWithHosted(userId, candidate, db) {
   return findConflict(candidate, trips);
 }
 
-async function conflictWithRides(userId, candidate, db) {
+// statuses: which of the user's ride requests count. Posting a trip counts
+// pending ones too; joining counts only confirmed rides, since a rider may ask
+// two or three drivers for the same time (approving one withdraws the others).
+async function conflictWithRides(userId, candidate, db, statuses = ['PENDING', 'APPROVED']) {
   const matches = await db.match.findMany({
-    where: { passengerId: userId, status: { in: ['PENDING', 'APPROVED'] }, trip: { status: { in: ACTIVE } } },
+    where: { passengerId: userId, status: { in: statuses }, trip: { status: { in: ACTIVE } } },
     select: { trip: { select: FIELDS } },
   });
   return findConflict(candidate, matches.map((m) => m.trip));

@@ -82,6 +82,33 @@ describe('joining', () => {
   });
 });
 
+describe('joining while already on a ride', () => {
+  test('a rider with a confirmed ride cannot ask for another at that time, but can ask for several pending ones', async () => {
+    if (guard()) return;
+    const { trip: confirmed } = await driverWithTrip(7);
+    const { trip: clashing } = await driverWithTrip(7, 25); // 5 minutes after the first ends
+    const { trip: otherPending } = await driverWithTrip(7, 5);
+    const { trip: later } = await driverWithTrip(8, 10); // 10 minutes after the first ends
+    const rider = await makeUser(bag, { fullName: 'Booked Rider' });
+    await makeMatch(bag, confirmed.id, rider.id, { status: 'APPROVED' });
+
+    const res = await req('POST', '/api/matches', rider.id, { tripId: clashing.id });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: 'SCHEDULE_CONFLICT', conflictTripId: confirmed.id });
+
+    const ok = await req('POST', '/api/matches', rider.id, { tripId: later.id });
+    expect(ok.status).toBe(201);
+    bag.matchIds.push((await ok.json()).match.id);
+
+    // Pending requests don't block each other: a rider may ask two drivers.
+    const second = await makeUser(bag, { fullName: 'Asking Rider' });
+    await makeMatch(bag, clashing.id, second.id, { status: 'PENDING' });
+    const asked = await req('POST', '/api/matches', second.id, { tripId: otherPending.id });
+    expect(asked.status).toBe(201);
+    bag.matchIds.push((await asked.json()).match.id);
+  });
+});
+
 describe('posting and editing', () => {
   test('a rider cannot post a trip that overlaps a ride they asked to join', async () => {
     if (guard()) return;

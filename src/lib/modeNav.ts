@@ -26,5 +26,5 @@ export const otherMode = (mode: AppMode): AppMode => (mode === 'DRIVER' ? 'PASSE
 export const modeLabel = (mode: AppMode) => (mode === 'DRIVER' ? 'Driver' : 'Passenger');
 
 export function conflictMessage(departure: string): string {
-  return `You already have a trip at ${clockLabel(departure)} that overlaps this one. Pick a different time or ride.`;
+  return `You already have a trip at ${clockLabel(departure)} that day, too close to this one. Leave at least 10 minutes between trips, or pick another ride.`;
 }

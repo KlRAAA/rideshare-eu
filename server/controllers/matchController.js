@@ -1,6 +1,6 @@
 const prisma = require('../config/db');
 const { setSharing, setPickedUp } = require('../services/riderLocationService');
-const { conflictWithHosted, conflictBody } = require('../services/scheduleConflicts');
+const { conflictWithHosted, conflictWithRides, conflictBody } = require('../services/scheduleConflicts');
 const { lockRider, sameTimeRequests, withdrawSameTime } = require('../services/rideOverlapService');
 const { runPSGA, runShowAllFallback, computeRouteOverlapDetail, tripRunsOnSearchDate } = require('../services/psgaService');
 const { settleTrips, phDay } = require('../services/tripDayService');
@@ -254,8 +254,9 @@ async function create(req, res) {
   const blocked = joinBlockReason(trip, rider);
   if (blocked) return res.status(403).json({ error: blocked });
 
-  // Nobody rides while driving their own trip at the same time.
-  const clash = await conflictWithHosted(passengerId, trip, prisma);
+  // Nobody rides while driving their own trip at the same time, or asks for a
+  // second ride at a time they already have a confirmed one.
+  const clash = (await conflictWithHosted(passengerId, trip, prisma)) ?? (await conflictWithRides(passengerId, trip, prisma, ['APPROVED']));
   if (clash) return res.status(409).json(conflictBody(clash));
 
   const matchRaw = await prisma.match.create({

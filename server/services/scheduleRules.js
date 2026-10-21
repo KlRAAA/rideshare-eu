@@ -1,11 +1,14 @@
 // When two trips would need the same person at the same time (sub-project C):
-// they share a Philippine day and their time spans intersect. A span is the
-// departure's time of day plus the route time (an hour when unknown).
+// they share a Philippine day and their time spans come closer than
+// TRIP_BUFFER_MIN. A span is the departure's time of day plus the route time
+// (an hour when unknown), so a 20-minute trip at 7:00 keeps 6:50–7:30 free.
+// The buffer gives the person time to get from one trip to the next.
 const { recurrenceRunsOnDay, phDateOnly } = require('./recurrenceMath');
 
 const PH_OFFSET_MIN = 8 * 60;
 const DAY_MIN = 24 * 60;
 const UNKNOWN_DURATION_S = 3600;
+const TRIP_BUFFER_MIN = 10;
 const WEEKDAYS = { DAILY: [0, 1, 2, 3, 4, 5, 6], WEEKDAYS: [1, 2, 3, 4, 5] };
 
 function timeSpan(trip) {
@@ -30,10 +33,13 @@ function sharesADay(a, b) {
 }
 
 // Spans can run past midnight; compare them on the same 24-hour clock.
+// Less than TRIP_BUFFER_MIN between the end of one and the start of the other
+// counts as a clash; exactly the buffer is fine.
 function spansIntersect(a, b) {
   const x = timeSpan(a);
   const y = timeSpan(b);
-  return [0, DAY_MIN, -DAY_MIN].some((shift) => x.start < y.end + shift && y.start + shift < x.end);
+  const B = TRIP_BUFFER_MIN;
+  return [0, DAY_MIN, -DAY_MIN].some((shift) => x.start < y.end + shift + B && y.start + shift < x.end + B);
 }
 
 function overlaps(a, b) {
@@ -44,4 +50,4 @@ function findConflict(candidate, trips) {
   return trips.find((t) => t.id !== candidate.id && overlaps(candidate, t)) ?? null;
 }
 
-module.exports = { timeSpan, sharesADay, overlaps, findConflict };
+module.exports = { timeSpan, sharesADay, overlaps, findConflict, TRIP_BUFFER_MIN };
