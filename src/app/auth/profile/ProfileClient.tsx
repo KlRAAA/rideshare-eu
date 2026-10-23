@@ -3,7 +3,8 @@
 import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FaCamera, FaCheckCircle, FaChevronRight, FaMoon, FaSpinner, FaSun } from 'react-icons/fa';
+import { FaCamera, FaCheckCircle, FaChevronRight, FaSpinner } from 'react-icons/fa';
+import { LuMoon, LuSun } from 'react-icons/lu';
 import { useTheme } from '@/components/ThemeToggle';
 import { applyTheme, type Theme } from '@/lib/theme';
 import Select from '@/components/Select';
@@ -40,13 +41,13 @@ const ROW = 'px-4 py-3';
 const LINK_ROW = 'flex items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-gray-900 hover:bg-gray-50';
 const SELECT = 'rounded-xl border border-gray-300 bg-gray-50 py-2 pl-3 pr-9 text-sm disabled:text-gray-500';
 
-const THEMES: { value: Theme; label: string; icon: typeof FaSun }[] = [
-  { value: 'light', label: 'Light', icon: FaSun },
-  { value: 'dark', label: 'Dark', icon: FaMoon },
+const THEMES: { value: Theme; label: string; icon: typeof LuSun }[] = [
+  { value: 'light', label: 'Light', icon: LuSun },
+  { value: 'dark', label: 'Dark', icon: LuMoon },
 ];
 
 // The same choice as the header's sun/moon button, for anyone who hasn't
-// spotted it (tester feedback). Saved on this device.
+// spotted it (tester feedback). A small icon switch; saved on this device.
 function ThemeChoice() {
   const theme = useTheme();
   return (
@@ -54,7 +55,7 @@ function ThemeChoice() {
       <span id="theme-label" className="text-sm text-gray-800">
         Theme
       </span>
-      <div role="radiogroup" aria-labelledby="theme-label" className="grid grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-100 p-1">
+      <div role="radiogroup" aria-labelledby="theme-label" className="flex gap-1 rounded-full bg-gray-100 p-1">
         {THEMES.map(({ value, label, icon: Icon }) => {
           const on = value === theme;
           return (
@@ -63,13 +64,14 @@ function ThemeChoice() {
               type="button"
               role="radio"
               aria-checked={on}
+              aria-label={label}
+              title={label}
               onClick={() => applyTheme(value)}
-              className={`flex min-h-9 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--rsu-color-primary)] ${
-                on ? 'bg-[color:var(--rsu-color-primary)] text-white shadow-sm' : 'text-gray-600 hover:bg-white'
+              className={`flex h-9 w-11 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--rsu-color-primary)] ${
+                on ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'
               }`}
             >
-              <Icon className="h-3.5 w-3.5" aria-hidden />
-              {label}
+              <Icon className="h-[18px] w-[18px]" aria-hidden />
             </button>
           );
         })}
