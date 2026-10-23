@@ -3,7 +3,9 @@
 import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FaCamera, FaCheckCircle, FaChevronRight, FaSpinner } from 'react-icons/fa';
+import { FaCamera, FaCheckCircle, FaChevronRight, FaMoon, FaSpinner, FaSun } from 'react-icons/fa';
+import { useTheme } from '@/components/ThemeToggle';
+import { applyTheme, type Theme } from '@/lib/theme';
 import Select from '@/components/Select';
 import Avatar from '@/components/Avatar';
 import Tip from '@/components/Tip';
@@ -37,6 +39,44 @@ const ROWS = 'divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-whi
 const ROW = 'px-4 py-3';
 const LINK_ROW = 'flex items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-gray-900 hover:bg-gray-50';
 const SELECT = 'rounded-xl border border-gray-300 bg-gray-50 py-2 pl-3 pr-9 text-sm disabled:text-gray-500';
+
+const THEMES: { value: Theme; label: string; icon: typeof FaSun }[] = [
+  { value: 'light', label: 'Light', icon: FaSun },
+  { value: 'dark', label: 'Dark', icon: FaMoon },
+];
+
+// The same choice as the header's sun/moon button, for anyone who hasn't
+// spotted it (tester feedback). Saved on this device.
+function ThemeChoice() {
+  const theme = useTheme();
+  return (
+    <div className={`${ROW} flex items-center justify-between gap-3`}>
+      <span id="theme-label" className="text-sm text-gray-800">
+        Theme
+      </span>
+      <div role="radiogroup" aria-labelledby="theme-label" className="grid grid-cols-2 gap-1 rounded-full border border-gray-200 bg-gray-100 p-1">
+        {THEMES.map(({ value, label, icon: Icon }) => {
+          const on = value === theme;
+          return (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => applyTheme(value)}
+              className={`flex min-h-9 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--rsu-color-primary)] ${
+                on ? 'bg-[color:var(--rsu-color-primary)] text-white shadow-sm' : 'text-gray-600 hover:bg-white'
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" aria-hidden />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -242,6 +282,12 @@ export default function ProfileClient({ user, initialPreference, license, notifi
       )}
 
       <Section title="Notifications">{notifications}</Section>
+
+      <Section title="Appearance">
+        <div className={ROWS}>
+          <ThemeChoice />
+        </div>
+      </Section>
 
       <Section title="Account">
         <div className={ROWS}>

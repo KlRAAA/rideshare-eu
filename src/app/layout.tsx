@@ -39,8 +39,8 @@ export default async function RootLayout({
   // separate `await connection()` needed, headers() already does that.
   const nonce = (await headers()).get('x-nonce');
 
-  // Kept in one place and mirrored exactly by ThemeToggle.tsx's own
-  // getCurrentTheme() — same storage key, same fallback order.
+  // Kept in one place and mirrored exactly by src/lib/theme.ts's
+  // currentTheme() — same storage key, same fallback order.
   const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('rsu-theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
 
   return (

@@ -1005,7 +1005,9 @@ for after UAT: it needs schema changes).
   `active-bans`), from the same queries as the counts. Riders' names only for
   the superadmin, logged as `DATA_RELEASE_VIEWED` with `details.source:
   'overview'`.
-- **Profile:** Log out sits next to the name. `/about` (public) explains the
+- **Profile:** Log out sits beside the Profile heading. Appearance → Theme
+  (Light | Dark) is the same choice as the header's sun/moon button
+  (`src/lib/theme.ts`, `THEME_EVENT` keeps both in step). `/about` (public) explains the
   fuel share with a worked example, matching and the trip rules.
 - Postman: folders 8 and 18 rate both ways after each driven trip; folder 12's
   report now comes from a rated rider, so it suspends the host (first strike)
