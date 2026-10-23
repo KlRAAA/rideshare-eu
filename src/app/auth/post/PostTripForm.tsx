@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaSpinner } from 'react-icons/fa';
-import RouteMap from '@/components/RouteMap';
+import RouteMap, { usePreloadRouteMap } from '@/components/RouteMap';
 import Listbox from '@/components/Listbox';
 import DatePicker from '@/components/DatePicker';
 import TimePicker from '@/components/TimePicker';
@@ -131,6 +131,7 @@ interface PostTripFormProps {
 
 export default function PostTripForm({ hostId, editTrip, canHostWomenPlus }: PostTripFormProps) {
   const router = useRouter();
+  usePreloadRouteMap();
   const isEdit = Boolean(editTrip);
 
   const [origin, setOrigin] = useState(editTrip?.originAddress ?? '');

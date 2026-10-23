@@ -45,6 +45,11 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Maps (Find a Ride, Post a Trip, trip pages) load their style and
+            tiles from Mapbox: open that connection early. */}
+        <link rel="preconnect" href="https://api.mapbox.com" crossOrigin="anonymous" />
+      </head>
       <body className="antialiased bg-gray-50 text-gray-900">
         {/* Sets data-theme on <html> synchronously, before Next hydrates or
             paints anything else — this is what prevents a flash of the

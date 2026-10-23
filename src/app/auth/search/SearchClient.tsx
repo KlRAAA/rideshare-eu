@@ -25,7 +25,7 @@ import { useCurrentLocationAddress } from '@/lib/useCurrentLocationAddress';
 import { useGeocodedAddress } from '@/lib/useGeocodedAddress';
 import AddressInput from '@/components/AddressInput';
 import { useMediaQuery } from '@/lib/useMediaQuery';
-import RouteMap from '@/components/RouteMap';
+import RouteMap, { usePreloadRouteMap } from '@/components/RouteMap';
 import type { LatLng } from '@/lib/directions';
 import { searchFlexWindow } from '@/lib/searchWindow';
 import RuleBadges from '@/components/RuleBadges';
@@ -155,6 +155,7 @@ interface SearchClientProps {
 }
 
 export default function SearchClient({ passengerId, initial, canUseWomenPlus, profilePreference, myRides }: SearchClientProps) {
+  usePreloadRouteMap();
   const router = useRouter();
 
   const [origin, setOrigin] = useState(initial.origin);
