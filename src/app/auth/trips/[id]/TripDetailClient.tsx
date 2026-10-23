@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FaFlag, FaBan, FaPen } from 'react-icons/fa';
@@ -46,6 +46,7 @@ interface MatchInfo {
   id: string;
   passengerId: string;
   status: string;
+  createdAt: string;
   message: string | null;
   fuelShareAmount: number | null;
   ratedByMe?: boolean;
@@ -116,13 +117,22 @@ export default function TripDetailClient({
     null
   );
   const [showCancelModal, setShowCancelModal] = useState(false);
+  // Shown the moment the cancel succeeds, while the page reloads in the
+  // background (tester feedback: cancelling felt laggy).
+  const [cancelledNow, setCancelledNow] = useState<'trip' | 'spot' | null>(null);
+  const [, startRefresh] = useTransition();
   const [stopping, setStopping] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
   const { confirm, dialog } = useAppDialog();
   const [reportTarget, setReportTarget] = useState<{ matchId: string; name: string } | null>(null);
 
   const isHost = trip.host.id === currentUserId;
-  const myMatch = trip.matches.find((m) => m.passengerId === currentUserId);
+  // A rider can have several requests on one trip (asked again after a decline
+  // or a cancel): use the live one, else the newest.
+  const myMatches = trip.matches.filter((m) => m.passengerId === currentUserId);
+  const myMatch =
+    myMatches.find((m) => m.status === 'PENDING' || m.status === 'APPROVED') ??
+    [...myMatches].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
   const myActiveMatch = myMatch && (myMatch.status === 'PENDING' || myMatch.status === 'APPROVED') ? myMatch : null;
   // The passenger can only rate the host off a match that actually completed —
   // not a declined/cancelled one they also have on this trip (a passenger can
@@ -167,7 +177,7 @@ export default function TripDetailClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when something becomes ratable
   }, [myCompletedMatch?.id, myRatableRecurringMatch?.id, askedToRate, isHost]);
 
-  const tripIsActive = trip.status === 'OPEN' || trip.status === 'FULL';
+  const tripIsActive = cancelledNow !== 'trip' && (trip.status === 'OPEN' || trip.status === 'FULL');
   // Nobody cancels a trip that's on the road (sub-project B; the server refuses too).
   // Group chat: host + every APPROVED passenger, only while the trip is
   // still active — a hard cutoff, so this simply stops rendering once the
@@ -190,7 +200,7 @@ export default function TripDetailClient({
   // The driver can't cancel once the trip is moving; a rider can until they're picked up.
   const canCancel = isHost
     ? tripIsActive && trip.currentRun?.status !== 'ONGOING'
-    : Boolean(myActiveMatch) && !(trip.currentRun?.status === 'ONGOING' && (trip.myPickedUp || pickedUp));
+    : !cancelledNow && Boolean(myActiveMatch) && !(trip.currentRun?.status === 'ONGOING' && (trip.myPickedUp || pickedUp));
   // An approved rider's own position while sharing: their map shows the car and themselves.
   const [selfPosition, setSelfPosition] = useState<{ lat: number; lng: number } | null>(null);
   const selfPin = useMemo(() => (selfPosition ? [{ ...selfPosition, label: 'You' }] : undefined), [selfPosition]);
@@ -536,6 +546,12 @@ export default function TripDetailClient({
 
         {canUseChat && <ChatCard tripId={trip.id} currentUserId={currentUserId} />}
 
+        {cancelledNow && (
+          <p role="status" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-600">
+            {cancelledNow === 'trip' ? 'Trip cancelled. Your riders have been told.' : 'You cancelled your spot. Your driver has been told.'}
+          </p>
+        )}
+
         {/* The trip's actions, together and quiet: one row, not a stack of full-width buttons. */}
         {((isHost && tripIsActive) || canCancel || (!isHost && myMatch)) && (
           <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -610,7 +626,8 @@ export default function TripDetailClient({
           onClose={() => setShowCancelModal(false)}
           onCancelled={() => {
             setShowCancelModal(false);
-            router.refresh();
+            setCancelledNow(isHost ? 'trip' : 'spot');
+            startRefresh(() => router.refresh());
           }}
         />
       )}
