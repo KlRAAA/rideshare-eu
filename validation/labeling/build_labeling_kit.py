@@ -5,6 +5,9 @@ dataset_500_pairs.json in its own shuffled order.
 
     python validation/labeling/build_labeling_kit.py
 
+With --top-picks, the workbooks hold only each method's #1 trip per query
+(about 260 pairs): enough for precision at rank 1, not for recall.
+
 Writes Evaluator_A.xlsx and Evaluator_B.xlsx next to this script. Refuses to
 overwrite a workbook that already exists, so a half-labeled sheet can't be
 wiped by re-running it; pass --force to rebuild blank ones on purpose.
@@ -23,7 +26,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from labeling_common import (
     ACCEPTABLE, COLUMNS, HERE, JUDGMENT_COL, NOTES_COL, NOT_ACCEPTABLE,
-    SHEET_NAME, evaluator_row, load_dataset,
+    SHEET_NAME, evaluator_row, load_label_set,
 )
 
 # Fixed seeds: anyone re-running this gets the same row orders.
@@ -141,7 +144,7 @@ def shuffled_rows(dataset, seed):
 
 def main(argv):
     force = "--force" in argv
-    dataset = load_dataset()
+    dataset = load_label_set(top_picks="--top-picks" in argv)
     for who, seed in EVALUATOR_SEEDS.items():
         path = os.path.join(HERE, f"Evaluator_{who}.xlsx")
         if os.path.exists(path) and not force:

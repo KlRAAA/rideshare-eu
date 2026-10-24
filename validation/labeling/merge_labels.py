@@ -2,7 +2,9 @@
 Combines the evaluators' workbooks into validation/ground_truth.json, the
 file score_against_ground_truth.py reads.
 
-    python validation/labeling/merge_labels.py
+    python validation/labeling/merge_labels.py [--top-picks]
+
+Pass --top-picks when the workbooks were built with --top-picks.
 
 Follows the manuscript's oracle: two evaluators label every pair
 independently; where they agree, that is the label; where they disagree, a
@@ -19,12 +21,14 @@ directly. It never overwrites a Tiebreaker.xlsx that already exists.
 
 import json
 import os
+import random
 import sys
 
 from build_labeling_kit import build_workbook
-from labeling_common import ACCEPTABLE, HERE, VALIDATION_DIR, evaluator_row, load_dataset, read_labels
+from labeling_common import ACCEPTABLE, HERE, VALIDATION_DIR, evaluator_row, load_dataset, load_label_set, read_labels
 
 GROUND_TRUTH_PATH = os.path.join(VALIDATION_DIR, "ground_truth.json")
+TIEBREAK_SEED = 20261003
 REPORT_PATH = os.path.join(HERE, "agreement_report.json")
 
 
@@ -118,6 +122,7 @@ def run(work_dir=HERE, ground_truth_path=GROUND_TRUTH_PATH, dataset=None):
     if disagreements:
         if not os.path.exists(tiebreaker_path):
             rows = [evaluator_row(r) for r in dataset if r["tripId"] in disagreements]
+            random.Random(TIEBREAK_SEED).shuffle(rows)  # same blind, fixed-order treatment as A and B
             build_workbook(rows, "C (tiebreaker)", tiebreaker_path)
             print(f"Wrote Tiebreaker.xlsx with the {len(rows)} disagreements. "
                   "Send it to the third evaluator, then run this script again.")
@@ -136,7 +141,7 @@ def run(work_dir=HERE, ground_truth_path=GROUND_TRUTH_PATH, dataset=None):
 
 if __name__ == "__main__":
     try:
-        run()
+        run(dataset=load_label_set(top_picks="--top-picks" in sys.argv))
     except FileNotFoundError as err:
         sys.exit(f"Missing workbook: {err.filename}")
     except LabelingIncomplete as err:

@@ -105,14 +105,33 @@ def evaluate(method_name):
     }
 
 
-results = {method: evaluate(method) for method in ["psga", "random", "routeOnly", "fifo"]}
-results_doc = {"labeled_pairs": len(rows) - len(missing), "total_pairs": len(rows), "methods": results}
+def evaluate_top_picks(method_name):
+    """Only each method's #1 pick is labeled (kit built with --top-picks): precision@1 is
+    the share of queries whose #1 pick is acceptable. Recall and rank need every pair labeled."""
+    picks = [rankings[qid][method_name][0] for qid in by_query if rankings[qid][method_name]]
+    unlabeled = [pid for pid in picks if pid not in ground_truth]
+    if unlabeled:
+        sys.exit(f"{method_name}: {len(unlabeled)} top picks have no label (e.g. {unlabeled[:5]}).")
+    hits = sum(ground_truth[pid] is True for pid in picks)
+    return {
+        "precision@1": round(hits / len(picks), 4),
+        "recall": None,
+        "mean_rank_of_first_hit": None,
+        "queries_evaluated": len(picks),
+        "top_picks_acceptable": hits,
+    }
+
+
+mode = "full" if not missing else "top_picks"
+score = evaluate if mode == "full" else evaluate_top_picks
+results = {method: score(method) for method in ["psga", "random", "routeOnly", "fifo"]}
+results_doc = {"mode": mode, "labeled_pairs": len(rows) - len(missing), "total_pairs": len(rows), "methods": results}
 with open(RESULTS_PATH, "w") as f:
     json.dump(results_doc, f, indent=2)
 
 print(f"{'method':<12} {'precision@1':<13} {'recall':<9} {'mean_rank':<11} {'n_queries'}")
 for method, m in results.items():
-    print(f"{method:<12} {m['precision@1']:<13} {m['recall']:<9} "
+    print(f"{method:<12} {m['precision@1']:<13} {str(m['recall']):<9}"
           f"{str(m['mean_rank_of_first_hit']):<11} {m['queries_evaluated']}")
 print()
 print(f"Saved to {os.path.relpath(RESULTS_PATH)}")

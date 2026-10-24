@@ -57,6 +57,22 @@ def load_dataset(path=DATASET_PATH):
         return json.load(f)
 
 
+def top_pick_ids(path=os.path.join(VALIDATION_DIR, "method_rankings.json")):
+    """Each method's #1 trip for every query: all that precision at rank 1 needs."""
+    with open(path, encoding="utf-8") as f:
+        rankings = json.load(f)
+    return {ranked[0] for methods in rankings.values() for ranked in methods.values() if ranked}
+
+
+def load_label_set(top_picks):
+    """The pairs to label: all 500, or only the methods' top picks (--top-picks)."""
+    dataset = load_dataset()
+    if not top_picks:
+        return dataset
+    ids = top_pick_ids()
+    return [r for r in dataset if r["tripId"] in ids]
+
+
 def haversine_km(a, b):
     lat1, lng1, lat2, lng2 = map(math.radians, (a[0], a[1], b[0], b[1]))
     h = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lng2 - lng1) / 2) ** 2

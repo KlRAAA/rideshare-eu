@@ -20,7 +20,7 @@ from openpyxl import load_workbook
 from build_labeling_kit import EVALUATOR_SEEDS, build_workbook, shuffled_rows
 from labeling_common import (
     ACCEPTABLE, HEADERS, JUDGMENT_COL, NOT_ACCEPTABLE, SHEET_NAME, VALIDATION_DIR,
-    clock, evaluator_row, load_dataset, normalize_label, read_labels,
+    clock, evaluator_row, load_dataset, load_label_set, normalize_label, read_labels, top_pick_ids,
 )
 import merge_labels
 
@@ -228,6 +228,42 @@ class ScorerTests(unittest.TestCase):
             self.assertEqual(results["labeled_pairs"], 500)
             self.assertEqual(results["methods"]["psga"]["precision@1"], 1.0)
             self.assertEqual(results["methods"]["psga"]["mean_rank_of_first_hit"], 1.0)
+
+    def test_top_picks_only_gives_precision_at_1_without_recall(self):
+        """With only each method's #1 pick labeled, precision@1 is hits over the 100 queries; recall isn't claimed."""
+        with tempfile.TemporaryDirectory() as tmp:
+            for name in ("score_against_ground_truth.py", "dataset_500_pairs.json", "method_rankings.json"):
+                shutil.copy(os.path.join(VALIDATION_DIR, name), tmp)
+            ids = top_pick_ids()
+            with open(os.path.join(tmp, "method_rankings.json")) as f:
+                rankings = json.load(f)
+            psga_picks = {ranked["psga"][0] for ranked in rankings.values() if ranked["psga"]}
+            truth = {pid: pid in psga_picks for pid in ids}
+            with open(os.path.join(tmp, "ground_truth.json"), "w") as f:
+                json.dump(truth, f)
+
+            subprocess.run([sys.executable, "score_against_ground_truth.py"], cwd=tmp, check=True, capture_output=True)
+
+            with open(os.path.join(tmp, "precision_results.json")) as f:
+                results = json.load(f)
+            self.assertEqual(results["mode"], "top_picks")
+            psga = results["methods"]["psga"]
+            self.assertEqual(psga["precision@1"], 1.0)
+            self.assertEqual(psga["queries_evaluated"], len(psga_picks))
+            self.assertIsNone(psga["recall"])
+            fifo_hits = sum(rankings[q]["fifo"][0] in psga_picks for q in rankings)
+            self.assertEqual(results["methods"]["fifo"]["precision@1"], round(fifo_hits / len(rankings), 4))
+
+
+class TopPickTests(unittest.TestCase):
+    def test_top_picks_are_every_methods_first_trip_and_nothing_else(self):
+        with open(os.path.join(VALIDATION_DIR, "method_rankings.json")) as f:
+            rankings = json.load(f)
+        expected = {ranked[0] for methods in rankings.values() for ranked in methods.values() if ranked}
+        ids = top_pick_ids()
+        self.assertEqual(ids, expected)
+        self.assertEqual({r["tripId"] for r in load_label_set(top_picks=True)}, ids)
+        self.assertEqual(len(load_label_set(top_picks=False)), 500)
 
 
 if __name__ == "__main__":
