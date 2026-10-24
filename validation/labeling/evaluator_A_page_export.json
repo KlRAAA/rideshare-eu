@@ -2,7 +2,7 @@
  "source": "PSGA Match Labeling page https://claude.ai/artifact/5sicvu2FhwxWntr71BeUMm",
  "evaluator": {
   "role": "A",
-  "name": "Prince",
+  "name": "Evaluator A",
   "title": "CCMS",
   "confirmedIndependent": true
  },

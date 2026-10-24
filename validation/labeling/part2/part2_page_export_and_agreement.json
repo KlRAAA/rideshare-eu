@@ -2,7 +2,7 @@
  "source": "part 2: Evaluator A in Excel (part2/Part2_Evaluator_A.xlsx), Evaluator B on the labeling page https://claude.ai/artifact/BnoHqtsUpaV2XMhZAwPR3j",
  "B": {
   "independent": true,
-  "name": "Nino",
+  "name": "Evaluator B",
   "title": "CCMS",
   "updatedAt": "2026-10-24T10:51:00.166Z"
  },
