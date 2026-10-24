@@ -168,6 +168,11 @@ Added at the research adviser's request. Spec and plan:
   (`merge_labels.py`), and `validation/score_against_ground_truth.py` then
   writes `precision_results.json`. Procedure: `docs/validation/human-labeling-protocol.md`.
 - Never generate or fill in judgments — they must come from the human evaluators.
+- Labeling is complete (Oct 24, 2026): `validation/ground_truth.json` holds all
+  500 pairs, labeled in two rounds (258 top picks, then the other 242 in
+  `validation/labeling/part2/`); PSGA precision@1 0.90, recall 0.93, mean
+  rank 1.08. Don't rerun `run_methods.py` or regenerate the dataset without
+  re-scoring: the labels belong to these exact pairs. Details in the protocol.
 - Regenerate `validation/method_rankings.json` (`python validation/run_methods.py`)
   whenever `validation/psga.py` or the dataset changes; it is deterministic.
 - `run_methods.py` shuffles each query's posting order (seeded): the generator

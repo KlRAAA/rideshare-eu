@@ -1,0 +1,35 @@
+{
+  "mode": "top_picks",
+  "labeled_pairs": 258,
+  "total_pairs": 500,
+  "methods": {
+    "psga": {
+      "precision@1": 0.89,
+      "recall": null,
+      "mean_rank_of_first_hit": null,
+      "queries_evaluated": 100,
+      "top_picks_acceptable": 89
+    },
+    "random": {
+      "precision@1": 0.44,
+      "recall": null,
+      "mean_rank_of_first_hit": null,
+      "queries_evaluated": 100,
+      "top_picks_acceptable": 44
+    },
+    "routeOnly": {
+      "precision@1": 0.42,
+      "recall": null,
+      "mean_rank_of_first_hit": null,
+      "queries_evaluated": 100,
+      "top_picks_acceptable": 42
+    },
+    "fifo": {
+      "precision@1": 0.3,
+      "recall": null,
+      "mean_rank_of_first_hit": null,
+      "queries_evaluated": 100,
+      "top_picks_acceptable": 30
+    }
+  }
+}
